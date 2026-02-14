@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nautikal Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        danger: '#ef4444',
+                        success: '#22c55e',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen" x-data="app()" x-init="init()">
+
+<!-- Mobile Header (visible on small screens) -->
+<header class="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg p-4 z-50">
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-primary">🎮 Nautikal Panel</h1>
+        <button @click="sidebarOpen = !sidebarOpen" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <svg x-show="!sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <svg x-show="sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <!-- Mobile Nav Links -->
+    <nav x-show="sidebarOpen" class="mt-4 space-y-2">
+        <a @click="page = 'home'; sidebarOpen = false"
+           :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            🏠 Home
+        </a>
+        <a @click="page = 'settings'; sidebarOpen = false"
+           :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            ⚙️ Settings
+        </a>
+        <p class="text-xs text-gray-400 pt-2">v1.0.0</p>
+    </nav>
+</header>
+
+<!-- Sidebar -->
+<aside class="hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg p-4 lg:flex flex-col">
+    <h1 class="text-xl font-bold text-primary mb-8">🎮 Nautikal Panel</h1>
+    <nav class="flex-1 space-y-2">
+        <a @click="page = 'home'"
+           :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            🏠 Home
+        </a>
+        <a @click="page = 'settings'"
+           :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            ⚙️ Settings
+        </a>
+    </nav>
+    <p class="text-xs text-gray-400">v1.0.0</p>
+</aside>
+
+<!-- Main Content -->
+<main class="lg:ml-64 lg:mt-0 mt-12 p-8">
+
+    <!-- Home Page -->
+    <div x-show="page === 'home'" x-cloak>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Game Servers</h2>
+            <button @click="showModal = true; editingServer = null; resetForm()"
+                    class="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition">
+                + Add Server
+            </button>
+        </div>
+
+        <!-- Server Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="server in servers" :key="server.id">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-800 dark:text-white" x-text="server.name"></h3>
+                            <p class="text-sm text-gray-500" x-text="server.game"></p>
+                        </div>
+                        <span :class="server.status === 'online' ? 'bg-success' : 'bg-gray-400'"
+                              class="w-3 h-3 rounded-full"></span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 font-mono mb-2" x-text="server.ip + ':' + server.port"></p>
+                    <p class="text-sm text-gray-500 mb-4">
+                        👥 <span x-text="server.players"></span> players
+                    </p>
+                    <div class="flex gap-2">
+                        <button @click="toggleStatus(server)"
+                                :class="server.status === 'online' ? 'bg-danger' : 'bg-success'"
+                                class="text-white text-sm px-3 py-1 rounded transition"
+                                x-text="server.status === 'online' ? 'Stop' : 'Start'">
+                        </button>
+                        <button @click="editServer(server)" class="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-1 rounded hover:opacity-80">
+                            Edit
+                        </button>
+                        <button @click="deleteServer(server.id)" class="bg-red-100 dark:bg-red-900 text-danger text-sm px-3 py-1 rounded hover:opacity-80">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="servers.length === 0" class="text-center py-12 text-gray-500">
+            <p class="text-4xl mb-2">🖥️</p>
+            <p>No servers yet. Click "Add Server" to get started!</p>
+        </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div x-show="page === 'settings'" x-cloak>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Settings</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 max-w-md space-y-4">
+            <label class="flex items-center justify-between">
+                <span class="text-gray-700 dark:text-gray-300">Dark Mode</span>
+                <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5">
+            </label>
+            <label class="flex items-center justify-between">
+                <span class="text-gray-700 dark:text-gray-300">Notifications</span>
+                <input type="checkbox" x-model="settings.notifications" class="w-5 h-5">
+            </label>
+            <label class="block">
+                <span class="text-gray-700 dark:text-gray-300">Refresh Interval (seconds)</span>
+                <input type="number" x-model="settings.refreshInterval" min="5" max="300"
+                       class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            </label>
+        </div>
+    </div>
+</main>
+
+<!-- Add/Edit Modal -->
+<div x-show="showModal" x-cloak
+     class="fixed inset-0 bg-black/50 flex items-center justify-center"
+     @click.self="showModal = false">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4"
+            x-text="editingServer ? 'Edit Server' : 'Add Server'"></h3>
+        <form @submit.prevent="createServer()" class="space-y-4">
+            <input type="text" x-model="form.name" placeholder="Server Name" required
+                   class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <input type="text" x-model="form.game" placeholder="Game (e.g., Minecraft, CS2)" required
+                   class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2">
+                <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
+                       class="flex-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <input type="number" x-model="form.port" placeholder="Port" required
+                       class="w-24 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            </div>
+            <input type="number" x-model="form.players" placeholder="Current Players" min="0"
+                   class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" @click="showModal = false"
+                        class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function app() {
+        return {
+            page: 'home',
+            showModal: false,
+            editingServer: null,
+            sidebarOpen: false,
+            servers: [],
+            settings: {
+                darkMode: false,
+                notifications: true,
+                refreshInterval: 30
+            },
+            form: { name: '', game: '', ip: '', port: '', players: 0 },
+
+            init() {
+                this.fetchServers();
+                this.settings.darkMode = localStorage.getItem('darkMode') === 'true';
+                if (this.settings.darkMode) document.documentElement.classList.add('dark');
+            },
+
+            async fetchServers() {
+                try {
+                    const response = await fetch('/api/v1/game-servers');
+                    const data = await response.json();
+                    this.servers = data.map(s => ({
+                        id: s.game_server_id,
+                        name: s.game_server.name,
+                        game: s.game_server.game_type,
+                        game_version: s.game_server.game_version,
+                        ip: s.network_identity?.ip_address || '',
+                        port: s.network_identity?.ports?.[0] || 0,
+                        players: 0,
+                        max_players: s.game_server.max_players,
+                        status: s.instance ? (s.instance.pod_status === 'Running' ? 'online' : 'offline') : 'offline',
+                        instance_id: s.instance?.id || null
+                    }));
+                } catch (error) {
+                    console.error('Failed to fetch servers:', error);
+                    this.servers = [];
+                }
+            },
+
+            resetForm() {
+                this.form = { name: '', game: '', ip: '', port: '', players: 0 };
+            },
+
+            async createServer() {
+                const newServerRequest = {
+                    name: this.form.name,
+                    game_type: this.form.game,
+                    game_version: "1.21",
+                    max_players: this.form.players,
+                    pod_config: {
+                        image: "busybox:latest",
+                    },
+                    service_config: {
+                        ports: [Number.parseInt(this.form.port)]
+                    }
+                }
+                try {
+                    const resp = await fetch("/api/v1/game-servers", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(newServerRequest)
+                    });
+                    if(!resp.ok) {
+                        // TODO show error
+                    } else {
+                        await this.fetchServers();
+                        this.showModal = false;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            editServer(server) {
+                this.editingServer = server;
+                this.form = {
+                    name: server.name,
+                    id: server.id,
+                    ip: server.ip,
+                    port: server.port
+                };
+                this.showModal = true;
+            },
+
+            deleteServer(id) {
+                if (confirm('Delete this server?')) {
+                    this.servers = this.servers.filter(s => s.id !== id);
+                }
+            },
+
+            toggleStatus(server) {
+                server.status = server.status === 'online' ? 'offline' : 'online';
+            },
+
+            toggleDarkMode() {
+                localStorage.setItem('darkMode', this.settings.darkMode);
+                document.documentElement.classList.toggle('dark', this.settings.darkMode);
+            }
+        }
+    }
+</script>
+
+<style>[x-cloak] { display: none !important; }</style>
+</body>
+</html>
