@@ -23,7 +23,7 @@ impl GameServerStore {
         // Never allow users to dictate the ID. That should be auto-generated
         game_server.id = None;
         let created_game_server : GameServer = self.db.create("game_servers").content(game_server).await?.expect("Could not create game server");
-        self.executor.init_game_server(&created_game_server).await;
+        self.executor.init_game_server(&created_game_server).await?;
         Ok(created_game_server)
     }
 

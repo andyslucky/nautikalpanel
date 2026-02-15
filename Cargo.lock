@@ -2783,6 +2783,7 @@ name = "nautikalpanel"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "either",
  "k8s-openapi",
  "kube",
  "regex",

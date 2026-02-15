@@ -23,7 +23,7 @@ pub struct AppState {
 
 /// Request body for starting a new game server instance
 #[derive(Serialize, Deserialize)]
-pub struct StartGameServerRequest {
+pub struct StartStopGameServerRequest {
     pub game_server_id: String,
 }
 
@@ -101,6 +101,7 @@ async fn list_servers(
         .executor
         .list_pods(None)
         .await
+        .map(|pods| pods.into_iter().map(GameServerInstance::from))
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?
@@ -112,6 +113,7 @@ async fn list_servers(
         .executor
         .list_services(None)
         .await
+        .map(|svcs| svcs.into_iter().map(GameServerNetworkIdentity::from))
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?
@@ -168,11 +170,11 @@ async fn delete_game_server(
         .map(|_| StatusCode::OK)
 }
 
-/// POST /api/v1/game-servers/instances
+/// POST /api/v1/game-servers/start
 /// Start a new game server instance from a GameServer template
 async fn start_server(
     State(state): State<AppState>,
-    Json(req): Json<StartGameServerRequest>,
+    Json(req): Json<StartStopGameServerRequest>,
 ) -> Result<Json<StartGameServerResponse>, ErrorResponse> {
     // Note: We need interior mutability for the executor trait since methods take &mut self
     // For now, this will need a wrapper like Arc<Mutex<dyn Executor>> or similar
@@ -191,23 +193,25 @@ async fn start_server(
         .executor
         .create_pod(&game_server)
         .await
+        .map(GameServerInstance::from)
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?;
     Ok(Json(StartGameServerResponse { instance }))
 }
 
-/// POST /api/v1/game-servers/instances/:id
+
+///  /api/v1/game-servers/
 /// Stop a game server instance by ID
 async fn stop_server(
     State(state): State<AppState>,
-    Path(id): Path<String>,
+   Json(req): Json<StartStopGameServerRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
     state
         .executor
-        .delete_pod(&id)
+        .delete_pods(req.game_server_id)
         .await
-        .map(|_| StatusCode::NO_CONTENT)
+        .map(|_| StatusCode::OK)
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })
