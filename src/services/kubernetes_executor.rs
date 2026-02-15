@@ -128,6 +128,11 @@ impl KubernetesExecutor {
         Ok(GameServerInstance::from(pod))
     }
 
+    pub async fn delete_game_server_resources(&self, game_server_id : String) -> Result<(), Box<dyn Error>> {
+        // TODO delete resources
+        Ok(())
+    }
+
     pub async fn delete_pod(&self, pod_id: &String) -> Result<(), Box<dyn Error>> {
         let api: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         match api.delete(pod_id.as_str(), &DeleteParams::default()).await {

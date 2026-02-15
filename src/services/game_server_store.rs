@@ -27,6 +27,12 @@ impl GameServerStore {
         Ok(created_game_server)
     }
 
+    pub async fn delete_game_server(&self, game_server_id : String) -> Result<(), Box<dyn std::error::Error>> {
+        let _deleted : Option<GameServer> = self.db.delete(("game_servers", game_server_id.clone())).await?;
+        self.executor.delete_game_server_resources(game_server_id).await?;
+        Ok(())
+    }
+
     pub async fn fetch_all_game_servers(&self) -> Result<Vec<GameServer>, Box<dyn std::error::Error>>  {
         Ok(self.db.select("game_servers").await?)
     }

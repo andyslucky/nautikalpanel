@@ -137,12 +137,20 @@
             </label>
             <label class="block">
                 <span class="text-gray-700 dark:text-gray-300">Refresh Interval (seconds)</span>
-                <input type="number" x-model="settings.refreshInterval" min="5" max="300"
+                <input type="number" x-model="settings.refreshInterval" min="5" max="300" @change="updateRefreshInterval()"
                        class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             </label>
         </div>
     </div>
 </main>
+
+<!-- Toast Notification -->
+<div x-show="toast.show" x-cloak x-transition
+     :class="toast.type === 'error' ? 'bg-danger' : 'bg-success'"
+     class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 z-50">
+    <span x-text="toast.message"></span>
+    <button @click="toast.show = false" class="ml-2 hover:opacity-80">✕</button>
+</div>
 
 <!-- Add/Edit Modal -->
 <div x-show="showModal" x-cloak
@@ -156,13 +164,24 @@
                    class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             <input type="text" x-model="form.game" placeholder="Game (e.g., Minecraft, CS2)" required
                    class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <input type="text" x-model="form.image" placeholder="Container Image (e.g., itzg/minecraft-server)" required
+                   class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2">
+                <input type="number" x-model="form.storage_size" placeholder="Storage Size" min="1" required
+                       class="flex-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <select x-model="form.storage_unit"
+                        class="w-20 px-2 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg text-sm">
+                    <option value="mib">MiB</option>
+                    <option value="gib">GiB</option>
+                </select>
+            </div>
             <div class="flex gap-2">
                 <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
                        class="flex-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
                 <input type="number" x-model="form.port" placeholder="Port" required
                        class="w-24 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             </div>
-            <input type="number" x-model="form.players" placeholder="Current Players" min="0"
+            <input type="number" x-model="form.max_players" placeholder="Max Players" min="0"
                    class="w-full px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" @click="showModal = false"
@@ -185,19 +204,46 @@
             editingServer: null,
             sidebarOpen: false,
             servers: [],
+            toast: {
+                show: false,
+                message: '',
+                type: 'error'
+            },
             settings: {
                 darkMode: false,
                 notifications: true,
                 refreshInterval: 30
             },
-            form: { name: '', game: '', ip: '', port: '', players: 0 },
-
+            refreshTimerId : -1,
+            form: { name: '', game: '', image: '', storage_size: '', storage_unit: 'gib', ip: '', port: '', max_players: 4 },
             init() {
+                this.loadSettings();
                 this.fetchServers();
+                this.setupRefreshTimer();
+            },
+
+            loadSettings() {
                 this.settings.darkMode = localStorage.getItem('darkMode') === 'true';
+                this.settings.refreshInterval = Number.parseInt(localStorage.getItem("refreshInterval") || "30")
                 if (this.settings.darkMode) document.documentElement.classList.add('dark');
             },
 
+            showToast(message, type = 'error') {
+                this.toast = { show: true, message, type };
+                setTimeout(() => { this.toast.show = false; }, 5000);
+            },
+            updateRefreshInterval() {
+                localStorage.setItem("refreshInterval", this.settings.refreshInterval);
+                this.setupRefreshTimer();
+            },
+            setupRefreshTimer() {
+                if (this.refreshTimerId !== -1) {
+                    clearInterval(this.refreshTimerId)
+                }
+                this.refreshTimerId = setInterval(async () => {
+                    await this.fetchServers();
+                }, this.settings.refreshInterval * 1_000)
+            },
             async fetchServers() {
                 try {
                     const response = await fetch('/api/v1/game-servers');
@@ -207,6 +253,9 @@
                         name: s.game_server.name,
                         game: s.game_server.game_type,
                         game_version: s.game_server.game_version,
+                        image: s.game_server.pod_config?.image || '',
+                        storage_size: s.game_server.pvc_config?.size_mib || 0,
+                        network_identity: s.network_identity,
                         ip: s.network_identity?.ip_address || '',
                         port: s.network_identity?.ports?.[0] || 0,
                         players: 0,
@@ -221,20 +270,28 @@
             },
 
             resetForm() {
-                this.form = { name: '', game: '', ip: '', port: '', players: 0 };
+                this.form = { name: '', game: '', image: '', storage_size: '', storage_unit: 'gib', ip: '', port: '', max_players: '' };
             },
 
             async createServer() {
+                let sizeMib = Number.parseInt(this.form.storage_size);
+                if (this.form.storage_unit === 'gib') {
+                    sizeMib = sizeMib * 1024;
+                }
                 const newServerRequest = {
                     name: this.form.name,
                     game_type: this.form.game,
                     game_version: "1.21",
-                    max_players: this.form.players,
+                    max_players: Number.parseInt(this.form.max_players),
                     pod_config: {
-                        image: "busybox:latest",
+                        image: this.form.image,
                     },
                     service_config: {
-                        ports: [Number.parseInt(this.form.port)]
+                        ports: [Number.parseInt(this.form.port)],
+                        ip_address: this.form.ip || null
+                    },
+                    pvc_config: {
+                        size_mib: sizeMib
                     }
                 }
                 try {
@@ -246,7 +303,8 @@
                         body: JSON.stringify(newServerRequest)
                     });
                     if(!resp.ok) {
-                        // TODO show error
+                        let err = await resp.text()
+                        this.showToast(err || 'Failed to create server', 'error');
                     } else {
                         await this.fetchServers();
                         this.showModal = false;
@@ -257,19 +315,35 @@
             },
 
             editServer(server) {
+                let storageSize = server.storage_size || 1024;
+                let storageUnit = 'mib';
+                if (storageSize >= 1024) {
+                    storageSize = Math.round(storageSize / 1024);
+                    storageUnit = 'gib';
+                }
                 this.editingServer = server;
                 this.form = {
                     name: server.name,
                     id: server.id,
+                    image: server.image,
+                    storage_size: storageSize,
+                    storage_unit: storageUnit,
                     ip: server.ip,
-                    port: server.port
+                    port: server.port,
+                    max_players: server.max_players
                 };
                 this.showModal = true;
             },
 
-            deleteServer(id) {
-                if (confirm('Delete this server?')) {
-                    this.servers = this.servers.filter(s => s.id !== id);
+            async deleteServer(id) {
+
+                const result = await fetch(`/api/v1/game-servers?game_server_id=${encodeURIComponent(id)}`, {
+                    method: "DELETE"
+                });
+                if (!result.ok) {
+                    this.showToast((await result.text()) || "Failed to delete server")
+                } else {
+                    await this.fetchServers();
                 }
             },
 

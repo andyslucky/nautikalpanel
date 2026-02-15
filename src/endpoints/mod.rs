@@ -1,15 +1,13 @@
-use crate::game_servers::{
-    GameServer, GameServerInstance, GameServerNetworkIdentity
-    ,
-};
+use crate::game_servers::{GameServer, GameServerInstance, GameServerNetworkIdentity};
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
+use axum::extract::Query;
 use axum::{
-    extract::{Path, State}, http::StatusCode,
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Json,
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,9 +42,9 @@ pub struct ErrorResponse {
 #[derive(Serialize)]
 pub struct GameServerResponse {
     pub game_server_id: String,
-    pub game_server : GameServer,
-    pub network_identity : Option<GameServerNetworkIdentity>,
-    pub instance : Option<GameServerInstance>
+    pub game_server: GameServer,
+    pub network_identity: Option<GameServerNetworkIdentity>,
+    pub instance: Option<GameServerInstance>,
 }
 
 impl GameServerResponse {
@@ -56,10 +54,12 @@ impl GameServerResponse {
         instance: Option<GameServerInstance>,
     ) -> GameServerResponse {
         Self {
-            game_server_id: game_server.id_string().expect("Game server does not have id"),
+            game_server_id: game_server
+                .id_string()
+                .expect("Game server does not have id"),
             game_server,
             network_identity,
-            instance
+            instance,
         }
     }
 }
@@ -76,7 +76,7 @@ pub fn create_router(executor: Arc<KubernetesExecutor>, store: Arc<GameServerSto
     Router::new()
         .route(
             "/api/v1/game-servers",
-            get(list_servers).post(create_game_server),
+            get(list_servers).post(create_game_server).delete(delete_game_server),
         )
         .route("/api/v1/game-servers/start", post(start_server))
         .route("/api/v1/game-servers/stop", post(stop_server))
@@ -97,23 +97,25 @@ async fn list_servers(
             error: e.to_string(),
         })?;
 
-    let game_instances_by_gs_id : HashMap<String, GameServerInstance> = state
+    let game_instances_by_gs_id: HashMap<String, GameServerInstance> = state
         .executor
         .list_pods(None)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
-        })?.into_iter()
+        })?
+        .into_iter()
         .map(|inst| (inst.game_server_id.clone(), inst))
         .collect();
 
-    let network_identities_by_gs_id : HashMap<String, GameServerNetworkIdentity> = state
+    let network_identities_by_gs_id: HashMap<String, GameServerNetworkIdentity> = state
         .executor
         .list_services(None)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
-        })?.into_iter()
+        })?
+        .into_iter()
         .map(|ni| (ni.game_server_id.clone(), ni))
         .collect();
 
@@ -121,8 +123,12 @@ async fn list_servers(
         .into_iter()
         .map(|gs| {
             let gs_id = gs.id_string();
-            let instance = gs_id.as_ref().and_then(|id| game_instances_by_gs_id.get(id).cloned());
-            let network = gs_id.as_ref().and_then(|id| network_identities_by_gs_id.get(id).cloned());
+            let instance = gs_id
+                .as_ref()
+                .and_then(|id| game_instances_by_gs_id.get(id).cloned());
+            let network = gs_id
+                .as_ref()
+                .and_then(|id| network_identities_by_gs_id.get(id).cloned());
             GameServerResponse::from(gs, network, instance)
         })
         .collect();
@@ -142,6 +148,24 @@ async fn create_game_server(
             error: e.to_string(),
         })
         .map(|_gs| StatusCode::CREATED)
+}
+
+#[derive(Deserialize)]
+struct DeleteGameServerParams {
+    game_server_id: String,
+}
+async fn delete_game_server(
+    State(state): State<AppState>,
+    delete_params: Query<DeleteGameServerParams>,
+) -> Result<StatusCode, ErrorResponse> {
+    state
+        .store
+        .delete_game_server(delete_params.game_server_id.clone())
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })
+        .map(|_| StatusCode::OK)
 }
 
 /// POST /api/v1/game-servers/instances
