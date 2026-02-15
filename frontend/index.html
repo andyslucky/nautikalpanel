@@ -110,7 +110,7 @@
                                 x-text="server.status === 'Offline' ? 'Start' : (server.status === 'Running' ? 'Stop' : 'Wait')">
                         </button>
                         <button @click="editServer(server)"
-                                class="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-1 rounded hover:opacity-80">
+                                class="bg-gray-200 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1 rounded hover:opacity-80">
                             Edit
                         </button>
                         <button @click="deleteServer(server.id)"
@@ -175,8 +175,40 @@
                 <input type="number" x-model="form.max_players" placeholder="Players" min="0"
                        class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             </div>
-            <input type="text" x-model="form.template.pod_config.image" placeholder="Container Image (e.g., itzg/minecraft-server)" required
-                   class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.podConfigVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.podConfigVisible = !modalConfig.podConfigVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Pod Config</i>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <div class="flex gap-2 flex-col" x-show="modalConfig.podConfigVisible">
+                <input type="text" x-model="form.template.pod_config.image"
+                       placeholder="Container Image (e.g., itzg/minecraft-server)" required
+                       class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <div class="flex flex-col gap-2" style="max-height: 20vh; overflow-y: scroll;">
+                    <template x-for="(value, key) in form.template.pod_config.env">
+                        <!--                    TODO Fix environment variable adding / editing. Seems kinda glitchy-->
+                        <div class="flex gap-6">
+                            <input type="text" x-model="key" required
+                                   class="min-w-0 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <input type="text" x-model="value" required
+                                   class="min-w-0 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <button type="button"
+                                    class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
+                                    x-show="Object.keys(form.template.pod_config.env).length > 0"
+                                    @click="delete form.template.pod_config.env[key]">
+                                🗑️
+                            </button>
+                        </div>
+                    </template>
+                    <button type="button"
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+                            @click="form.template.pod_config.env[''] = ''">
+                        Add Environment Variable +
+                    </button>
+                </div>
+            </div>
             <div class="flex gap-2 items-center cursor-pointer "
                  :class="modalConfig.storageVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
                  @click="modalConfig.storageVisible = !modalConfig.storageVisible">
@@ -224,7 +256,7 @@
                 </template>
                 <button type="button"
                         class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
-                        @click="form.ports.push({port: '', protocol: ''})">
+                        @click="form.template.service_config.ports.push({port: '', protocol: ''})">
                     Add Port +
                 </button>
             </div>
@@ -258,13 +290,13 @@
             },
             settings: {
                 darkMode: false,
-                // notifications: true,
                 refreshInterval: 30
             },
             refreshTimerId: -1,
             modalConfig: {
-                storageVisible: true,
-                networkVisible: true
+                podConfigVisible: false,
+                storageVisible: false,
+                networkVisible: false,
             },
             form: {},
             init() {
@@ -339,6 +371,7 @@
                         init_template: '',
                         pod_config: {
                             image: '',
+                            env: {}
                         },
                         service_config: {
                             ports: [
@@ -353,6 +386,7 @@
                 }
             },
             useTemplate(template) {
+                // TODO This does not perform a deep copy of template. Need to do a deep copy
                 this.form = {...this.form, template: {...template}}
             },
             resetForm() {
@@ -363,18 +397,22 @@
                 return server.ip + ":" + ports
             },
             async createServer() {
+                const template = this.form.template
                 const newServerRequest = {
-                    ...this.form, 
+                    ...this.form,
                     max_players: Number.parseInt(this.form.max_players),
                     template: {
-                        ... this.form.template,
+                        ...template,
                         service_config: {
-                            ...this.form.template.service_config, 
-                            ports: this.form.template.service_config.ports.map(p => ({...p, port: Number.parseInt(p.port)}))
+                            ...template.service_config,
+                            ports: template.service_config.ports.map(p => ({
+                                ...p,
+                                port: Number.parseInt(p.port)
+                            }))
                         },
                         pvc_config: {
-                            ...this.form.template.pvc_config,
-                            size: Number.parseInt(this.form.template.pvc_config.size)
+                            ...template.pvc_config,
+                            size: (typeof template.pvc_config.size === 'number') ? template.pvc_config.size : Number.parseInt(template.pvc_config.size)
                         }
                     }
                 }

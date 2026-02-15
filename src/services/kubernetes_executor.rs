@@ -1,12 +1,12 @@
-use std::collections::HashMap;
 use crate::game_servers::GameServer;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
 use kube::api::{ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams};
 use kube::{Api, Client, ResourceExt};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Index;
-use serde_json::Value;
-use tera::{Context, Filter, Function, Tera};
+use tera::{Context, Filter, Tera};
 
 struct EvaluateTeraFn {
     tera: Tera,
@@ -14,7 +14,7 @@ struct EvaluateTeraFn {
 }
 
 impl Filter for EvaluateTeraFn {
-    fn filter(&self, value: &Value, args: &HashMap<String, Value>) -> tera::Result<Value> {
+    fn filter(&self, value: &Value, _args: &HashMap<String, Value>) -> tera::Result<Value> {
         if !value.is_string() {
             Err(tera::Error::msg("evaluateTera may only be called on strings"))
         } else {
@@ -32,7 +32,6 @@ impl Filter for EvaluateTeraFn {
             }
         }
     }
-
 
     fn is_safe(&self) -> bool {
         false
@@ -169,7 +168,6 @@ impl KubernetesExecutor {
                 list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id));
         }
         let pods = pods.list(&list_params).await.map(|pods| pods.items)?;
-
         Ok(pods)
     }
 
@@ -197,7 +195,7 @@ impl KubernetesExecutor {
         // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let pod_yaml = self.render_pod(game_server)?;
-        println!("{}", pod_yaml);
+        // TODO add debug logging to show the pod yaml
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         // Create the pod
         let pod = pods.create(&PostParams::default(), &pod).await?;

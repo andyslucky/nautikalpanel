@@ -7,6 +7,7 @@ metadata:
     nautikal.io/game-server-id: "{{gameServerId}}"
 spec:
   containers:
+    # TODO add SFTP sidecar container.
     - name: gameserver
       {%- if server.pod_config.resources %}
       # TODO add requests
@@ -25,3 +26,4 @@ spec:
         - "{{c | evaluateTera(context=__tera_context)}}"
       {%- endfor %}
       {%- endif %}
+      # TODO add persistent volume mount.

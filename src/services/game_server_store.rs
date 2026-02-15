@@ -13,8 +13,7 @@ pub struct GameServerStore {
 }
 
 impl GameServerStore {
-    pub async fn new(executor : Arc<KubernetesExecutor>) -> Result<GameServerStore, Box<dyn std::error::Error>>{
-        let db: Surreal<Db> = Surreal::new::<Mem>(()).await?;
+    pub async fn new(executor : Arc<KubernetesExecutor>, db : Surreal<Db>) -> Result<GameServerStore, Box<dyn std::error::Error>>{
         db.use_ns("nautikal").use_db("nautikal").await?;
         Ok(GameServerStore{ db, executor })
     }

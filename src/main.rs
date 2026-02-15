@@ -6,6 +6,8 @@ use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use kube::{Client};
 use std::sync::Arc;
+use surrealdb::engine::local::{Db, Mem};
+use surrealdb::Surreal;
 use tower_http::services::ServeFile;
 
 async fn create_executor() -> Result<KubernetesExecutor, Box<dyn std::error::Error>> {
@@ -13,10 +15,15 @@ async fn create_executor() -> Result<KubernetesExecutor, Box<dyn std::error::Err
     Ok(KubernetesExecutor::new(client, "nautikal".to_string()).await?)
 }
 
+async fn create_db(executor : Arc<KubernetesExecutor>) -> Result<GameServerStore, Box<dyn std::error::Error>> {
+    let db: Surreal<Db> = Surreal::new::<Mem>(()).await?;
+    GameServerStore::new(executor, db).await
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor = Arc::new(create_executor().await?);
-    let store = GameServerStore::new(executor.clone()).await?;
+    let store = create_db(executor.clone()).await?;
     let serve_index = ServeFile::new("frontend/index.html");
     let router = endpoints::create_router(executor, Arc::new(store))
         .route_service("/", serve_index);
