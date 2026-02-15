@@ -1,6 +1,6 @@
+use k8s_openapi::api::core::v1::{Pod, Service};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use k8s_openapi::api::core::v1::{Pod, Service};
 use surrealdb::RecordId;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,12 +35,12 @@ pub struct GameServer {
     pub name: String,
     pub game_type: String,
     pub game_version: String,
-    pub max_players : u32,
+    pub max_players: u32,
     #[serde(default = "default_init_template")]
-    pub init_template : String,
+    pub init_template: String,
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
-    pub pvc_config: PvcConfig
+    pub pvc_config: PvcConfig,
 }
 
 impl GameServer {
@@ -52,12 +52,18 @@ impl GameServer {
 fn default_service_type() -> String {
     String::from("LoadBalancer")
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ServicePort {
+    pub port: u16,
+    pub protocol: String,
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceConfig {
-    pub ports : Vec<u16>,
-    pub ip_address : Option<String>,
+    pub ports: Vec<ServicePort>,
+    pub ip_address: Option<String>,
     #[serde(default = "default_service_type")]
-    pub service_type : String
+    pub service_type: String,
 }
 
 fn default_pod_template_name() -> String {
@@ -69,7 +75,7 @@ pub struct PodConfig {
     pub image: String,
     pub resources: Option<Resources>,
     pub command: Option<Vec<String>>,
-    pub env : Option<HashMap<String, String>>,
+    pub env: Option<HashMap<String, String>>,
     pub mounts: Option<Vec<VolumeMount>>,
     #[serde(default = "default_pod_template_name")]
     pub pod_template_name: String,
@@ -77,18 +83,17 @@ pub struct PodConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PvcConfig {
-    pub storage_class : Option<String>,
-    pub size_mib : u32
+    pub storage_class: Option<String>,
+    pub size_mib: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GameServerNetworkIdentity {
-    pub id : String,
-    pub game_server_id : String,
+    pub id: String,
+    pub game_server_id: String,
     pub ip_address: String,
-    pub ports: Vec<u16>,
+    pub ports: Vec<ServicePort>,
 }
-
 
 impl From<Service> for GameServerNetworkIdentity {
     fn from(value: Service) -> Self {
@@ -107,7 +112,14 @@ impl From<Service> for GameServerNetworkIdentity {
         let ports = value
             .spec
             .and_then(|spec| spec.ports)
-            .map(|p| p.into_iter().map(|sp| sp.port as u16).collect())
+            .map(|p| {
+                p.into_iter()
+                    .map(|sp| ServicePort {
+                        port: sp.port as u16,
+                        protocol: sp.protocol.unwrap_or("Unknown".to_string()),
+                    })
+                    .collect()
+            })
             .unwrap_or(vec![]);
         Self {
             id: value

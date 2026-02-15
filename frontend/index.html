@@ -98,7 +98,7 @@
                               class="w-3 h-3 rounded-full"></span>
                     </div>
                     <p class="text-sm text-gray-600 dark:text-gray-400 font-mono mb-2"
-                       x-text="server.ip + ':' + server.port"></p>
+                       x-text="serverAddressLine(server)"></p>
                     <p class="text-sm text-gray-500 mb-4">
                         👥 <span x-text="server.players"></span> players
                     </p>
@@ -169,11 +169,22 @@
         <form @submit.prevent="createServer()" class="space-y-4">
             <input type="text" x-model="form.name" placeholder="Server Name" required
                    class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-            <input type="text" x-model="form.game" placeholder="Game (e.g., Minecraft, CS2)" required
-                   class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2">
+                <input type="text" x-model="form.game" placeholder="Game (e.g., Minecraft, CS2)" required
+                       class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <input type="number" x-model="form.max_players" placeholder="Players" min="0"
+                       class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            </div>
             <input type="text" x-model="form.image" placeholder="Container Image (e.g., itzg/minecraft-server)" required
                    class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.storageVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.storageVisible = !modalConfig.storageVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Storage</i>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <div class="flex gap-2" x-show="modalConfig.storageVisible">
                 <input type="number" x-model="form.storage_size" placeholder="Storage Size" min="1" required
                        class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
                 <select x-model="form.storage_unit"
@@ -182,14 +193,42 @@
                     <option value="gib">GiB</option>
                 </select>
             </div>
-            <div class="flex gap-2">
-                <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
-                       class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <input type="number" x-model="form.port" placeholder="Port" required
-                       class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.networkVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.networkVisible = !modalConfig.networkVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Network</i>
+                <div class="flex-grow border-t border-gray-300"></div>
             </div>
-            <input type="number" x-model="form.max_players" placeholder="Max Players" min="0"
-                   class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2 flex-col" x-show="modalConfig.networkVisible">
+                <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
+                       class="px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <template x-for="(p, index) in form.ports">
+                    <div class="flex gap-6">
+                        <input type="number" x-model="p.port" placeholder="Port" required
+                               class="min-w-0 flex-grow px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                        <select required
+                                x-model="p.protocol"
+                                class="min-w-0 flex-shrink px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <option value="TCP">TCP</option>
+                            <option value="UDP">UDP</option>
+                            <option value="Both">Both</option>
+                        </select>
+                        <button type="button"
+                                class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
+                                x-show="form.ports.length > 1"
+                                @click="form.ports.splice(index, 1)">
+                            🗑️
+                        </button>
+                    </div>
+                </template>
+                <button type="button"
+                        class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+                        @click="form.ports.push({port: '', protocol: ''})">
+                    Add Port +
+                </button>
+            </div>
+
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" @click="showModal = false"
                         class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -222,6 +261,10 @@
                 refreshInterval: 30
             },
             refreshTimerId: -1,
+            modalConfig: {
+                storageVisible: true,
+                networkVisible: true
+            },
             form: {
                 name: '',
                 game: '',
@@ -229,7 +272,9 @@
                 storage_size: '',
                 storage_unit: 'gib',
                 ip: '',
-                port: '',
+                ports: [
+                    {port: '', protocol: ''}
+                ],
                 max_players: 4
             },
             init() {
@@ -275,7 +320,7 @@
                         storage_size: s.game_server.pvc_config?.size_mib || 0,
                         network_identity: s.network_identity,
                         ip: s.network_identity?.ip_address || '',
-                        port: s.network_identity?.ports?.[0] || 0,
+                        ports: s.network_identity?.ports || [],
                         players: 0,
                         max_players: s.game_server.max_players,
                         status: s.instance ? s.instance.pod_status : 'Offline',
@@ -295,16 +340,20 @@
                     storage_size: '',
                     storage_unit: 'gib',
                     ip: '',
-                    port: '',
+                    ports: [{port: '', protocol: ''}],
                     max_players: ''
                 };
             },
-
+            serverAddressLine(server) {
+                const ports = server.ports.map(p => `${p.port}/${p.protocol}`).join(",")
+                return server.ip + ":" + ports
+            },
             async createServer() {
                 let sizeMib = Number.parseInt(this.form.storage_size);
                 if (this.form.storage_unit === 'gib') {
                     sizeMib = sizeMib * 1024;
                 }
+                const ports = this.form.ports.map(p => ({...p, port: Number.parseInt(p.port),}))
                 const newServerRequest = {
                     name: this.form.name,
                     game_type: this.form.game,
@@ -314,7 +363,7 @@
                         image: this.form.image,
                     },
                     service_config: {
-                        ports: [Number.parseInt(this.form.port)],
+                        ports,
                         ip_address: this.form.ip || null
                     },
                     pvc_config: {
@@ -356,7 +405,7 @@
                     storage_size: storageSize,
                     storage_unit: storageUnit,
                     ip: server.ip,
-                    port: server.port,
+                    ports: server.ports,
                     max_players: server.max_players
                 };
                 this.showModal = true;

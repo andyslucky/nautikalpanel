@@ -10,9 +10,21 @@ spec:
     nautikal.io/game-server-id: "{{gameServerId}}"
   type: LoadBalancer
   ports:
-    {%- for port in ports %}
-    - port: {{port}}
-      targetPort: {{port}}
+    {%- for servicePort in ports %}
+    {%- if servicePort.protocol == 'Both' %}
+    - port: {{servicePort.port}}
+      targetPort: {{servicePort.port}}
+      protocol: "TCP"
+      name: "{{servicePort.port}}-tcp"
+    - port: {{servicePort.port}}
+      targetPort: {{servicePort.port}}
+      name: "{{servicePort.port}}-udp"
+      protocol: "UDP"
+    {%- else %}
+    - port: {{servicePort.port}}
+      targetPort: {{servicePort.port}}
+      protocol: "{{servicePort.protocol}}"
+    {%- endif %}
     {%- endfor %}
 ---
 apiVersion: v1

@@ -1,12 +1,9 @@
-use crate::game_servers::{GameServer, GameServerInstance, GameServerNetworkIdentity};
+use crate::game_servers::GameServer;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
-use kube::api::{ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, ObjectList, PostParams};
+use kube::api::{ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams};
 use kube::{Api, Client, ResourceExt};
-use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Index;
-use kube::core::Status;
-use surrealdb::sql::Kind::Either;
 use tera::Tera;
 
 pub struct KubernetesExecutor {
