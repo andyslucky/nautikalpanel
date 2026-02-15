@@ -1,4 +1,4 @@
-use crate::game_servers::{GameServer, GameServerInstance, GameServerNetworkIdentity};
+use crate::game_servers::{GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate, NewGameServerRequest};
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use axum::extract::Query;
@@ -12,6 +12,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::fs::DirEntry;
+use tokio_stream::{StreamExt, wrappers::ReadDirStream};
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -76,12 +78,44 @@ pub fn create_router(executor: Arc<KubernetesExecutor>, store: Arc<GameServerSto
     Router::new()
         .route(
             "/api/v1/game-servers",
-            get(list_servers).post(create_game_server).delete(delete_game_server),
+            get(list_servers)
+                .post(create_game_server)
+                .delete(delete_game_server),
+        )
+        .route(
+            "/api/v1/game-server-templates",
+            get(fetch_game_server_templates),
         )
         .route("/api/v1/game-servers/start", post(start_server))
         .route("/api/v1/game-servers/stop", post(stop_server))
         // .route("/api/v1/game-servers/instances/:id", post(stop_instance))
         .with_state(state)
+}
+
+async fn fetch_game_server_templates() -> Result<Json<Vec<GameServerTemplate>>, ErrorResponse> {
+    let dirs = tokio::fs::read_dir("game-server-templates")
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })
+        .map(|rd| ReadDirStream::new(rd))?;
+    let result: Vec<DirEntry> = dirs.filter_map(|entry| entry.ok()).collect().await;
+    let mut templates: Vec<GameServerTemplate> = vec![];
+    for e in result {
+        let temp: GameServerTemplate = serde_saphyr::from_slice(
+            tokio::fs::read(e.path())
+                .await
+                .map_err(|e| ErrorResponse {
+                    error: e.to_string(),
+                })?
+                .as_slice(),
+        )
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?;
+        templates.push(temp);
+    }
+    Ok(Json(templates))
 }
 
 /// GET /api/v1/game-servers
@@ -140,11 +174,12 @@ async fn list_servers(
 
 async fn create_game_server(
     State(state): State<AppState>,
-    Json(req): Json<GameServer>,
+    Json(req): Json<NewGameServerRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
+    let gs = GameServer::try_from(req).map_err(|e| ErrorResponse {error : e.to_string()})?;
     state
         .store
-        .create_game_server(req)
+        .create_game_server(gs)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
@@ -200,12 +235,11 @@ async fn start_server(
     Ok(Json(StartGameServerResponse { instance }))
 }
 
-
 ///  /api/v1/game-servers/
 /// Stop a game server instance by ID
 async fn stop_server(
     State(state): State<AppState>,
-   Json(req): Json<StartStopGameServerRequest>,
+    Json(req): Json<StartStopGameServerRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
     state
         .executor

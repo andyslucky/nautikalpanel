@@ -1,0 +1,10 @@
+template_name: Generic
+game_type: Generic
+description: This is a generic template for creating a game server. All fields are intentionally blank.
+pod_config:
+  image: ""
+pvc_config:
+  size: 500
+  size_unit: "Mi"
+service_config:
+  ports: []

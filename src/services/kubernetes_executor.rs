@@ -1,10 +1,43 @@
+use std::collections::HashMap;
 use crate::game_servers::GameServer;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
 use kube::api::{ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams};
 use kube::{Api, Client, ResourceExt};
 use std::error::Error;
 use std::ops::Index;
-use tera::Tera;
+use serde_json::Value;
+use tera::{Context, Filter, Function, Tera};
+
+struct EvaluateTeraFn {
+    tera: Tera,
+    context: Context
+}
+
+impl Filter for EvaluateTeraFn {
+    fn filter(&self, value: &Value, args: &HashMap<String, Value>) -> tera::Result<Value> {
+        if !value.is_string() {
+            Err(tera::Error::msg("evaluateTera may only be called on strings"))
+        } else {
+            let string_val = value.as_str().unwrap();
+            let mut tera = self.tera.clone();
+            tera.add_raw_template("eval_temp", string_val)?;
+            match tera.render("eval_temp", &self.context) {
+                Ok(rendered_text) => {
+                    Ok(Value::String(rendered_text))
+                },
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    Err(e)
+                }
+            }
+        }
+    }
+
+
+    fn is_safe(&self) -> bool {
+        false
+    }
+}
 
 pub struct KubernetesExecutor {
     client: Client,
@@ -38,10 +71,11 @@ impl KubernetesExecutor {
                 println!("Created namespace {}", namespace);
             }
         }
+        let mut tera = Tera::new("k8s-templates/**/*")?;
         Ok(KubernetesExecutor {
             client,
             namespace,
-            tera: Tera::new("templates/**/*")?,
+            tera,
         })
     }
 
@@ -66,28 +100,44 @@ impl KubernetesExecutor {
         let mut context = tera::Context::new();
         context.insert("gameType", game_type.as_str());
         context.insert("gameServerId", &id);
+        context.insert("server", game_server);
         Ok(context)
     }
 
     fn render_pod(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
-        let mut context = self.create_template_context(game_server)?;
-        context.insert("image", "busybox:latest");
-        context.insert("command", &vec!["sleep", "3600"]);
-        Ok(self
-            .tera
-            .render(game_server.pod_config.pod_template_name.as_str(), &context)?)
+        let context = self.create_template_context(game_server)?;
+        let mut tera = self.tera.clone();
+        tera.register_filter("evaluateTera", EvaluateTeraFn{tera: tera.clone(), context: context.clone()});
+        let template_name = if game_server.pod_config.pod_template.ends_with(".yaml") || game_server.pod_config.pod_template.ends_with(".yml") {
+            game_server.pod_config.pod_template.as_str()
+        } else {
+            // in-line template
+            tera.add_raw_template("pod_temp", game_server.pod_config.pod_template.as_str())?;
+            "pod_temp"
+        };
+        Ok(tera.render(template_name, &context)?)
     }
 
     fn render_init_yaml(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
         let mut context = self.create_template_context(game_server)?;
         context.insert("ports", &game_server.service_config.ports);
-        if let Some(storage_class_name) = game_server.pvc_config.storage_class.as_ref() {
+        if let Some(storage_class_name) = game_server.pvc_config.storage_class.as_ref() && storage_class_name.len() > 0 {
             context.insert("storageClassName", storage_class_name);
+        } else {
+            // TODO remove this
+            context.insert("storageClassName", "longhorn");
         }
-        context.insert("storage", &format!("{}Mi", game_server.pvc_config.size_mib));
-        Ok(self
-            .tera
-            .render(game_server.init_template.as_str(), &context)?)
+        context.insert("storage", &format!("{}{}", game_server.pvc_config.size, game_server.pvc_config.size_unit));
+        let mut tera = self.tera.clone();
+        tera.register_filter("evaluateTera", EvaluateTeraFn{tera: tera.clone(), context: context.clone()});
+        let template_name = if game_server.init_template.ends_with(".yaml") || game_server.init_template.ends_with(".yml") {
+            game_server.init_template.as_str()
+        } else {
+            // in-line template
+            tera.add_raw_template("init_temp", game_server.init_template.as_str())?;
+            "init_temp"
+        };
+        Ok(tera.render(template_name, &context)?)
     }
 
     pub async fn list_services(
@@ -147,6 +197,7 @@ impl KubernetesExecutor {
         // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let pod_yaml = self.render_pod(game_server)?;
+        println!("{}", pod_yaml);
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         // Create the pod
         let pod = pods.create(&PostParams::default(), &pod).await?;

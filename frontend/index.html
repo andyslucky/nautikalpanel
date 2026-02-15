@@ -137,15 +137,11 @@
                 <span class="text-gray-700 dark:text-gray-300">Dark Mode</span>
                 <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5">
             </label>
-            <!--            <label class="flex items-center justify-between">-->
-            <!--                <span class="text-gray-700 dark:text-gray-300">Notifications</span>-->
-            <!--                <input type="checkbox" x-model="settings.notifications" class="w-5 h-5">-->
-            <!--            </label>-->
             <label class="block">
                 <span class="text-gray-700 dark:text-gray-300">Refresh Interval (seconds)</span>
                 <input type="number" x-model="settings.refreshInterval" min="5" max="300"
                        @change="updateRefreshInterval()"
-                       class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                       class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg">
             </label>
         </div>
     </div>
@@ -170,12 +166,16 @@
             <input type="text" x-model="form.name" placeholder="Server Name" required
                    class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             <div class="flex gap-2">
-                <input type="text" x-model="form.game" placeholder="Game (e.g., Minecraft, CS2)" required
-                       class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <select class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                    <option>Game</option>
+                    <template x-for="temp in gameServerTemplates">
+                        <option @click="useTemplate(temp)" x-text="temp.template_name"></option>
+                    </template>
+                </select>
                 <input type="number" x-model="form.max_players" placeholder="Players" min="0"
                        class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             </div>
-            <input type="text" x-model="form.image" placeholder="Container Image (e.g., itzg/minecraft-server)" required
+            <input type="text" x-model="form.template.pod_config.image" placeholder="Container Image (e.g., itzg/minecraft-server)" required
                    class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
             <div class="flex gap-2 items-center cursor-pointer "
                  :class="modalConfig.storageVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
@@ -185,12 +185,12 @@
                 <div class="flex-grow border-t border-gray-300"></div>
             </div>
             <div class="flex gap-2" x-show="modalConfig.storageVisible">
-                <input type="number" x-model="form.storage_size" placeholder="Storage Size" min="1" required
+                <input type="number" x-model="form.template.pvc_config.size" placeholder="Storage Size" min="1" required
                        class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <select x-model="form.storage_unit"
+                <select x-model="form.template.pvc_config.size_unit"
                         class="w-20 px-2 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg text-sm">
-                    <option value="mib">MiB</option>
-                    <option value="gib">GiB</option>
+                    <option value="Mi">Mi</option>
+                    <option value="Gi">Gi</option>
                 </select>
             </div>
             <div class="flex gap-2 items-center cursor-pointer "
@@ -203,7 +203,7 @@
             <div class="flex gap-2 flex-col" x-show="modalConfig.networkVisible">
                 <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
                        class="px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <template x-for="(p, index) in form.ports">
+                <template x-for="(p, index) in form.template.service_config.ports">
                     <div class="flex gap-6">
                         <input type="number" x-model="p.port" placeholder="Port" required
                                class="min-w-0 flex-grow px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
@@ -216,8 +216,8 @@
                         </select>
                         <button type="button"
                                 class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
-                                x-show="form.ports.length > 1"
-                                @click="form.ports.splice(index, 1)">
+                                x-show="form.template.service_config.ports.length > 1"
+                                @click="form.template.service_config.ports.splice(index, 1)">
                             🗑️
                         </button>
                     </div>
@@ -250,6 +250,7 @@
             editingServer: null,
             sidebarOpen: false,
             servers: [],
+            gameServerTemplates: [],
             toast: {
                 show: false,
                 message: '',
@@ -265,20 +266,11 @@
                 storageVisible: true,
                 networkVisible: true
             },
-            form: {
-                name: '',
-                game: '',
-                image: '',
-                storage_size: '',
-                storage_unit: 'gib',
-                ip: '',
-                ports: [
-                    {port: '', protocol: ''}
-                ],
-                max_players: 4
-            },
+            form: {},
             init() {
+                this.resetForm();
                 this.loadSettings();
+                this.fetchGameServerTemplates();
                 this.fetchServers();
                 this.setupRefreshTimer();
             },
@@ -307,6 +299,9 @@
                     await this.fetchServers();
                 }, this.settings.refreshInterval * 1_000)
             },
+            async fetchGameServerTemplates() {
+                this.gameServerTemplates = (await fetch("/api/v1/game-server-templates")).json() || [];
+            },
             async fetchServers() {
                 try {
                     const response = await fetch('/api/v1/game-servers');
@@ -331,43 +326,56 @@
                     this.servers = [];
                 }
             },
-
-            resetForm() {
-                this.form = {
+            formDefaultValue() {
+                return {
                     name: '',
-                    game: '',
-                    image: '',
-                    storage_size: '',
-                    storage_unit: 'gib',
-                    ip: '',
-                    ports: [{port: '', protocol: ''}],
-                    max_players: ''
-                };
+                    game_version: '',
+                    max_players: 0,
+                    template: {
+                        template_name: '',
+                        description: '',
+                        game_type: '',
+                        icon_url: '',
+                        init_template: '',
+                        pod_config: {
+                            image: '',
+                        },
+                        service_config: {
+                            ports: [
+                                {port: '', protocol: ''}
+                            ]
+                        },
+                        pvc_config: {
+                            size_mib: '',
+                            size_unit: ''
+                        }
+                    },
+                }
+            },
+            useTemplate(template) {
+                this.form = {...this.form, template: {...template}}
+            },
+            resetForm() {
+                this.form = this.formDefaultValue();
             },
             serverAddressLine(server) {
                 const ports = server.ports.map(p => `${p.port}/${p.protocol}`).join(",")
                 return server.ip + ":" + ports
             },
             async createServer() {
-                let sizeMib = Number.parseInt(this.form.storage_size);
-                if (this.form.storage_unit === 'gib') {
-                    sizeMib = sizeMib * 1024;
-                }
-                const ports = this.form.ports.map(p => ({...p, port: Number.parseInt(p.port),}))
                 const newServerRequest = {
-                    name: this.form.name,
-                    game_type: this.form.game,
-                    game_version: "1.21",
+                    ...this.form, 
                     max_players: Number.parseInt(this.form.max_players),
-                    pod_config: {
-                        image: this.form.image,
-                    },
-                    service_config: {
-                        ports,
-                        ip_address: this.form.ip || null
-                    },
-                    pvc_config: {
-                        size_mib: sizeMib
+                    template: {
+                        ... this.form.template,
+                        service_config: {
+                            ...this.form.template.service_config, 
+                            ports: this.form.template.service_config.ports.map(p => ({...p, port: Number.parseInt(p.port)}))
+                        },
+                        pvc_config: {
+                            ...this.form.template.pvc_config,
+                            size: Number.parseInt(this.form.template.pvc_config.size)
+                        }
                     }
                 }
                 try {

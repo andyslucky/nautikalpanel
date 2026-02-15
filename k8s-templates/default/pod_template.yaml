@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: "gs-{{gameType | lower}}-"
+  labels:
+    app.kubernetes.io/managed-by: "nautikal"
+    nautikal.io/game-server-id: "{{gameServerId}}"
+spec:
+  containers:
+    - name: gameserver
+      {%- if server.pod_config.resources %}
+      # TODO add requests
+      {%- endif %}
+      {%- if server.pod_config.env %}
+      env:
+        {%- for key, value in server.pod_config.env %}
+        - name: "{{key}}"
+          value: "{{value | evaluateTera(context=__tera_context) }}"
+        {%- endfor %}
+      {%- endif %}
+      image: "{{server.pod_config.image | evaluateTera(context=__tera_context)}}"
+      {%- if server.pod_config.command %}
+      command:
+      {%- for c in server.pod_config.command %}
+        - "{{c | evaluateTera(context=__tera_context)}}"
+      {%- endfor %}
+      {%- endif %}
