@@ -129,6 +129,7 @@ pub struct PodConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PvcConfig {
     pub storage_class: Option<String>,
+    pub container_path : String,
     pub size: u32,
     pub size_unit: String
 }

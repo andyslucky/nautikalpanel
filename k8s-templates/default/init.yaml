@@ -10,6 +10,10 @@ spec:
     nautikal.io/game-server-id: "{{gameServerId}}"
   type: LoadBalancer
   ports:
+    - port: 22
+      targetPort: 22
+      protocol: "TCP"
+      name: sftp
     {%- for servicePort in ports %}
     {%- if servicePort.protocol == 'Both' %}
     - port: {{servicePort.port}}

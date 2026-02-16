@@ -14,6 +14,7 @@ pod_config:
     MAX_MEMORY: "4G"
     MAX_PLAYERS: "{{server.max_players}}"
 pvc_config:
+  container_path: "/data"
   size: 500
   size_unit: "Mi"
 service_config:

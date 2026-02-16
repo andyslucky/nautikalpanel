@@ -133,7 +133,7 @@ async fn list_servers(
 
     let game_instances_by_gs_id: HashMap<String, GameServerInstance> = state
         .executor
-        .list_pods(None)
+        .list_pods(None::<String>)
         .await
         .map(|pods| pods.into_iter().map(GameServerInstance::from))
         .map_err(|e| ErrorResponse {
@@ -145,7 +145,7 @@ async fn list_servers(
 
     let network_identities_by_gs_id: HashMap<String, GameServerNetworkIdentity> = state
         .executor
-        .list_services(None)
+        .list_services(None::<String>)
         .await
         .map(|svcs| svcs.into_iter().map(GameServerNetworkIdentity::from))
         .map_err(|e| ErrorResponse {

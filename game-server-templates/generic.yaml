@@ -4,6 +4,7 @@ description: This is a generic template for creating a game server. All fields a
 pod_config:
   image: ""
 pvc_config:
+  container_path: "/data"
   size: 500
   size_unit: "Mi"
 service_config:

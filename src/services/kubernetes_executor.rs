@@ -5,7 +5,8 @@ use kube::{Api, Client, ResourceExt};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
-use std::ops::Index;
+use std::ops::{Deref, Index};
+use kube::runtime::reflector::Lookup;
 use tera::{Context, Filter, Tera};
 
 struct EvaluateTeraFn {
@@ -103,8 +104,11 @@ impl KubernetesExecutor {
         Ok(context)
     }
 
-    fn render_pod(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
-        let context = self.create_template_context(game_server)?;
+    fn render_pod(&self, game_server: &GameServer, persistent_volume_claim: Option<&PersistentVolumeClaim>) -> Result<String, Box<dyn Error>> {
+        let mut context = self.create_template_context(game_server)?;
+        if let Some(pvc) = persistent_volume_claim {
+        context.insert("pvc_name", &pvc.name())
+        }
         let mut tera = self.tera.clone();
         tera.register_filter("evaluateTera", EvaluateTeraFn{tera: tera.clone(), context: context.clone()});
         let template_name = if game_server.pod_config.pod_template.ends_with(".yaml") || game_server.pod_config.pod_template.ends_with(".yml") {
@@ -141,14 +145,14 @@ impl KubernetesExecutor {
 
     pub async fn list_services(
         &self,
-        game_server_id: Option<&str>,
+        game_server_id: Option<impl Deref<Target = str>>,
     ) -> Result<Vec<Service>, Box<dyn Error>> {
         let services: Api<Service> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut svc_list_params =
             ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
             svc_list_params =
-                svc_list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id));
+                svc_list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
         }
 
         Ok(services
@@ -159,16 +163,27 @@ impl KubernetesExecutor {
 
     pub async fn list_pods(
         &self,
-        game_server_id: Option<&str>,
+        game_server_id: Option<impl Deref<Target = str>>,
     ) -> Result<Vec<Pod>, Box<dyn Error>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
             list_params =
-                list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id));
+                list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
         }
         let pods = pods.list(&list_params).await.map(|pods| pods.items)?;
         Ok(pods)
+    }
+
+    pub async fn list_pvcs(&self, game_server_id : Option<impl Deref<Target = str>>) -> Result<Vec<PersistentVolumeClaim>, Box<dyn Error>> {
+        let pvc_api : Api<PersistentVolumeClaim> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
+        if let Some(game_server_id) = game_server_id {
+            list_params =
+                list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
+        }
+        let pvcs = pvc_api.list(&list_params).await.map(|pvcs| pvcs.items)?;
+        Ok(pvcs)
     }
 
 
@@ -192,9 +207,10 @@ impl KubernetesExecutor {
     }
 
     pub async fn create_pod(&self, game_server: &GameServer) -> Result<Pod, Box<dyn Error>> {
+        let pvcs = self.list_pvcs(game_server.id_string()).await?;
         // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let pod_yaml = self.render_pod(game_server)?;
+        let pod_yaml = self.render_pod(game_server, pvcs.first())?;
         // TODO add debug logging to show the pod yaml
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         // Create the pod

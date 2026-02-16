@@ -6,8 +6,18 @@ metadata:
     app.kubernetes.io/managed-by: "nautikal"
     nautikal.io/game-server-id: "{{gameServerId}}"
 spec:
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: "{{pvc_name}}"
   containers:
-    # TODO add SFTP sidecar container.
+    - name: sftp
+      image: "atmoz/sftp:latest"
+      volumeMounts:
+        - name: data
+          mountPath: "/home/user/upload"
+      # TODO Auto generate password
+      args: ["user:pass:1000:0"]
     - name: gameserver
       {%- if server.pod_config.resources %}
       # TODO add requests
@@ -26,4 +36,6 @@ spec:
         - "{{c | evaluateTera(context=__tera_context)}}"
       {%- endfor %}
       {%- endif %}
-      # TODO add persistent volume mount.
+      volumeMounts:
+        - mountPath: "{{server.pvc_config.container_path}}"
+          name: data

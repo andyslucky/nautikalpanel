@@ -1,0 +1,119 @@
+<!-- Add/Edit Modal -->
+<div x-show="showModal" x-cloak
+     class="fixed inset-0 bg-black/50 flex items-center justify-center"
+     @click.self="showModal = false">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4"
+            x-text="editingServer ? 'Edit Server' : 'Add Server'"></h3>
+        <form @submit.prevent="createServer()" class="space-y-4" style="overflow-y: scroll; max-height: 90vh">
+            <input type="text" x-model="form.name" placeholder="Server Name" required
+                   class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            <div class="flex gap-2">
+                <select class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg"
+                        x-model="selectedTemplateName"
+                        @change="changedTemplate($event)"
+                >
+                    <template x-for="temp in gameServerTemplates">
+                        <option x-text="temp.template_name" :value="temp.template_name"></option>
+                    </template>
+                </select>
+                <input type="number" x-model="form.max_players" placeholder="Players" min="0"
+                       class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+            </div>
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.podConfigVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.podConfigVisible = !modalConfig.podConfigVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Pod Config</i>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <div class="flex gap-2 flex-col" x-show="modalConfig.podConfigVisible">
+                <input type="text" x-model="form.template.pod_config.image"
+                       placeholder="Container Image (e.g., itzg/minecraft-server)" required
+                       class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <div class="flex flex-col gap-2" style="max-height: 20vh; overflow-y: scroll;">
+                    <template x-for="(value, key) in form.template.pod_config.env">
+                        <div class="flex gap-6">
+                            <input type="text" x-model="key" required
+                                   class="min-w-0 flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <input type="text" x-model="value" required
+                                   class="min-w-0 flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <button type="button"
+                                    class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
+                                    x-show="form.template?.pod_config?.env != null && Object.keys(form.template.pod_config.env).length > 0"
+                                    @click="delete form.template.pod_config.env[key]">
+                                🗑️
+                            </button>
+                        </div>
+                    </template>
+                    <button type="button"
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+                            @click="form.template.pod_config.env[''] = ''">
+                        Add Environment Variable +
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.storageVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.storageVisible = !modalConfig.storageVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Storage</i>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <div class="flex gap-2" x-show="modalConfig.storageVisible">
+                <input type="number" x-model="form.template.pvc_config.size" placeholder="Storage Size" min="1" required
+                       class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <select x-model="form.template.pvc_config.size_unit"
+                        class="w-20 px-2 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg text-sm">
+                    <option value="Mi">Mi</option>
+                    <option value="Gi">Gi</option>
+                </select>
+            </div>
+            <div class="flex gap-2 items-center cursor-pointer "
+                 :class="modalConfig.networkVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
+                 @click="modalConfig.networkVisible = !modalConfig.networkVisible">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <i class="flex-shrink">Network</i>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <div class="flex gap-2 flex-col" x-show="modalConfig.networkVisible">
+                <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
+                       class="px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                <template x-for="(p, index) in form.template.service_config.ports">
+                    <div class="flex gap-6">
+                        <input type="number" x-model="p.port" placeholder="Port" required
+                               class="min-w-0 flex-grow px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                        <select required
+                                x-model="p.protocol"
+                                class="min-w-0 flex-shrink px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                            <option value="TCP">TCP</option>
+                            <option value="UDP">UDP</option>
+                            <option value="Both">Both</option>
+                        </select>
+                        <button type="button"
+                                class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
+                                x-show="form.template.service_config.ports.length > 1"
+                                @click="form.template.service_config.ports.splice(index, 1)">
+                            🗑️
+                        </button>
+                    </div>
+                </template>
+                <button type="button"
+                        class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+                        @click="form.template.service_config.ports.push({port: '', protocol: ''})">
+                    Add Port +
+                </button>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" @click="showModal = false; resetForm()"
+                        class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
