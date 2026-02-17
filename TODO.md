@@ -1,5 +1,5 @@
 ### Backend
-- [ ] Add rocksdb backend for Surreal to persist data across restarts
+- [x] Add rocksdb backend for Surreal to persist data across restarts
 - [ ] Update application to accept configuration for default storage class, pod template name, port, etc.
 - [x] Decompose the individual resources from init.yaml into separate templates.
 - [ ] Decompose individual resources from pod_template.yaml into separate templates.
@@ -13,7 +13,7 @@
 - [ ] Implement log streaming
 ### Frontend
 - [ ] Update front end create server modal to display the remaining properties for the template and new game server request
-    including resources and more
+    including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.
 - [ ] Add image to server tiles based on the `icon_url` property
 - [ ] Add `default_max_players` to template.
 - [ ] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before

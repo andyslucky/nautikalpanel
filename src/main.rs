@@ -7,7 +7,7 @@ use crate::services::kubernetes_executor::KubernetesExecutor;
 use kube::Client;
 use std::sync::Arc;
 use surrealdb::Surreal;
-use surrealdb::engine::local::{Db, Mem};
+use surrealdb::engine::local::{Db, RocksDb};
 use tower_http::services::{ServeDir, ServeFile};
 
 async fn create_executor() -> Result<KubernetesExecutor, Box<dyn std::error::Error>> {
@@ -18,7 +18,7 @@ async fn create_executor() -> Result<KubernetesExecutor, Box<dyn std::error::Err
 async fn create_db(
     executor: Arc<KubernetesExecutor>,
 ) -> Result<GameServerStore, Box<dyn std::error::Error>> {
-    let db: Surreal<Db> = Surreal::new::<Mem>(()).await?;
+    let db: Surreal<Db> = Surreal::new::<RocksDb>("./db").await?;
     GameServerStore::new(executor, db).await
 }
 
