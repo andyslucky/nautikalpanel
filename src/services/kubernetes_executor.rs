@@ -1,31 +1,33 @@
 use crate::game_servers::GameServer;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
-use kube::api::{ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams};
+use kube::api::{
+    ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams,
+};
+use kube::runtime::reflector::Lookup;
 use kube::{Api, Client, ResourceExt};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::{Deref, Index};
-use kube::runtime::reflector::Lookup;
 use tera::{Context, Filter, Tera};
 
 struct EvaluateTeraFn {
     tera: Tera,
-    context: Context
+    context: Context,
 }
 
 impl Filter for EvaluateTeraFn {
     fn filter(&self, value: &Value, _args: &HashMap<String, Value>) -> tera::Result<Value> {
         if !value.is_string() {
-            Err(tera::Error::msg("evaluateTera may only be called on strings"))
+            Err(tera::Error::msg(
+                "evaluateTera may only be called on strings",
+            ))
         } else {
             let string_val = value.as_str().unwrap();
             let mut tera = self.tera.clone();
             tera.add_raw_template("eval_temp", string_val)?;
             match tera.render("eval_temp", &self.context) {
-                Ok(rendered_text) => {
-                    Ok(Value::String(rendered_text))
-                },
+                Ok(rendered_text) => Ok(Value::String(rendered_text)),
                 Err(e) => {
                     eprintln!("{:?}", e);
                     Err(e)
@@ -71,7 +73,7 @@ impl KubernetesExecutor {
                 println!("Created namespace {}", namespace);
             }
         }
-        let mut tera = Tera::new("k8s-templates/**/*")?;
+        let tera = Tera::new("k8s-templates/**/*")?;
         Ok(KubernetesExecutor {
             client,
             namespace,
@@ -94,7 +96,7 @@ impl KubernetesExecutor {
         let mut game_type = re
             .replace(raw_game_type.to_lowercase().as_str(), "-")
             .to_string();
-        if (game_type.len() > 40) {
+        if game_type.len() > 40 {
             game_type = game_type.index(..40).to_string()
         }
         let mut context = tera::Context::new();
@@ -104,14 +106,24 @@ impl KubernetesExecutor {
         Ok(context)
     }
 
-    fn render_pod(&self, game_server: &GameServer, persistent_volume_claim: Option<&PersistentVolumeClaim>) -> Result<String, Box<dyn Error>> {
+    fn render_pod(
+        &self,
+        game_server: &GameServer,
+        persistent_volume_claim: Option<&PersistentVolumeClaim>,
+    ) -> Result<String, Box<dyn Error>> {
         let mut context = self.create_template_context(game_server)?;
         if let Some(pvc) = persistent_volume_claim {
-        context.insert("pvc_name", &pvc.name())
+            context.insert("pvc_name", &pvc.name())
         }
         let mut tera = self.tera.clone();
-        tera.register_filter("evaluateTera", EvaluateTeraFn{tera: tera.clone(), context: context.clone()});
-        let template_name = if game_server.pod_config.pod_template.ends_with(".yaml") || game_server.pod_config.pod_template.ends_with(".yml") {
+        tera.register_filter(
+            "evaluateTera",
+            EvaluateTeraFn {
+                tera: tera.clone(),
+                context: context.clone(),
+            },
+        );
+        let template_name = if game_server.pod_config.pod_template.ends_with(".jinja") {
             game_server.pod_config.pod_template.as_str()
         } else {
             // in-line template
@@ -124,16 +136,30 @@ impl KubernetesExecutor {
     fn render_init_yaml(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
         let mut context = self.create_template_context(game_server)?;
         context.insert("ports", &game_server.service_config.ports);
-        if let Some(storage_class_name) = game_server.pvc_config.storage_class.as_ref() && storage_class_name.len() > 0 {
+        if let Some(storage_class_name) = game_server.pvc_config.storage_class.as_ref()
+            && storage_class_name.len() > 0
+        {
             context.insert("storageClassName", storage_class_name);
         } else {
             // TODO remove this
             context.insert("storageClassName", "longhorn");
         }
-        context.insert("storage", &format!("{}{}", game_server.pvc_config.size, game_server.pvc_config.size_unit));
+        context.insert(
+            "storage",
+            &format!(
+                "{}{}",
+                game_server.pvc_config.size, game_server.pvc_config.size_unit
+            ),
+        );
         let mut tera = self.tera.clone();
-        tera.register_filter("evaluateTera", EvaluateTeraFn{tera: tera.clone(), context: context.clone()});
-        let template_name = if game_server.init_template.ends_with(".yaml") || game_server.init_template.ends_with(".yml") {
+        tera.register_filter(
+            "evaluateTera",
+            EvaluateTeraFn {
+                tera: tera.clone(),
+                context: context.clone(),
+            },
+        );
+        let template_name = if game_server.init_template.ends_with(".jinja") {
             game_server.init_template.as_str()
         } else {
             // in-line template
@@ -151,8 +177,10 @@ impl KubernetesExecutor {
         let mut svc_list_params =
             ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
-            svc_list_params =
-                svc_list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
+            svc_list_params = svc_list_params.labels(&format!(
+                "nautikal.io/game-server-id={}",
+                game_server_id.deref()
+            ));
         }
 
         Ok(services
@@ -168,24 +196,31 @@ impl KubernetesExecutor {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
-            list_params =
-                list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
+            list_params = list_params.labels(&format!(
+                "nautikal.io/game-server-id={}",
+                game_server_id.deref()
+            ));
         }
         let pods = pods.list(&list_params).await.map(|pods| pods.items)?;
         Ok(pods)
     }
 
-    pub async fn list_pvcs(&self, game_server_id : Option<impl Deref<Target = str>>) -> Result<Vec<PersistentVolumeClaim>, Box<dyn Error>> {
-        let pvc_api : Api<PersistentVolumeClaim> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+    pub async fn list_pvcs(
+        &self,
+        game_server_id: Option<impl Deref<Target = str>>,
+    ) -> Result<Vec<PersistentVolumeClaim>, Box<dyn Error>> {
+        let pvc_api: Api<PersistentVolumeClaim> =
+            Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
-            list_params =
-                list_params.labels(&format!("nautikal.io/game-server-id={}", game_server_id.deref()));
+            list_params = list_params.labels(&format!(
+                "nautikal.io/game-server-id={}",
+                game_server_id.deref()
+            ));
         }
         let pvcs = pvc_api.list(&list_params).await.map(|pvcs| pvcs.items)?;
         Ok(pvcs)
     }
-
 
     pub async fn init_game_server(&self, game_server: &GameServer) -> Result<(), Box<dyn Error>> {
         let init_yaml = self.render_init_yaml(game_server)?;
@@ -227,7 +262,10 @@ impl KubernetesExecutor {
             .labels(&format!("nautikal.io/game-server-id={}", game_server_id));
         let service_api: Api<Service> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
-        match service_api.delete_collection(&DeleteParams::default(), &list_params).await? {
+        match service_api
+            .delete_collection(&DeleteParams::default(), &list_params)
+            .await?
+        {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
                 println!("Deleting collection of services: {:?}", names);
@@ -239,7 +277,10 @@ impl KubernetesExecutor {
         self.delete_pods(game_server_id).await?;
         let pvc_api: Api<PersistentVolumeClaim> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
-        match pvc_api.delete_collection(&DeleteParams::default(), &list_params).await? {
+        match pvc_api
+            .delete_collection(&DeleteParams::default(), &list_params)
+            .await?
+        {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
                 println!("Deleting collection of pvcs: {:?}", names);
@@ -251,12 +292,15 @@ impl KubernetesExecutor {
         Ok(())
     }
 
-    pub async fn delete_pods(&self, game_server_id : String) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_pods(&self, game_server_id: String) -> Result<(), Box<dyn Error>> {
         let list_params = ListParams::default()
             .labels("app.kubernetes.io/managed-by=nautikal")
             .labels(&format!("nautikal.io/game-server-id={}", game_server_id));
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        match pod_api.delete_collection(&DeleteParams::default(), &list_params).await? {
+        match pod_api
+            .delete_collection(&DeleteParams::default(), &list_params)
+            .await?
+        {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
                 println!("Deleting collection of pods: {:?}", names);

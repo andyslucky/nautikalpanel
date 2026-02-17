@@ -30,20 +30,3 @@ spec:
       protocol: "{{servicePort.protocol}}"
     {%- endif %}
     {%- endfor %}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  generateName: "gs-{{gameType | lower}}-"
-  labels:
-    app.kubernetes.io/managed-by: "nautikal"
-    nautikal.io/game-server-id: "{{gameServerId}}"
-spec:
-  accessModes:
-    - ReadWriteOnce
-  {%- if storageClassName %}
-  storageClassName: "{{storageClassName}}"
-  {%- endif %}
-  resources:
-    requests:
-      storage: "{{storage}}"

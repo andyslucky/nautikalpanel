@@ -1,7 +1,7 @@
+use anyhow::anyhow;
 use k8s_openapi::api::core::v1::{Pod, Service};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use anyhow::anyhow;
 use surrealdb::RecordId;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,7 +27,7 @@ pub struct VolumeMount {
 }
 
 fn default_init_template() -> String {
-    String::from("default/init.yaml")
+    "default/init.yaml.jinja".to_string()
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameServer {
@@ -61,12 +61,16 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             icon_url: value.template.icon_url,
             description: value.template.description,
             name: value.name,
-            game_type: value.template.game_type.ok_or_else(|| {
-                anyhow!("Game type not provided")
-            })?,
+            game_type: value
+                .template
+                .game_type
+                .ok_or_else(|| anyhow!("Game type not provided"))?,
             game_version: value.game_version.unwrap_or("".to_string()),
             max_players: value.max_players.unwrap_or(0),
-            init_template: value.template.init_template.unwrap_or(default_init_template()),
+            init_template: value
+                .template
+                .init_template
+                .unwrap_or(default_init_template()),
             pod_config: value.template.pod_config,
             service_config: value.template.service_config,
             pvc_config: value.template.pvc_config,
@@ -76,22 +80,22 @@ impl TryFrom<NewGameServerRequest> for GameServer {
 
 #[derive(Deserialize)]
 pub struct NewGameServerRequest {
-    pub name : String,
+    pub name: String,
     pub game_version: Option<String>,
-    pub max_players : Option<u32>,
-    pub template : GameServerTemplate
+    pub max_players: Option<u32>,
+    pub template: GameServerTemplate,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameServerTemplate {
-    pub template_name : String,
-    pub description : Option<String>,
-    pub game_type : Option<String>,
+    pub template_name: String,
+    pub description: Option<String>,
+    pub game_type: Option<String>,
     pub icon_url: Option<String>,
-    pub init_template : Option<String>,
-    pub pod_config : PodConfig,
+    pub init_template: Option<String>,
+    pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
-    pub pvc_config : PvcConfig
+    pub pvc_config: PvcConfig,
 }
 
 fn default_service_type() -> String {
@@ -112,7 +116,7 @@ pub struct ServiceConfig {
 }
 
 fn default_pod_template_name() -> String {
-    "default/pod_template.yaml".to_string()
+    "default/pod_template.yaml.jinja".to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -129,9 +133,9 @@ pub struct PodConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PvcConfig {
     pub storage_class: Option<String>,
-    pub container_path : String,
+    pub container_path: String,
     pub size: u32,
-    pub size_unit: String
+    pub size_unit: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
