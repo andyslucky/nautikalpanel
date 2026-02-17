@@ -119,6 +119,7 @@ function app() {
                 const data = await response.json();
                 this.servers = data.map(s => ({
                     id: s.game_server_id,
+                    icon_url: s.game_server.icon_url,
                     name: s.game_server.name,
                     game: s.game_server.game_type,
                     game_version: s.game_server.game_version,

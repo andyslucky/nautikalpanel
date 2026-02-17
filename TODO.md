@@ -14,7 +14,7 @@
 ### Frontend
 - [ ] Update front end create server modal to display the remaining properties for the template and new game server request
     including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.
-- [ ] Add image to server tiles based on the `icon_url` property
+- [x] Add image to server tiles based on the `icon_url` property
 - [ ] Add `default_max_players` to template.
 - [ ] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before
     first launch
