@@ -6,14 +6,14 @@ use surrealdb::RecordId;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Resources {
-    /// Request cpu in millicores
-    pub min_cpu_mcore: u32,
-    /// Limit cpu in millicores
-    pub max_cpu_mcore: u32,
-    /// Request memory in Mib
-    pub min_mem_mib: u32,
-    /// Limit memory in Mib
-    pub max_mem_mib: u32,
+    pub min_cpu: u32,
+    pub min_cpu_unit: String,
+    pub max_cpu: u32,
+    pub max_cpu_unit: String,
+    pub min_mem: u32,
+    pub min_mem_unit: String,
+    pub max_mem: u32,
+    pub max_mem_unit: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageRepoCredentials {

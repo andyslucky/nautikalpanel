@@ -32,25 +32,88 @@ function modal() {
                     init_template: '',
                     pod_config: {
                         image: '',
-                        env: {}
+                        pod_template: '',
+                        resources: {
+                            min_cpu: 0,
+                            min_cpu_unit: 'm',
+                            max_cpu: 0,
+                            max_cpu_unit: 'm',
+                            min_mem: 0,
+                            min_mem_unit: 'Mi',
+                            max_mem: 0,
+                            max_mem_unit: 'Mi'
+                        },
+                        command: [],
+                        env: {},
+                        mounts: []
                     },
                     service_config: {
-                        ports: [
-                            {port: '', protocol: ''}
-                        ]
+                        ports: [{port: '', protocol: 'TCP'}],
+                        ip_address: '',
+                        service_type: 'LoadBalancer'
                     },
                     pvc_config: {
-                        size_mib: '',
-                        size_unit: ''
+                        size: 0,
+                        size_unit: 'Gi',
+                        container_path: '',
+                        storage_class: ''
                     }
                 },
+            }
+        },
+        get commandInput() {
+            return Array.isArray(this.form.template?.pod_config?.command) 
+                ? this.form.template.pod_config.command.join(', ') 
+                : '';
+        },
+        set commandInput(value) {
+            this.updateCommandArray(value);
+        },
+        updateCommandArray(value) {
+            if (!this.form.template.pod_config) return;
+            this.form.template.pod_config.command = value
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+        },
+        updateEnvKey(event, oldKey, index) {
+            const newKey = event.target.value;
+            if (newKey !== oldKey) {
+                const env = this.form.template.pod_config.env;
+                const value = env[oldKey];
+                delete env[oldKey];
+                env[newKey] = value;
             }
         },
         async fetchGameServerTemplates() {
             this.gameServerTemplates = (await (await fetch("/api/v1/game-server-templates")).json()) || [];
         },
         useTemplate(template) {
-            this.form = {...this.form, template: _.cloneDeep(template)}
+            this.form.template = _.cloneDeep(template);
+            if (!this.form.template.pod_config.resources) {
+                this.form.template.pod_config.resources = { min_cpu: 0, min_cpu_unit: 'm', max_cpu: 0, max_cpu_unit: 'm', min_mem: 0, min_mem_unit: 'Mi', max_mem: 0, max_mem_unit: 'Mi' };
+            }
+            if (!this.form.template.pod_config.resources.min_cpu_unit) {
+                this.form.template.pod_config.resources.min_cpu_unit = 'm';
+            }
+            if (!this.form.template.pod_config.resources.max_cpu_unit) {
+                this.form.template.pod_config.resources.max_cpu_unit = 'm';
+            }
+            if (!this.form.template.pod_config.resources.min_mem_unit) {
+                this.form.template.pod_config.resources.min_mem_unit = 'Mi';
+            }
+            if (!this.form.template.pod_config.resources.max_mem_unit) {
+                this.form.template.pod_config.resources.max_mem_unit = 'Mi';
+            }
+            if (!this.form.template.pod_config.mounts) {
+                this.form.template.pod_config.mounts = [];
+            }
+            if (!this.form.template.pod_config.command) {
+                this.form.template.pod_config.command = [];
+            }
+            if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
+                this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
+            }
         },
         resetForm() {
             this.form = this.formDefaultValue();
@@ -147,20 +210,38 @@ function app() {
         async createServer() {
             const template = this.form.template
             const newServerRequest = {
-                ...this.form,
-                max_players: Number.parseInt(this.form.max_players),
+                name: this.form.name,
+                game_version: this.form.game_version || null,
+                max_players: this.form.max_players ? Number.parseInt(this.form.max_players) : null,
                 template: {
                     ...template,
                     service_config: {
                         ...template.service_config,
                         ports: template.service_config.ports.map(p => ({
-                            ...p,
-                            port: Number.parseInt(p.port)
+                            port: Number.parseInt(p.port),
+                            protocol: p.protocol
                         }))
                     },
                     pvc_config: {
                         ...template.pvc_config,
-                        size: (typeof template.pvc_config.size === 'number') ? template.pvc_config.size : Number.parseInt(template.pvc_config.size)
+                        size: (typeof template.pvc_config.size === 'number') ? template.pvc_config.size : Number.parseInt(template.pvc_config.size) || 0
+                    },
+                    pod_config: {
+                        ...template.pod_config,
+                        resources: template.pod_config.resources && (template.pod_config.resources.min_cpu || template.pod_config.resources.max_cpu || template.pod_config.resources.min_mem || template.pod_config.resources.max_mem)
+                            ? {
+                                min_cpu: Number.parseInt(template.pod_config.resources.min_cpu) || 0,
+                                min_cpu_unit: template.pod_config.resources.min_cpu_unit || 'm',
+                                max_cpu: Number.parseInt(template.pod_config.resources.max_cpu) || 0,
+                                max_cpu_unit: template.pod_config.resources.max_cpu_unit || 'm',
+                                min_mem: Number.parseInt(template.pod_config.resources.min_mem) || 0,
+                                min_mem_unit: template.pod_config.resources.min_mem_unit || 'Mi',
+                                max_mem: Number.parseInt(template.pod_config.resources.max_mem) || 0,
+                                max_mem_unit: template.pod_config.resources.max_mem_unit || 'Mi'
+                            }
+                            : null,
+                        command: template.pod_config.command && template.pod_config.command.length > 0 ? template.pod_config.command : null,
+                        mounts: template.pod_config.mounts && template.pod_config.mounts.length > 0 ? template.pod_config.mounts : null
                     }
                 }
             }
