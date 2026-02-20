@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use surrealdb::engine::local::Db;
 
+use crate::app_config::DatabaseConfig;
 use crate::game_servers::GameServer;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use surrealdb::Surreal;
@@ -15,8 +16,11 @@ impl GameServerStore {
     pub async fn new(
         executor: Arc<KubernetesExecutor>,
         db: Surreal<Db>,
+        db_config: &DatabaseConfig,
     ) -> Result<GameServerStore, Box<dyn std::error::Error>> {
-        db.use_ns("nautikal").use_db("nautikal").await?;
+        db.use_ns(&db_config.namespace)
+            .use_db(&db_config.name)
+            .await?;
         Ok(GameServerStore { db, executor })
     }
 

@@ -1,4 +1,8 @@
-use crate::game_servers::{GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate, NewGameServerRequest};
+use crate::app_config::AppConfig;
+use crate::game_servers::{
+    GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
+    NewGameServerRequest,
+};
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use axum::extract::Query;
@@ -21,6 +25,7 @@ pub struct AppState {
     /// Generic executor for managing game server instances
     pub executor: Arc<KubernetesExecutor>,
     pub store: Arc<GameServerStore>,
+    pub config: AppConfig,
 }
 
 /// Request body for starting a new game server instance
@@ -73,8 +78,16 @@ impl IntoResponse for ErrorResponse {
 }
 
 /// Create the axum router with all endpoints
-pub fn create_router(executor: Arc<KubernetesExecutor>, store: Arc<GameServerStore>) -> Router {
-    let state = AppState { executor, store };
+pub fn create_router(
+    executor: Arc<KubernetesExecutor>,
+    store: Arc<GameServerStore>,
+    config: AppConfig,
+) -> Router {
+    let state = AppState {
+        executor,
+        store,
+        config,
+    };
     Router::new()
         .route(
             "/api/v1/game-servers",
@@ -92,8 +105,10 @@ pub fn create_router(executor: Arc<KubernetesExecutor>, store: Arc<GameServerSto
         .with_state(state)
 }
 
-async fn fetch_game_server_templates() -> Result<Json<Vec<GameServerTemplate>>, ErrorResponse> {
-    let dirs = tokio::fs::read_dir("game-server-templates")
+async fn fetch_game_server_templates(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<GameServerTemplate>>, ErrorResponse> {
+    let dirs = tokio::fs::read_dir(&state.config.paths.game_server_templates)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
@@ -176,7 +191,9 @@ async fn create_game_server(
     State(state): State<AppState>,
     Json(req): Json<NewGameServerRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
-    let gs = GameServer::try_from(req).map_err(|e| ErrorResponse {error : e.to_string()})?;
+    let gs = GameServer::try_from(req).map_err(|e| ErrorResponse {
+        error: e.to_string(),
+    })?;
     state
         .store
         .create_game_server(gs)

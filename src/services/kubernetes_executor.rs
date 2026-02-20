@@ -1,3 +1,4 @@
+use crate::app_config::AppConfig;
 use crate::game_servers::GameServer;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
 use kube::api::{
@@ -45,12 +46,14 @@ pub struct KubernetesExecutor {
     client: Client,
     namespace: String,
     tera: Tera,
+    config: AppConfig,
 }
 
 impl KubernetesExecutor {
     pub async fn new(
         client: Client,
         namespace: String,
+        config: AppConfig,
     ) -> Result<KubernetesExecutor, Box<dyn Error>> {
         let namespaces: Api<Namespace> = Api::all(client.clone());
         let new_namespace = Namespace {
@@ -58,8 +61,8 @@ impl KubernetesExecutor {
                 name: Some(namespace.clone()),
                 ..Default::default()
             },
-            spec: None,   // Namespace spec is rarely used
-            status: None, // Status is ignored on creation
+            spec: None,
+            status: None,
         };
         let pp = PostParams::default();
         match namespaces.create(&pp, &new_namespace).await {
@@ -73,11 +76,12 @@ impl KubernetesExecutor {
                 println!("Created namespace {}", namespace);
             }
         }
-        let tera = Tera::new("k8s-templates/**/*")?;
+        let tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
         Ok(KubernetesExecutor {
             client,
             namespace,
             tera,
+            config,
         })
     }
 
@@ -141,8 +145,10 @@ impl KubernetesExecutor {
         {
             context.insert("storageClassName", storage_class_name);
         } else {
-            // TODO remove this
-            context.insert("storageClassName", "longhorn");
+            context.insert(
+                "storageClassName",
+                &self.config.kubernetes.default_storage_class,
+            );
         }
         context.insert(
             "storage",
