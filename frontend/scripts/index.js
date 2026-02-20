@@ -1,6 +1,7 @@
 function modal() {
     return {
         content: '',
+        selectedTab: 'general',
         form: {},
         gameServerTemplates: [],
         selectedTemplateName: '',

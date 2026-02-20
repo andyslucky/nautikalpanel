@@ -1,4 +1,88 @@
+<!--   <button x-on:click="modalIsOpen = true" type="button" class="whitespace-nowrap rounded-radius border border-primary dark:border-primary-dark bg-primary px-4 py-2 text-center text-sm font-medium tracking-wide text-on-primary transition hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:bg-primary-dark dark:text-on-primary-dark dark:focus-visible:outline-primary-dark">Open Modal</button> -->
+<div x-cloak x-show="showModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showModal"
+    x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center" role="dialog" aria-modal="true"
+    aria-labelledby="defaultModalTitle">
+    <!-- Modal Dialog -->
+    <div x-show="showModal"
+        x-transition:enter="transition ease-out duration-200 delay-100 motion-reduce:transition-opacity"
+        x-transition:enter-start="opacity-0 scale-50" x-transition:enter-end="opacity-100 scale-100"
+        class="flex w-full max-w-2xl min-h-[400px] h-[80%] md:h-[50%] flex-col gap-4 overflow-hidden rounded-xl border border-outline bg-white text-on-surface dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+        <!-- Dialog Header -->
+        <div
+            class="flex items-center justify-between border-b border-outline bg-surface-alt/60 p-4 dark:border-gray-600 dark:bg-surface-dark/20">
+            <h3 id="defaultModalTitle" class="font-semibold tracking-wide text-on-surface-strong">Create Server</h3>
+            <button x-on:click="showModal = false" aria-label="close modal">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor"
+                    fill="none" stroke-width="1.4" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <!-- Dialog Body -->
+        <div class="w-full flex-1">
+            <div x-on:keydown.right.prevent="$focus.wrap().next()" x-on:keydown.left.prevent="$focus.wrap().previous()"
+                class="flex gap-2 overflow-x-auto border-b border-outline dark:border-gray-600" role="tablist"
+                aria-label="tab options">
+                <button x-on:click="selectedTab = 'general'" x-bind:aria-selected="selectedTab === 'groups'"
+                    x-bind:tabindex="selectedTab === 'general' ? '0' : '-1'"
+                    x-bind:class="selectedTab === 'general' ? 'font-bold text-primary border-b-2 border-primary dark:border-primary-dark dark:text-white' : 'text-on-surface font-medium dark:text-on-surface-dark dark:hover:border-b-outline-dark-strong dark:hover:text-on-surface-dark-strong hover:border-b-2 hover:border-b-outline-strong hover:text-on-surface-strong'"
+                    class="h-min px-4 py-2 text-sm" type="button" role="tab"
+                    aria-controls="tabpanelgeneral">General</button>
+                <button x-on:click="selectedTab = 'podconfig'" x-bind:aria-selected="selectedTab === 'likes'"
+                    x-bind:tabindex="selectedTab === 'podconfig' ? '0' : '-1'"
+                    x-bind:class="selectedTab === 'podconfig' ? 'font-bold text-primary border-b-2 border-primary dark:border-primary-dark dark:text-white' : 'text-on-surface font-medium dark:text-on-surface-dark dark:hover:border-b-outline-dark-strong dark:hover:text-on-surface-dark-strong hover:border-b-2 hover:border-b-outline-strong hover:text-on-surface-strong'"
+                    class="h-min px-4 py-2 text-sm" type="button" role="tab" aria-controls="tabpanelpodconfig">Pod
+                    Config</button>
+                <button x-on:click="selectedTab = 'storageconfig'" x-bind:aria-selected="selectedTab === 'comments'"
+                    x-bind:tabindex="selectedTab === 'storageconfig' ? '0' : '-1'"
+                    x-bind:class="selectedTab === 'storageconfig' ? 'font-bold text-primary border-b-2 border-primary dark:border-primary-dark dark:text-white' : 'text-on-surface font-medium dark:text-on-surface-dark dark:hover:border-b-outline-dark-strong dark:hover:text-on-surface-dark-strong hover:border-b-2 hover:border-b-outline-strong hover:text-on-surface-strong'"
+                    class="h-min px-4 py-2 text-sm" type="button" role="tab"
+                    aria-controls="tabpanelstorageconfig">Storage
+                    Config</button>
+                <button x-on:click="selectedTab = 'svcconfig'" x-bind:aria-selected="selectedTab === 'saved'"
+                    x-bind:tabindex="selectedTab === 'svcconfig' ? '0' : '-1'"
+                    x-bind:class="selectedTab === 'svcconfig' ? 'font-bold text-primary border-b-2 border-primary dark:border-primary-dark dark:text-white' : 'text-on-surface font-medium dark:text-on-surface-dark dark:hover:border-b-outline-dark-strong dark:hover:text-on-surface-dark-strong hover:border-b-2 hover:border-b-outline-strong hover:text-on-surface-strong'"
+                    class="h-min px-4 py-2 text-sm" type="button" role="tab" aria-controls="tabpanelsvcconfig">Service
+                    Config</button>
+            </div>
+            <div class="px-2 py-4 text-on-surface">
+                <div x-cloak x-show="selectedTab === 'general'" id="tabpanelgeneral" role="tabpanel" aria-label="groups"
+                    class="flex flex-col gap-1 justify-start">
+                    <input type="text" x-model="form.name" placeholder="Server Name" required
+                        class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
+                    <label class="px-3 py-2">Description</label>
+                    <textarea
+                        class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg"></textarea>
+                </div>
+                <div x-cloak x-show="selectedTab === 'podconfig'" id="tabpanelpodconfig" role="tabpanel"
+                    aria-label="likes">
+                    <b><a href="#" class="underline">podconfig</a></b> tab is selected
+                </div>
+                <div x-cloak x-show="selectedTab === 'storageconfig'" id="tabpanelstorageconfig" role="tabpanel"
+                    aria-label="storageconfig"><b><a href="#" class="underline">storageconfig</a></b> tab is
+                    selected
+                </div>
+                <div x-cloak x-show="selectedTab === 'svcconfig'" id="tabpanelsvcconfig" role="tabpanel"
+                    aria-label="saved">
+                    <b><a href="#" class="underline">svcconfig</a></b> tab is selected
+                </div>
+            </div>
+        </div>
+        <!-- Dialog Footer -->
+        <div
+            class="flex flex-col justify-between gap-2 border-t border-outline bg-surface-alt/60 p-4 dark:border-gray-600 dark:bg-surface-dark/20 sm:flex-row sm:items-center md:justify-end">
+            <button
+                x-on:click="showModal = false; $dispatch('notify', { variant: 'warning', sender:{name:'Jack Ellis', avatar:'https://penguinui.s3.amazonaws.com/component-assets/avatar-2.webp'}, message: 'Hey, can you review the PR I just submitted? Let me know if you spot any issues!' })"
+                type="button"
+                class="whitespace-nowrap rounded-lg px-4 py-2 text-center text-sm font-medium tracking-wide text-on-surface transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:text-on-surface-dark dark:focus-visible:outline-primary-dark">Cancel</button>
+            <button x-on:click="showModal = false" type="button"
+                class="whitespace-nowrap rounded-lg bg-primary border border-primary dark:border-primary-dark px-4 py-2 text-center text-sm font-medium tracking-wide text-on-primary transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:bg-primary-dark text-white dark:focus-visible:outline-primary-dark">Create</button>
+        </div>
+    </div>
+</div>
 <!-- Add/Edit Modal -->
+<!--
 <div x-show="showModal" x-cloak
      class="fixed inset-0 bg-black/50 flex items-center justify-center"
      @click.self="showModal = false">
@@ -117,3 +201,4 @@
         </form>
     </div>
 </div>
+-->
