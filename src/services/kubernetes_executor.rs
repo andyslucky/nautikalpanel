@@ -55,10 +55,20 @@ impl KubernetesExecutor {
         namespace: String,
         config: AppConfig,
     ) -> Result<KubernetesExecutor, Box<dyn Error>> {
-        let namespaces: Api<Namespace> = Api::all(client.clone());
+        let tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
+        Ok(KubernetesExecutor {
+            client,
+            namespace,
+            tera,
+            config,
+        })
+    }
+
+    pub async fn create_namespace_if_required(&self) -> Result<(), Box<dyn Error>> {
+        let namespaces: Api<Namespace> = Api::all(self.client.clone());
         let new_namespace = Namespace {
             metadata: kube::api::ObjectMeta {
-                name: Some(namespace.clone()),
+                name: Some(self.namespace.clone()),
                 ..Default::default()
             },
             spec: None,
@@ -73,16 +83,10 @@ impl KubernetesExecutor {
                 return Err(e.into());
             }
             Ok(_) => {
-                println!("Created namespace {}", namespace);
+                println!("Created namespace {}", self.namespace);
             }
-        }
-        let tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
-        Ok(KubernetesExecutor {
-            client,
-            namespace,
-            tera,
-            config,
-        })
+        };
+        Ok(())
     }
 
     fn create_template_context(
@@ -315,6 +319,79 @@ impl KubernetesExecutor {
                 println!("Deleting collection of pods status: {}", status);
             }
         }
+        Ok(())
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game_servers::{PodConfig, PvcConfig, ServiceConfig};
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+    use std::str::FromStr;
+    use surrealdb::RecordId;
+
+    fn test_game_server() -> GameServer {
+         GameServer {
+            id: RecordId::from_str("game_server:abscda").ok(),
+            icon_url: None,
+            description: None,
+            name: "".to_string(),
+            game_type: "Minecraft".to_string(),
+            game_version: "".to_string(),
+            max_players: 0,
+            init_template: "default/init.yaml.jinja".to_string(),
+            pod_config: PodConfig {
+                image: "testimage".to_string(),
+                resources: None,
+                command: None,
+                env: Some(HashMap::from([
+                    ("foo".to_string(), "bar".to_string())
+                ])),
+                mounts: None,
+                pod_template: "default/pod_template.yaml.jinja".to_string(),
+            },
+            service_config: ServiceConfig {
+                ports: vec![],
+                ip_address: None,
+                service_type: "".to_string(),
+            },
+            pvc_config: PvcConfig {
+                storage_class: None,
+                container_path: "/data".to_string(),
+                size: 2,
+                size_unit: "Gi".to_string(),
+            },
+        }
+    }
+    #[tokio::test]
+    async fn test_render_init_yaml() -> Result<(), Box<dyn Error>>{
+        let config = AppConfig::load()?;
+        let executor = KubernetesExecutor::new(kube::Client::try_default().await?, "nautikal".to_string(), config).await?;
+        let game_server = test_game_server();
+        let init_script = executor.render_init_yaml(&game_server)?;
+        println!("{}", init_script);
+        Ok(())
+    }
+
+
+    #[tokio::test]
+    async fn test_render_pod_template_yaml() -> Result<(), Box<dyn Error>>{
+        let config = AppConfig::load()?;
+        let executor = KubernetesExecutor::new(kube::Client::try_default().await?, "nautikal".to_string(), config).await?;
+        let game_server = test_game_server();
+        let metadata : ObjectMeta = Default::default();
+        let pvc = PersistentVolumeClaim {
+            metadata: ObjectMeta {
+                name: Some("some_pvc".to_string()),
+                ..metadata
+            },
+            spec: None,
+            status: None,
+        };
+        let pod_script = executor.render_pod(&game_server, Some(&pvc))?;
+        println!("{}", pod_script);
         Ok(())
     }
 }

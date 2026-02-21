@@ -17,10 +17,11 @@ async fn create_executor(
     config: &AppConfig,
 ) -> Result<KubernetesExecutor, Box<dyn std::error::Error>> {
     let client = Client::try_default().await?;
-    Ok(
+    let executor =
         KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
-            .await?,
-    )
+            .await?;
+    executor.create_namespace_if_required().await?;
+    Ok(executor)
 }
 
 async fn create_db(
@@ -33,6 +34,7 @@ async fn create_db(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv()?;
     tracing_subscriber::fmt::init();
 
     let config = AppConfig::load()?;

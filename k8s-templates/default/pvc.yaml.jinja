@@ -1,10 +1,10 @@
+{% import "default/_macros.yaml.jinja" as macros -%}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   generateName: "gs-{{gameType | lower}}-"
   labels:
-    app.kubernetes.io/managed-by: "nautikal"
-    nautikal.io/game-server-id: "{{gameServerId}}"
+    {{ macros::standard_labels() | indent(prefix="    ")}}
 spec:
   accessModes:
     - ReadWriteOnce
