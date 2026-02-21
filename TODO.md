@@ -1,5 +1,6 @@
 ### Backend
 #### Functionality / Flexibility
+- [ ] Add support for init containers.
 - [x] Add rocksdb backend for Surreal to persist data across restarts
 - [ ] Make creations transactional so if the init template fails the database doesn't contain any uninitialized servers.
 - [ ] Troubleshoot status updates for "Terminating" pods.
@@ -9,12 +10,14 @@
 - [x] Decompose the individual resources from init.yaml into separate templates.
 - [x] Decompose individual resources from pod_template.yaml into separate templates.
 - [ ] Support tera reloading?
-- [ ] Update pod_template to make the gameserver container optional to support starting a container for SFTP only
+- [x] support starting a container for SFTP only
+- [ ] Add support for sftp_user_id property
 - [ ] Implement editing a server.
 - [ ] Implement connected user count
-- [ ] Implement log streaming
+- [x] Implement log streaming
 #### Safety
 - [ ] Add better sanitization for data sent to kubernetes
+- [ ] Generate random password for sftp server
 #### Optimizations
 - [ ] Consider creating a background task for syncing certain data from kubernetes periodically (such as the pod name, service name, pvc name, connected player count (TBD)). 
     This could be a performance gain especially for fetching the connected user counts later on.
@@ -28,3 +31,6 @@
 - [ ] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before
     first launch
 - [ ] Add `default_max_players` to template.
+### Shared
+- [ ] Add table in database for game template sources. it is essentially a list of URLs which can be used to fetch game server templates.
+    Add option under settings to manage Game Template Repositories

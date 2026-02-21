@@ -278,6 +278,33 @@ impl KubernetesExecutor {
         Ok(pod)
     }
 
+    fn render_sftp_pod(
+        &self,
+        game_server: &GameServer,
+        persistent_volume_claim: Option<&PersistentVolumeClaim>,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut context = self.create_template_context(game_server)?;
+        if let Some(pvc) = persistent_volume_claim {
+            context.insert("pvc_name", &pvc.name())
+        }
+        Ok(self.tera.render("default/sftp_only.yaml.jinja", &context)?)
+    }
+
+    pub async fn create_sftp_pod(&self, game_server: &GameServer) -> Result<Pod, Box<dyn Error>> {
+        let pvcs = self.list_pvcs(game_server.id_string()).await?;
+        let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        let pod_yaml = self.render_sftp_pod(game_server, pvcs.first())?;
+        tracing::debug!(
+            "Yaml for SFTP pod (game server name: {}; game server id: {:?} )",
+            game_server.name,
+            game_server.id_string()
+        );
+        tracing::debug!("{}", pod_yaml);
+        let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
+        let pod = pods.create(&PostParams::default(), &pod).await?;
+        Ok(pod)
+    }
+
     pub async fn delete_game_server_resources(
         &self,
         game_server_id: String,

@@ -2,10 +2,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  generateName: "gs-{{gameType | lower}}-"
+  generateName: "sftp-{{gameType | lower}}-"
   labels:
     {{ macros::standard_labels() | indent(prefix="    ") }}
-    nautikal.io/pod-type: "gameserver"
+    nautikal.io/pod-type: "sftp-only"
 spec:
   volumes:
     - name: data
@@ -13,4 +13,3 @@ spec:
         claimName: "{{pvc_name}}"
   containers:
     {{ macros::sftp_container() | indent(prefix="    ") }}
-    {{ macros::gameserver_container() | indent(prefix="    ")}}

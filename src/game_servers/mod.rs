@@ -181,6 +181,7 @@ impl From<Service> for GameServerNetworkIdentity {
 pub struct GameServerInstance {
     pub game_server_id: String,
     pub id: String,
+    pub nautikal_pod_type: String,
     pub pod_status: Option<String>,
     pub curr_players: u32,
     pub max_players: u32,
@@ -191,7 +192,15 @@ impl From<Pod> for GameServerInstance {
         let game_server_id = value
             .metadata
             .labels
+            .as_ref()
             .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned())
+            .unwrap();
+
+        let nautikal_pod_type = value
+            .metadata
+            .labels
+            .as_ref()
+            .and_then(|labels| labels.get("nautikal.io/pod-type").cloned())
             .unwrap();
         GameServerInstance {
             id: value
@@ -200,6 +209,7 @@ impl From<Pod> for GameServerInstance {
                 .as_ref()
                 .map(|n| n.clone())
                 .unwrap_or("unknown-pod".to_string()),
+            nautikal_pod_type,
             game_server_id,
             pod_status: value.status.and_then(|s| s.phase),
             // TODO fix this

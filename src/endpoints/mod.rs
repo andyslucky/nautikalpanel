@@ -108,6 +108,7 @@ pub fn create_router(
             get(fetch_game_server_templates),
         )
         .route("/api/v1/game-servers/start", post(start_server))
+        .route("/api/v1/game-servers/start-sftp", post(start_sftp_server))
         .route("/api/v1/game-servers/stop", post(stop_server))
         .route(
             "/api/v1/game-servers/{game_server_id}/logs",
@@ -255,6 +256,34 @@ async fn start_server(
     let instance = state
         .executor
         .create_pod(&game_server)
+        .await
+        .map(GameServerInstance::from)
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?;
+    Ok(Json(StartGameServerResponse { instance }))
+}
+
+/// POST /api/v1/game-servers/start-sftp
+/// Start an SFTP-only container for file management
+async fn start_sftp_server(
+    State(state): State<AppState>,
+    Json(req): Json<StartStopGameServerRequest>,
+) -> Result<Json<StartGameServerResponse>, ErrorResponse> {
+    let game_server = state
+        .store
+        .get_game_server_by_id(req.game_server_id.as_str())
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?
+        .ok_or_else(|| ErrorResponse {
+            error: "Could not find game server with id".to_string(),
+        })?;
+
+    let instance = state
+        .executor
+        .create_sftp_pod(&game_server)
         .await
         .map(GameServerInstance::from)
         .map_err(|e| ErrorResponse {

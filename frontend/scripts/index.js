@@ -75,6 +75,7 @@ function app() {
                     players: 0,
                     max_players: s.game_server.max_players,
                     status: s.instance ? s.instance.pod_status : 'Offline',
+                    instance_type: s.instance?.nautikal_pod_type || null,
                     instance_id: s.instance?.id || null
                 }));
             } catch (error) {
@@ -204,6 +205,21 @@ function app() {
                 this.showToast((await resp.text()) || "Failed to start server", "error")
             } else {
                 this.showToast(`Starting server ${server.name}`, 'info')
+                await this.fetchServers();
+            }
+        },
+        async startSftpOnly(server) {
+            const resp = await fetch("/api/v1/game-servers/start-sftp", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({game_server_id: server.id})
+            });
+            if (!resp.ok) {
+                this.showToast((await resp.text()) || "Failed to start SFTP server", "error")
+            } else {
+                this.showToast(`Starting SFTP for ${server.name}`, 'info')
                 await this.fetchServers();
             }
         },
