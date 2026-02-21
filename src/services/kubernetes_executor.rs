@@ -14,6 +14,7 @@ use std::ops::{Deref, Index};
 use futures_util::{AsyncBufReadExt, StreamExt, AsyncBufRead};
 use futures_util::io::Lines;
 use tera::{Context, Filter, Tera};
+use tracing::{error, info};
 
 struct EvaluateTeraFn {
     tera: Tera,
@@ -33,7 +34,7 @@ impl Filter for EvaluateTeraFn {
             match tera.render("eval_temp", &self.context) {
                 Ok(rendered_text) => Ok(Value::String(rendered_text)),
                 Err(e) => {
-                    eprintln!("{:?}", e);
+                    error!("{:?}", e);
                     Err(e)
                 }
             }
@@ -64,10 +65,10 @@ impl KubernetesExecutor {
             match Tera::new(&extra_glob) {
                 Ok(extra_tera) => {
                     tera.extend(&extra_tera)?;
-                    println!("Loaded extra templates from: {}", extra_dir);
+                    info!("Loaded extra templates from: {}", extra_dir);
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to load extra templates from {}: {}", extra_dir, e);
+                    error!("Warning: Failed to load extra templates from {}: {}", extra_dir, e);
                 }
             }
         }
@@ -92,13 +93,13 @@ impl KubernetesExecutor {
         let pp = PostParams::default();
         match namespaces.create(&pp, &new_namespace).await {
             Err(kube::error::Error::Api(e)) if e.code == 409 => {
-                println!("Namespace already exists");
+                info!("Namespace already exists");
             }
             Err(e) => {
                 return Err(e.into());
             }
             Ok(_) => {
-                println!("Created namespace {}", self.namespace);
+                info!("Created namespace {}", self.namespace);
             }
         };
         Ok(())
@@ -296,10 +297,10 @@ impl KubernetesExecutor {
         {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
-                println!("Deleting collection of services: {:?}", names);
+                info!("Deleting collection of services: {:?}", names);
             }
             either::Right(status) => {
-                println!("Deleting collection of services status: {}", status);
+                info!("Deleting collection of services status: {}", status);
             }
         }
         self.delete_pods(game_server_id).await?;
@@ -311,10 +312,10 @@ impl KubernetesExecutor {
         {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
-                println!("Deleting collection of pvcs: {:?}", names);
+                info!("Deleting collection of pvcs: {:?}", names);
             }
             either::Right(status) => {
-                println!("Deleting collection of pvcs status: {}", status);
+                info!("Deleting collection of pvcs status: {}", status);
             }
         }
         Ok(())
@@ -331,10 +332,10 @@ impl KubernetesExecutor {
         {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
-                println!("Deleting collection of pods: {:?}", names);
+                info!("Deleting collection of pods: {:?}", names);
             }
             either::Right(status) => {
-                println!("Deleting collection of pods status: {}", status);
+                info!("Deleting collection of pods status: {}", status);
             }
         }
         Ok(())
