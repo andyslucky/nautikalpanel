@@ -1,3 +1,4 @@
+const content = `
 <!--   <button x-on:click="modalIsOpen = true" type="button" class="whitespace-nowrap rounded-radius border border-primary dark:border-primary-dark bg-primary px-4 py-2 text-center text-sm font-medium tracking-wide text-on-primary transition hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:bg-primary-dark dark:text-on-primary-dark dark:focus-visible:outline-primary-dark">Open Modal</button> -->
 <div x-cloak x-show="showModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showModal"
     x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
@@ -305,124 +306,128 @@
         </div>
     </div>
 </div>
-<!-- Add/Edit Modal -->
-<!--
-<div x-show="showModal" x-cloak
-     class="fixed inset-0 bg-black/50 flex items-center justify-center"
-     @click.self="showModal = false">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl">
-        <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4"
-            x-text="editingServer ? 'Edit Server' : 'Add Server'"></h3>
-        <form @submit.prevent="createServer()" class="space-y-4" style="overflow-y: scroll; max-height: 90vh">
-            <input type="text" x-model="form.name" placeholder="Server Name" required
-                   class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-            <div class="flex gap-2">
-                <select class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg"
-                        x-model="selectedTemplateName"
-                        @change="changedTemplate($event)"
-                >
-                    <template x-for="temp in gameServerTemplates">
-                        <option x-text="temp.template_name" :value="temp.template_name"></option>
-                    </template>
-                </select>
-                <input type="number" x-model="form.max_players" placeholder="Players" min="0"
-                       class="w-24 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-            </div>
-            <div class="flex gap-2 items-center cursor-pointer "
-                 :class="modalConfig.podConfigVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
-                 @click="modalConfig.podConfigVisible = !modalConfig.podConfigVisible">
-                <div class="flex-grow border-t border-gray-300"></div>
-                <i class="flex-shrink">Pod Config</i>
-                <div class="flex-grow border-t border-gray-300"></div>
-            </div>
-            <div class="flex gap-2 flex-col" x-show="modalConfig.podConfigVisible">
-                <input type="text" x-model="form.template.pod_config.image"
-                       placeholder="Container Image (e.g., itzg/minecraft-server)" required
-                       class="w-full px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <div class="flex flex-col gap-2" style="max-height: 20vh; overflow-y: scroll;">
-                    <template x-for="(value, key) in form.template.pod_config.env">
-                        <div class="flex gap-6">
-                            <input type="text" x-model="key" required
-                                   class="min-w-0 flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                            <input type="text" x-model="value" required
-                                   class="min-w-0 flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                            <button type="button"
-                                    class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
-                                    x-show="form.template?.pod_config?.env != null && Object.keys(form.template.pod_config.env).length > 0"
-                                    @click="delete form.template.pod_config.env[key]">
-                                🗑️
-                            </button>
-                        </div>
-                    </template>
-                    <button type="button"
-                            class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
-                            @click="form.template.pod_config.env[''] = ''">
-                        Add Environment Variable +
-                    </button>
-                </div>
-            </div>
-            <div class="flex gap-2 items-center cursor-pointer "
-                 :class="modalConfig.storageVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
-                 @click="modalConfig.storageVisible = !modalConfig.storageVisible">
-                <div class="flex-grow border-t border-gray-300"></div>
-                <i class="flex-shrink">Storage</i>
-                <div class="flex-grow border-t border-gray-300"></div>
-            </div>
-            <div class="flex gap-2" x-show="modalConfig.storageVisible">
-                <input type="number" x-model="form.template.pvc_config.size" placeholder="Storage Size" min="1" required
-                       class="flex-1 px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <select x-model="form.template.pvc_config.size_unit"
-                        class="w-20 px-2 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg text-sm">
-                    <option value="Mi">Mi</option>
-                    <option value="Gi">Gi</option>
-                </select>
-            </div>
-            <div class="flex gap-2 items-center cursor-pointer "
-                 :class="modalConfig.networkVisible ? 'dark:text-white font-bold' : 'dark:text-gray-300' "
-                 @click="modalConfig.networkVisible = !modalConfig.networkVisible">
-                <div class="flex-grow border-t border-gray-300"></div>
-                <i class="flex-shrink">Network</i>
-                <div class="flex-grow border-t border-gray-300"></div>
-            </div>
-            <div class="flex gap-2 flex-col" x-show="modalConfig.networkVisible">
-                <input type="text" x-model="form.ip" placeholder="IP Address (Optional)"
-                       class="px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                <template x-for="(p, index) in form.template.service_config.ports">
-                    <div class="flex gap-6">
-                        <input type="number" x-model="p.port" placeholder="Port" required
-                               class="min-w-0 flex-grow px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                        <select required
-                                x-model="p.protocol"
-                                class="min-w-0 flex-shrink px-3 py-2 border dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-lg">
-                            <option value="TCP">TCP</option>
-                            <option value="UDP">UDP</option>
-                            <option value="Both">Both</option>
-                        </select>
-                        <button type="button"
-                                class="px-4 py-2 bg-danger text-white rounded-lg hover:opacity-90"
-                                x-show="form.template.service_config.ports.length > 1"
-                                @click="form.template.service_config.ports.splice(index, 1)">
-                            🗑️
-                        </button>
-                    </div>
-                </template>
-                <button type="button"
-                        class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
-                        @click="form.template.service_config.ports.push({port: '', protocol: ''})">
-                    Add Port +
-                </button>
-            </div>
+`;
 
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" @click="showModal = false; resetForm()"
-                        class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                    Cancel
-                </button>
-                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
-                    Save
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
--->
+
+function modal() {
+    return {
+        content,
+        selectedTab: 'general',
+        form: {},
+        gameServerTemplates: [],
+        selectedTemplateName: '',
+        async init() {
+            this.resetForm();
+            await this.fetchGameServerTemplates();
+        },
+
+        changedTemplate(event) {
+            const tempName = event.target.value;
+            const template = this.gameServerTemplates.find(t => t.template_name === tempName)
+            if (template == null)
+                console.error("Could not find template with name " + tempName)
+            else
+                this.useTemplate(template);
+        },
+        formDefaultValue() {
+            return {
+                name: '',
+                game_version: '',
+                max_players: 0,
+                template: {
+                    template_name: '',
+                    description: '',
+                    game_type: '',
+                    icon_url: '',
+                    init_template: '',
+                    pod_config: {
+                        image: '',
+                        pod_template: '',
+                        resources: {
+                            min_cpu: 0,
+                            min_cpu_unit: 'm',
+                            max_cpu: 0,
+                            max_cpu_unit: 'm',
+                            min_mem: 0,
+                            min_mem_unit: 'Mi',
+                            max_mem: 0,
+                            max_mem_unit: 'Mi'
+                        },
+                        command: [],
+                        env: {},
+                        mounts: []
+                    },
+                    service_config: {
+                        ports: [{port: '', protocol: 'TCP'}],
+                        ip_address: '',
+                        service_type: 'LoadBalancer'
+                    },
+                    pvc_config: {
+                        size: 0,
+                        size_unit: 'Gi',
+                        container_path: '',
+                        storage_class: ''
+                    }
+                },
+            }
+        },
+        get commandInput() {
+            return Array.isArray(this.form.template?.pod_config?.command)
+                ? this.form.template.pod_config.command.join(', ')
+                : '';
+        },
+        set commandInput(value) {
+            this.updateCommandArray(value);
+        },
+        updateCommandArray(value) {
+            if (!this.form.template.pod_config) return;
+            this.form.template.pod_config.command = value
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+        },
+        updateEnvKey(event, oldKey, index) {
+            const newKey = event.target.value;
+            if (newKey !== oldKey) {
+                const env = this.form.template.pod_config.env;
+                const value = env[oldKey];
+                delete env[oldKey];
+                env[newKey] = value;
+            }
+        },
+        async fetchGameServerTemplates() {
+            this.gameServerTemplates = (await (await fetch("/api/v1/game-server-templates")).json()) || [];
+        },
+        useTemplate(template) {
+            this.form.template = _.cloneDeep(template);
+            if (!this.form.template.pod_config.resources) {
+                this.form.template.pod_config.resources = { min_cpu: 0, min_cpu_unit: 'm', max_cpu: 0, max_cpu_unit: 'm', min_mem: 0, min_mem_unit: 'Mi', max_mem: 0, max_mem_unit: 'Mi' };
+            }
+            if (!this.form.template.pod_config.resources.min_cpu_unit) {
+                this.form.template.pod_config.resources.min_cpu_unit = 'm';
+            }
+            if (!this.form.template.pod_config.resources.max_cpu_unit) {
+                this.form.template.pod_config.resources.max_cpu_unit = 'm';
+            }
+            if (!this.form.template.pod_config.resources.min_mem_unit) {
+                this.form.template.pod_config.resources.min_mem_unit = 'Mi';
+            }
+            if (!this.form.template.pod_config.resources.max_mem_unit) {
+                this.form.template.pod_config.resources.max_mem_unit = 'Mi';
+            }
+            if (!this.form.template.pod_config.mounts) {
+                this.form.template.pod_config.mounts = [];
+            }
+            if (!this.form.template.pod_config.command) {
+                this.form.template.pod_config.command = [];
+            }
+            if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
+                this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
+            }
+        },
+        resetForm() {
+            this.form = this.formDefaultValue();
+        },
+    }
+
+}

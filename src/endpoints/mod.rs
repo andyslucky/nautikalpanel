@@ -186,7 +186,6 @@ async fn list_servers(
 
     Ok(Json(responses))
 }
-
 async fn create_game_server(
     State(state): State<AppState>,
     Json(req): Json<NewGameServerRequest>,

@@ -78,6 +78,8 @@ pub struct PathsConfig {
     pub game_server_templates: String,
     #[serde(default = "default_frontend_dir")]
     pub frontend: String,
+    #[serde(default)]
+    pub extra_k8s_templates_dir: Option<String>,
 }
 
 fn default_k8s_templates_dir() -> String {

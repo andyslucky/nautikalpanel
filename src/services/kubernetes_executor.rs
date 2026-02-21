@@ -55,7 +55,19 @@ impl KubernetesExecutor {
         namespace: String,
         config: AppConfig,
     ) -> Result<KubernetesExecutor, Box<dyn Error>> {
-        let tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
+        let mut tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
+        if let Some(extra_dir) = &config.paths.extra_k8s_templates_dir {
+            let extra_glob = format!("{}/**/*", extra_dir);
+            match Tera::new(&extra_glob) {
+                Ok(extra_tera) => {
+                    tera.extend(&extra_tera)?;
+                    println!("Loaded extra templates from: {}", extra_dir);
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load extra templates from {}: {}", extra_dir, e);
+                }
+            }
+        }
         Ok(KubernetesExecutor {
             client,
             namespace,

@@ -64,7 +64,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let router = endpoints::create_router(executor, Arc::new(store), config.clone())
         .nest_service("/scripts", scripts_dir)
-        .nest_service("/fragments", fragments)
         .route_service("/", index);
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_address()).await?;

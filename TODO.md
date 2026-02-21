@@ -4,10 +4,10 @@
 - [ ] Make creations transactional so if the init template fails the database doesn't contain any uninitialized servers.
 - [ ] Troubleshoot status updates for "Terminating" pods.
 - [ ] Utilize the resource watching capabilities of kube for more realtime updates.
-- [ ] Update application to accept configuration for default storage class, pod template name, port, etc.
+- [x] Update application to accept configuration for default storage class, pod template name, port, etc.
 - [ ] Complete the pod_template so that it uses resources etc.
 - [x] Decompose the individual resources from init.yaml into separate templates.
-- [ ] Decompose individual resources from pod_template.yaml into separate templates.
+- [x] Decompose individual resources from pod_template.yaml into separate templates.
 - [ ] Add support for a GLOBAL_INIT_TEMPLATE variable which can be used to apply deployment specific configuration (e.g. service mesh CRDs etc.)
 - [ ] Support tera reloading?
 - [ ] Update pod_template to make the gameserver container optional to support starting a container for SFTP only

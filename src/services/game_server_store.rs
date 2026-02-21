@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+use std::error::Error;
 use std::sync::Arc;
 use surrealdb::engine::local::Db;
 
@@ -17,7 +19,7 @@ impl GameServerStore {
         executor: Arc<KubernetesExecutor>,
         db: Surreal<Db>,
         db_config: &DatabaseConfig,
-    ) -> Result<GameServerStore, Box<dyn std::error::Error>> {
+    ) -> Result<GameServerStore, Box<dyn Error>> {
         db.use_ns(&db_config.namespace)
             .use_db(&db_config.name)
             .await?;
@@ -27,7 +29,7 @@ impl GameServerStore {
     pub async fn create_game_server(
         &self,
         mut game_server: GameServer,
-    ) -> Result<GameServer, Box<dyn std::error::Error>> {
+    ) -> Result<GameServer, Box<dyn Error>> {
         // Never allow users to dictate the ID. That should be auto-generated
         game_server.id = None;
         let created_game_server: GameServer = self
@@ -43,10 +45,10 @@ impl GameServerStore {
     pub async fn delete_game_server(
         &self,
         game_server_id: String,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         let _deleted: Option<GameServer> = self
             .db
-            .delete(("game_servers", game_server_id.clone()))
+            .delete(("game_servers", game_server_id.as_str()))
             .await?;
         self.executor
             .delete_game_server_resources(game_server_id)
@@ -56,14 +58,14 @@ impl GameServerStore {
 
     pub async fn fetch_all_game_servers(
         &self,
-    ) -> Result<Vec<GameServer>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<GameServer>, Box<dyn Error>> {
         Ok(self.db.select("game_servers").await?)
     }
 
     pub async fn get_game_server_by_id(
         &self,
         game_server_id: &str,
-    ) -> Result<Option<GameServer>, Box<dyn std::error::Error>> {
+    ) -> Result<Option<GameServer>, Box<dyn Error>> {
         let game_server: Option<GameServer> =
             self.db.select(("game_servers", game_server_id)).await?;
         Ok(game_server)
