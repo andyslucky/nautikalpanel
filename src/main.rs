@@ -6,16 +6,19 @@ mod services;
 use crate::app_config::AppConfig;
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
-use kube::Client;
+use k8s_openapi::api::core::v1::Namespace;
+use kube::api::PostParams;
+use kube::{Api, Client};
+use std::error::Error;
 use std::sync::Arc;
-use surrealdb::Surreal;
 use surrealdb::engine::local::{Db, RocksDb};
+use surrealdb::Surreal;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 async fn create_executor(
     config: &AppConfig,
-) -> Result<KubernetesExecutor, Box<dyn std::error::Error>> {
+) -> Result<KubernetesExecutor, Box<dyn Error>> {
     let client = Client::try_default().await?;
     let executor =
         KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
@@ -27,13 +30,13 @@ async fn create_executor(
 async fn create_db(
     executor: Arc<KubernetesExecutor>,
     config: &AppConfig,
-) -> Result<GameServerStore, Box<dyn std::error::Error>> {
+) -> Result<GameServerStore, Box<dyn Error>> {
     let db: Surreal<Db> = Surreal::new::<RocksDb>(config.database.path.clone()).await?;
     GameServerStore::new(executor, db, &config.database).await
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::dotenv()?;
     tracing_subscriber::fmt::init();
 
@@ -43,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("  Server: {}:{}", config.server.host, config.server.port);
     info!("  Kubernetes namespace: {}", config.kubernetes.namespace);
     info!(
-        "  Default storage class: {}",
+        "  Default storage class: {:?}",
         config.kubernetes.default_storage_class
     );
     info!("  Database path: {:?}", config.database.path);
@@ -52,15 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "  Game server templates: {}",
         config.paths.game_server_templates
     );
-    info!("  Frontend: {}", config.paths.frontend);
 
     let executor = Arc::new(create_executor(&config).await?);
     let store = create_db(executor.clone(), &config).await?;
 
-    let frontend_dir = &config.paths.frontend;
+    let frontend_dir = "frontend";
     let index = ServeFile::new(format!("{}/index.html", frontend_dir));
     let scripts_dir = ServeDir::new(format!("{}/scripts", frontend_dir));
-    let fragments = ServeDir::new(format!("{}/fragments", frontend_dir));
 
     let router = endpoints::create_router(executor, Arc::new(store), config.clone())
         .nest_service("/scripts", scripts_dir)

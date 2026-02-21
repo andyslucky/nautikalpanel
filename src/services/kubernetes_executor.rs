@@ -1,9 +1,10 @@
 use crate::app_config::AppConfig;
 use crate::game_servers::{GameServer, GameServerInstance};
+use futures_util::io::Lines;
+use futures_util::{AsyncBufRead, AsyncBufReadExt, StreamExt};
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
 use kube::api::{
-    ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams,
-    PostParams,
+    ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams, PostParams,
 };
 use kube::runtime::reflector::Lookup;
 use kube::{Api, Client, ResourceExt};
@@ -11,8 +12,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::{Deref, Index};
-use futures_util::{AsyncBufReadExt, StreamExt, AsyncBufRead};
-use futures_util::io::Lines;
 use tera::{Context, Filter, Tera};
 use tracing::{error, info};
 
@@ -68,7 +67,10 @@ impl KubernetesExecutor {
                     info!("Loaded extra templates from: {}", extra_dir);
                 }
                 Err(e) => {
-                    error!("Warning: Failed to load extra templates from {}: {}", extra_dir, e);
+                    error!(
+                        "Warning: Failed to load extra templates from {}: {}",
+                        extra_dir, e
+                    );
                 }
             }
         }
@@ -147,14 +149,8 @@ impl KubernetesExecutor {
                 context: context.clone(),
             },
         );
-        let template_name = if game_server.pod_config.pod_template.ends_with(".jinja") {
-            game_server.pod_config.pod_template.as_str()
-        } else {
-            // in-line template
-            tera.add_raw_template("pod_temp", game_server.pod_config.pod_template.as_str())?;
-            "pod_temp"
-        };
-        Ok(tera.render(template_name, &context)?)
+        let pod_template = game_server.pod_template.as_ref().filter(|t| !t.is_empty()).unwrap_or(&self.config.kubernetes.pod_template);
+        Ok(tera.render(pod_template.as_str(), &context)?)
     }
 
     fn render_init_yaml(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
@@ -164,11 +160,8 @@ impl KubernetesExecutor {
             && storage_class_name.len() > 0
         {
             context.insert("storageClassName", storage_class_name);
-        } else {
-            context.insert(
-                "storageClassName",
-                &self.config.kubernetes.default_storage_class,
-            );
+        } else if let Some(default_storage_class) = &self.config.kubernetes.default_storage_class {
+            context.insert("storageClassName", default_storage_class);
         }
         context.insert(
             "storage",
@@ -185,14 +178,9 @@ impl KubernetesExecutor {
                 context: context.clone(),
             },
         );
-        let template_name = if game_server.init_template.ends_with(".jinja") {
-            game_server.init_template.as_str()
-        } else {
-            // in-line template
-            tera.add_raw_template("init_temp", game_server.init_template.as_str())?;
-            "init_temp"
-        };
-        Ok(tera.render(template_name, &context)?)
+
+        let init_template = game_server.init_template.as_ref().filter(|t| !t.is_empty()).unwrap_or(&self.config.kubernetes.init_template);
+        Ok(tera.render(init_template, &context)?)
     }
 
     pub async fn list_services(
@@ -250,7 +238,11 @@ impl KubernetesExecutor {
 
     pub async fn init_game_server(&self, game_server: &GameServer) -> Result<(), Box<dyn Error>> {
         let init_yaml = self.render_init_yaml(game_server)?;
-        tracing::debug!("Init YAML for game server name: {}; game server id: {:?}", game_server.name, game_server.id_string());
+        tracing::debug!(
+            "Init YAML for game server name: {}; game server id: {:?}",
+            game_server.name,
+            game_server.id_string()
+        );
         tracing::debug!("{}", init_yaml);
         let docs: Vec<DynamicObject> = serde_saphyr::from_multiple(init_yaml.as_str())?;
         for doc in docs {
@@ -274,7 +266,11 @@ impl KubernetesExecutor {
         // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let pod_yaml = self.render_pod(game_server, pvcs.first())?;
-        tracing::debug!("Yaml for pod (game server name: {}; game server id: {:?} )", game_server.name, game_server.id_string());
+        tracing::debug!(
+            "Yaml for pod (game server name: {}; game server id: {:?} )",
+            game_server.name,
+            game_server.id_string()
+        );
         tracing::debug!("{}", pod_yaml);
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         // Create the pod
@@ -351,10 +347,12 @@ impl KubernetesExecutor {
             tail_lines: Some(100),
             ..Default::default()
         };
-        Ok(pods.log_stream(game_server_instance.id.as_str(), &log_params).await?.lines())
+        Ok(pods
+            .log_stream(game_server_instance.id.as_str(), &log_params)
+            .await?
+            .lines())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -365,7 +363,7 @@ mod tests {
     use surrealdb::RecordId;
 
     fn test_game_server() -> GameServer {
-         GameServer {
+        GameServer {
             id: RecordId::from_str("game_server:abscda").ok(),
             icon_url: None,
             description: None,
@@ -373,17 +371,17 @@ mod tests {
             game_type: "Minecraft".to_string(),
             game_version: "".to_string(),
             max_players: 0,
-            init_template: "default/init.yaml.jinja".to_string(),
+            pod_template: None,
+            init_template: None,
             pod_config: PodConfig {
                 image: "testimage".to_string(),
                 resources: None,
                 command: None,
                 env: Some(HashMap::from([
                     ("foo".to_string(), "bar".to_string()),
-                    ("old".to_string(), "young".to_string())
+                    ("old".to_string(), "young".to_string()),
                 ])),
                 mounts: None,
-                pod_template: "default/pod_template.yaml.jinja".to_string(),
             },
             service_config: ServiceConfig {
                 ports: vec![],
@@ -399,22 +397,31 @@ mod tests {
         }
     }
     #[tokio::test]
-    async fn test_render_init_yaml() -> Result<(), Box<dyn Error>>{
+    async fn test_render_init_yaml() -> Result<(), Box<dyn Error>> {
         let config = AppConfig::load()?;
-        let executor = KubernetesExecutor::new(kube::Client::try_default().await?, "nautikal".to_string(), config).await?;
+        let executor = KubernetesExecutor::new(
+            kube::Client::try_default().await?,
+            "nautikal".to_string(),
+            config,
+        )
+        .await?;
         let game_server = test_game_server();
         let init_script = executor.render_init_yaml(&game_server)?;
         println!("{}", init_script);
         Ok(())
     }
 
-
     #[tokio::test]
-    async fn test_render_pod_template_yaml() -> Result<(), Box<dyn Error>>{
+    async fn test_render_pod_template_yaml() -> Result<(), Box<dyn Error>> {
         let config = AppConfig::load()?;
-        let executor = KubernetesExecutor::new(kube::Client::try_default().await?, "nautikal".to_string(), config).await?;
+        let executor = KubernetesExecutor::new(
+            kube::Client::try_default().await?,
+            "nautikal".to_string(),
+            config,
+        )
+        .await?;
         let game_server = test_game_server();
-        let metadata : ObjectMeta = Default::default();
+        let metadata: ObjectMeta = Default::default();
         let pvc = PersistentVolumeClaim {
             metadata: ObjectMeta {
                 name: Some("some_pvc".to_string()),

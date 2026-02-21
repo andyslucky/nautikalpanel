@@ -26,9 +26,6 @@ pub struct VolumeMount {
     pub container_path: String,
 }
 
-fn default_init_template() -> String {
-    "default/init.yaml.jinja".to_string()
-}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameServer {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,11 +36,11 @@ pub struct GameServer {
     pub game_type: String,
     pub game_version: String,
     pub max_players: u32,
-    #[serde(default = "default_init_template")]
-    pub init_template: String,
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
+    pub pod_template : Option<String>,
+    pub init_template: Option<String>
 }
 
 impl GameServer {
@@ -67,13 +64,11 @@ impl TryFrom<NewGameServerRequest> for GameServer {
                 .ok_or_else(|| anyhow!("Game type not provided"))?,
             game_version: value.game_version.unwrap_or("".to_string()),
             max_players: value.max_players.unwrap_or(0),
-            init_template: value
-                .template
-                .init_template
-                .unwrap_or(default_init_template()),
             pod_config: value.template.pod_config,
             service_config: value.template.service_config,
             pvc_config: value.template.pvc_config,
+            pod_template: value.pod_template,
+            init_template: value.init_template
         })
     }
 }
@@ -83,6 +78,8 @@ pub struct NewGameServerRequest {
     pub name: String,
     pub game_version: Option<String>,
     pub max_players: Option<u32>,
+    pub pod_template : Option<String>,
+    pub init_template: Option<String>,
     pub template: GameServerTemplate,
 }
 
@@ -99,7 +96,7 @@ pub struct GameServerTemplate {
 }
 
 fn default_service_type() -> String {
-    String::from("LoadBalancer")
+    std::env::var("DEFAULT_SERVICE_TYPE").unwrap_or(String::from("LoadBalancer"))
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -115,10 +112,6 @@ pub struct ServiceConfig {
     pub service_type: String,
 }
 
-fn default_pod_template_name() -> String {
-    "default/pod_template.yaml.jinja".to_string()
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PodConfig {
     pub image: String,
@@ -126,8 +119,6 @@ pub struct PodConfig {
     pub command: Option<Vec<String>>,
     pub env: Option<HashMap<String, String>>,
     pub mounts: Option<Vec<VolumeMount>>,
-    #[serde(default = "default_pod_template_name")]
-    pub pod_template: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

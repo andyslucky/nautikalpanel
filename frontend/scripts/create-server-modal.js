@@ -18,22 +18,26 @@ const createServerModalContent = `
         <div class="modal-dialog-body">
             <div x-on:keydown.right.prevent="$focus.wrap().next()" x-on:keydown.left.prevent="$focus.wrap().previous()"
                 class="tab-list" role="tablist" aria-label="tab options">
-                <button x-on:click="selectedTab = 'general'" x-bind:aria-selected="selectedTab === 'groups'"
+                <button x-on:click="selectedTab = 'general'" x-bind:aria-selected="selectedTab === 'general'"
                     x-bind:tabindex="selectedTab === 'general' ? '0' : '-1'"
                     x-bind:class="selectedTab === 'general' ? 'tab-btn-active' : 'tab-btn-inactive'"
                     type="button" role="tab" aria-controls="tabpanelgeneral">General</button>
-                <button x-on:click="selectedTab = 'podconfig'" x-bind:aria-selected="selectedTab === 'likes'"
+                <button x-on:click="selectedTab = 'podconfig'" x-bind:aria-selected="selectedTab === 'podconfig'"
                     x-bind:tabindex="selectedTab === 'podconfig' ? '0' : '-1'"
                     x-bind:class="selectedTab === 'podconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
                     type="button" role="tab" aria-controls="tabpanelpodconfig">Pod Config</button>
-                <button x-on:click="selectedTab = 'storageconfig'" x-bind:aria-selected="selectedTab === 'comments'"
+                <button x-on:click="selectedTab = 'storageconfig'" x-bind:aria-selected="selectedTab === 'storageconfig'"
                     x-bind:tabindex="selectedTab === 'storageconfig' ? '0' : '-1'"
                     x-bind:class="selectedTab === 'storageconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
                     type="button" role="tab" aria-controls="tabpanelstorageconfig">Storage Config</button>
-                <button x-on:click="selectedTab = 'svcconfig'" x-bind:aria-selected="selectedTab === 'saved'"
+                <button x-on:click="selectedTab = 'svcconfig'" x-bind:aria-selected="selectedTab === 'svcconfig'"
                     x-bind:tabindex="selectedTab === 'svcconfig' ? '0' : '-1'"
                     x-bind:class="selectedTab === 'svcconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
                     type="button" role="tab" aria-controls="tabpanelsvcconfig">Service Config</button>
+                <button x-on:click="selectedTab = 'misc'" x-bind:aria-selected="selectedTab === 'misc'"
+                    x-bind:tabindex="selectedTab === 'misc' ? '0' : '-1'"
+                    x-bind:class="selectedTab === 'misc' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                    type="button" role="tab" aria-controls="tabpanelmisc">Misc</button>
             </div>
             <div class="px-4 py-3 overflow-y-scroll min-h-[0] flex-1">
                 <div x-cloak x-show="selectedTab === 'general'" id="tabpanelgeneral" role="tabpanel" aria-label="general" class="form-group">
@@ -74,19 +78,11 @@ const createServerModalContent = `
                         <label class="form-label-sm">Description</label>
                         <textarea x-model="form.template.description" placeholder="Server description..." rows="2" class="form-input"></textarea>
                     </div>
-                    <div>
-                        <label class="form-label-sm">Init Template</label>
-                        <input type="text" x-model="form.template.init_template" placeholder="default/init.yaml.jinja" class="form-input">
-                    </div>
                 </div>
                 <div x-cloak x-show="selectedTab === 'podconfig'" id="tabpanelpodconfig" role="tabpanel" aria-label="podconfig" class="form-group">
                     <div>
                         <label class="form-label-sm">Container Image</label>
                         <input type="text" x-model="form.template.pod_config.image" placeholder="itzg/minecraft-server" required class="form-input">
-                    </div>
-                    <div>
-                        <label class="form-label-sm">Pod Template</label>
-                        <input type="text" x-model="form.template.pod_config.pod_template" placeholder="default/pod_template.yaml.jinja" class="form-input">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
@@ -204,6 +200,30 @@ const createServerModalContent = `
                         </div>
                     </div>
                 </div>
+                <div x-cloak x-show="selectedTab === 'misc'" id="tabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
+                    <div class="warning-box mb-4">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="warning-title">Warning</span>
+                        </div>
+                        <p class="warning-text">
+                            Modifying these templates can pose <strong>security risks</strong> and <strong>data loss risks</strong> for your cluster. 
+                            Only change these if you understand the implications, and completely trust the templates you will use.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="form-label-sm">Init Template</label>
+                        <input type="text" x-model="form.init_template" placeholder="default/init.yaml.jinja" class="form-input">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to initialize Kubernetes resources (Service, PVC).</p>
+                    </div>
+                    <div>
+                        <label class="form-label-sm">Pod Template</label>
+                        <input type="text" x-model="form.pod_template" placeholder="default/pod_template.yaml.jinja" class="form-input">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to create the Pod manifest.</p>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="modal-dialog-footer">
@@ -245,10 +265,10 @@ function createServerModal() {
                     description: '',
                     game_type: '',
                     icon_url: '',
-                    init_template: '',
+                    pod_template: null,
+                    init_template: null,
                     pod_config: {
                         image: '',
-                        pod_template: '',
                         resources: {
                             min_cpu: 0,
                             min_cpu_unit: 'm',

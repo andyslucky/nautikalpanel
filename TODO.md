@@ -8,7 +8,6 @@
 - [ ] Complete the pod_template so that it uses resources etc.
 - [x] Decompose the individual resources from init.yaml into separate templates.
 - [x] Decompose individual resources from pod_template.yaml into separate templates.
-- [ ] Add support for a GLOBAL_INIT_TEMPLATE variable which can be used to apply deployment specific configuration (e.g. service mesh CRDs etc.)
 - [ ] Support tera reloading?
 - [ ] Update pod_template to make the gameserver container optional to support starting a container for SFTP only
 - [ ] Implement editing a server.
