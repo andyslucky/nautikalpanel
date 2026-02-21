@@ -1,0 +1,54 @@
+{#
+  Nautikal Panel - Template Macros
+  
+  This file contains reusable Tera macros for Kubernetes resource templates.
+  Custom templates can import these macros to maintain consistency with standard
+  Nautikal resources while customizing other aspects.
+  
+  Usage in custom templates:
+    {% import "default/_macros.yaml.jinja" as macros %}
+    
+    # Then call macros like:
+    {{ macros::pod_metadata() }}
+    {{ macros::gameserver_container(pvc_name) }}
+    {{ macros::service_ports() }}
+#}
+
+{% macro standard_labels() -%}
+app.kubernetes.io/managed-by: "nautikal"
+nautikal.io/game-server-id: "{{gameServerId}}"
+{%- endmacro %}
+
+{% macro gameserver_container() -%}
+- name: gameserver
+  {% if server.pod_config.env -%}
+  env:
+    {% for key, value in server.pod_config.env -%}
+    - name: "{{key}}"
+      value: "{{ value | evaluateTera(context=__tera_context) }}"
+    {%- endfor %}
+  {%- endif %}
+  image: "{{server.pod_config.image | evaluateTera()}}"
+  {%- if server.pod_config.command %}
+  command:
+  {% for c in server.pod_config.command -%}
+    - "{{c | evaluateTera()}}"
+  {%- endfor %}
+  {%- endif %}
+  volumeMounts:
+    - mountPath: "{{server.pvc_config.container_path}}"
+      name: data
+{%- endmacro %}
+
+{% macro sftp_container() -%}
+- name: sftp
+  image: "atmoz/sftp:latest"
+  volumeMounts:
+    - name: data
+      mountPath: "/home/user/upload"
+  args: ["user:pass:1000:0"]
+{%- endmacro %}
+
+{% macro service_selector() -%}
+nautikal.io/game-server-id: "{{gameServerId}}"
+{%- endmacro %}
