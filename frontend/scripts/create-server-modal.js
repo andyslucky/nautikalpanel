@@ -1,4 +1,4 @@
-const content = `
+const createServerModalContent = `
 <!--   <button x-on:click="modalIsOpen = true" type="button" class="whitespace-nowrap rounded-radius border border-primary dark:border-primary-dark bg-primary px-4 py-2 text-center text-sm font-medium tracking-wide text-on-primary transition hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:bg-primary-dark dark:text-on-primary-dark dark:focus-visible:outline-primary-dark">Open Modal</button> -->
 <div x-cloak x-show="showModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showModal"
     x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
@@ -298,7 +298,7 @@ const content = `
         <div
             class="flex flex-col justify-between gap-2 border-t border-outline bg-surface-alt/60 p-4 dark:border-gray-600 dark:bg-surface-dark/20 sm:flex-row sm:items-center md:justify-end">
             <button
-                x-on:click="showModal = false; $dispatch('notify', { variant: 'warning', sender:{name:'Jack Ellis', avatar:'https://penguinui.s3.amazonaws.com/component-assets/avatar-2.webp'}, message: 'Hey, can you review the PR I just submitted? Let me know if you spot any issues!' })"
+                x-on:click="showModal = false"
                 type="button"
                 class="whitespace-nowrap rounded-lg px-4 py-2 text-center text-sm font-medium tracking-wide text-on-surface transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 dark:text-on-surface-dark dark:focus-visible:outline-primary-dark">Cancel</button>
             <button x-on:click="createServer()" type="button"
@@ -311,7 +311,7 @@ const content = `
 
 function createServerModal() {
     return {
-        content,
+        content: createServerModalContent,
         selectedTab: 'general',
         form: {},
         gameServerTemplates: [],
@@ -427,7 +427,7 @@ function createServerModal() {
         },
         resetForm() {
             this.form = this.formDefaultValue();
-        },
+        }
     }
 
 }

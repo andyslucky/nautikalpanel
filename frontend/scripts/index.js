@@ -26,7 +26,6 @@ function app() {
         logLines: [],
         logConnected: false,
         logSocket: null,
-        // form: {},
         init() {
             this.loadSettings();
             this.fetchServers();
@@ -39,11 +38,11 @@ function app() {
             if (this.settings.darkMode) document.documentElement.classList.add('dark');
         },
 
-        showToast(message, type = 'error') {
-            this.toast = {show: true, message, type};
-            setTimeout(() => {
-                this.toast.show = false;
-            }, 5000);
+        showToast(message, variant = 'info') {
+            this.$dispatch('notify', {
+                variant,
+                message
+            })
         },
         updateRefreshInterval() {
             localStorage.setItem("refreshInterval", this.settings.refreshInterval);
@@ -138,6 +137,7 @@ function app() {
                     let err = await resp.text()
                     this.showToast(err || 'Failed to create server', 'error');
                 } else {
+                    this.showToast("Successfully created server " + this.form.name, 'success')
                     await this.fetchServers();
                     this.showModal = false;
                 }
@@ -172,8 +172,9 @@ function app() {
                 method: "DELETE"
             });
             if (!result.ok) {
-                this.showToast((await result.text()) || "Failed to delete server")
+                this.showToast((await result.text()) || "Failed to delete server", "error")
             } else {
+                this.showToast(`Successfully deleted server`, "success")
                 await this.fetchServers();
             }
         },
@@ -200,8 +201,9 @@ function app() {
                 body: JSON.stringify({game_server_id: server.id})
             });
             if (!resp.ok) {
-                this.showToast((await resp.text()) || "Failed to start server")
+                this.showToast((await resp.text()) || "Failed to start server", "error")
             } else {
+                this.showToast(`Starting server ${server.name}`, 'info')
                 await this.fetchServers();
             }
         },
@@ -214,8 +216,9 @@ function app() {
                 body: JSON.stringify({game_server_id: server.id})
             });
             if (!resp.ok) {
-                this.showToast((await resp.text()) || "Failed to stop server")
+                this.showToast((await resp.text()) || "Failed to stop server", "error")
             } else {
+                this.showToast(`Stopping server ${server.name}`, "info")
                 await this.fetchServers();
             }
         },
