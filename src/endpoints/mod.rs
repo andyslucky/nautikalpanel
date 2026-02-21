@@ -8,16 +8,24 @@ use crate::services::kubernetes_executor::KubernetesExecutor;
 use axum::extract::Query;
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{
+        Path, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
 };
+use k8s_openapi::api::core::v1::Pod;
+use kube::runtime::reflector::Lookup;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use tokio::fs::DirEntry;
-use tokio_stream::{StreamExt, wrappers::ReadDirStream};
+use tokio::io::AsyncBufReadExt;
+use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -101,6 +109,10 @@ pub fn create_router(
         )
         .route("/api/v1/game-servers/start", post(start_server))
         .route("/api/v1/game-servers/stop", post(stop_server))
+        .route(
+            "/api/v1/game-servers/{game_server_id}/logs",
+            get(logs_handler),
+        )
         // .route("/api/v1/game-servers/instances/:id", post(stop_instance))
         .with_state(state)
 }
@@ -265,4 +277,97 @@ async fn stop_server(
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })
+}
+
+async fn logs_handler(
+    State(state): State<AppState>,
+    Path(game_server_id): Path<String>,
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state.executor.clone(), game_server_id))
+}
+
+async fn handle_socket(
+    socket: WebSocket,
+    executor: Arc<KubernetesExecutor>,
+    game_server_id: String,
+) {
+    use futures_util::{SinkExt, StreamExt};
+    let (mut ws_tx, mut ws_rx) = socket.split();
+    let opt_game_instance: Option<GameServerInstance> = executor
+        .list_pods(Some(game_server_id))
+        .await
+        .map(|pods| pods.into_iter().map(GameServerInstance::from).next())
+        .ok()
+        .flatten();
+    let game_instance: GameServerInstance;
+    if let Some(i) = opt_game_instance {
+        game_instance = i;
+    } else {
+        return;
+    }
+    // let pod = executor.list_pods(Some(game_server_id)).await
+    //     .map(|pods| pods.into_iter().next()).map(|opt_pod| opt_pod.map(|p| p.name()).flatten());
+    // let pod_name : Cow<'_, str>;
+    // match pod {
+    //     Ok(Some(name)) => {
+    //         pod_name = name;
+    //     },
+    //     Ok(None) => {
+    //         return;
+    //     },
+    //     Err(e) => {
+    //         return;
+    //     }
+    // };
+
+    let mut log_stream = match executor.stream_logs(game_instance).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            let _ = ws_tx
+                .send(Message::Text(format!("Error streaming logs: {}", e).into()))
+                .await;
+            return;
+        }
+    };
+
+    let mut close_received = false;
+
+    loop {
+        tokio::select! {
+            log_line = futures_util::StreamExt::next(&mut log_stream) => {
+                match log_line {
+                    Some(Ok(line)) => {
+                        if ws_tx.send(Message::Text(line.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        let _ = ws_tx.send(Message::Text(format!("Log stream error: {}", e).into())).await;
+                        break;
+                    }
+                    None => {
+                        let _ = ws_tx.send(Message::Text("Log stream ended".into())).await;
+                        break;
+                    }
+                }
+            }
+            msg = futures_util::StreamExt::next(&mut ws_rx) => {
+                match msg {
+                    Some(Ok(Message::Close(_))) => {
+                        close_received = true;
+                        break;
+                    }
+                    Some(Ok(Message::Ping(data))) => {
+                        let _ = ws_tx.send(Message::Pong(data)).await;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    if !close_received {
+        let _ = ws_tx.send(Message::Close(None)).await;
+    }
 }

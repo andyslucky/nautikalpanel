@@ -1,8 +1,9 @@
 use crate::app_config::AppConfig;
-use crate::game_servers::GameServer;
+use crate::game_servers::{GameServer, GameServerInstance};
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
 use kube::api::{
-    ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, PostParams,
+    ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams,
+    PostParams,
 };
 use kube::runtime::reflector::Lookup;
 use kube::{Api, Client, ResourceExt};
@@ -10,6 +11,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::{Deref, Index};
+use futures_util::{AsyncBufReadExt, StreamExt, AsyncBufRead};
+use futures_util::io::Lines;
 use tera::{Context, Filter, Tera};
 
 struct EvaluateTeraFn {
@@ -214,7 +217,7 @@ impl KubernetesExecutor {
     pub async fn list_pods(
         &self,
         game_server_id: Option<impl Deref<Target = str>>,
-    ) -> Result<Vec<Pod>, Box<dyn Error>> {
+    ) -> Result<Vec<Pod>, kube::Error> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
@@ -246,6 +249,8 @@ impl KubernetesExecutor {
 
     pub async fn init_game_server(&self, game_server: &GameServer) -> Result<(), Box<dyn Error>> {
         let init_yaml = self.render_init_yaml(game_server)?;
+        tracing::debug!("Init YAML for game server name: {}; game server id: {:?}", game_server.name, game_server.id_string());
+        tracing::debug!("{}", init_yaml);
         let docs: Vec<DynamicObject> = serde_saphyr::from_multiple(init_yaml.as_str())?;
         for doc in docs {
             let gvk = doc
@@ -268,7 +273,8 @@ impl KubernetesExecutor {
         // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let pod_yaml = self.render_pod(game_server, pvcs.first())?;
-        // TODO add debug logging to show the pod yaml
+        tracing::debug!("Yaml for pod (game server name: {}; game server id: {:?} )", game_server.name, game_server.id_string());
+        tracing::debug!("{}", pod_yaml);
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         // Create the pod
         let pod = pods.create(&PostParams::default(), &pod).await?;
@@ -333,6 +339,19 @@ impl KubernetesExecutor {
         }
         Ok(())
     }
+    pub async fn stream_logs(
+        &self,
+        game_server_instance: GameServerInstance,
+    ) -> Result<Lines<impl AsyncBufRead>, kube::Error> {
+        let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        let log_params = LogParams {
+            container: Some("gameserver".to_string()),
+            follow: true,
+            tail_lines: Some(100),
+            ..Default::default()
+        };
+        Ok(pods.log_stream(game_server_instance.id.as_str(), &log_params).await?.lines())
+    }
 }
 
 
@@ -359,7 +378,8 @@ mod tests {
                 resources: None,
                 command: None,
                 env: Some(HashMap::from([
-                    ("foo".to_string(), "bar".to_string())
+                    ("foo".to_string(), "bar".to_string()),
+                    ("old".to_string(), "young".to_string())
                 ])),
                 mounts: None,
                 pod_template: "default/pod_template.yaml.jinja".to_string(),

@@ -35,153 +35,191 @@
 
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen" x-data="app()" x-init="init()">
 
-    <!-- Mobile Header (visible on small screens) -->
-    <header class="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg p-4 z-50">
-        <div class="flex items-center justify-between">
-            <h1 class="text-xl font-bold text-primary">🎮 Nautikal Panel</h1>
-            <button @click="sidebarOpen = !sidebarOpen"
+<!-- Mobile Header (visible on small screens) -->
+<header class="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg p-4 z-50">
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-primary">🎮 Nautikal Panel</h1>
+        <button @click="sidebarOpen = !sidebarOpen"
                 class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                <svg x-show="!sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                <svg x-show="sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            <svg x-show="!sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <svg x-show="sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <!-- Mobile Nav Links -->
+    <nav x-show="sidebarOpen" class="mt-4 space-y-2">
+        <a @click="page = 'home'; sidebarOpen = false"
+           :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            🏠 Home
+        </a>
+        <a @click="page = 'settings'; sidebarOpen = false"
+           :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            ⚙️ Settings
+        </a>
+        <p class="text-xs text-gray-400 pt-2">v1.0.0</p>
+    </nav>
+</header>
+
+<!-- Sidebar -->
+<aside class="hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg p-4 lg:flex flex-col">
+    <h1 class="text-xl font-bold text-primary mb-8">🎮 Nautikal Panel</h1>
+    <nav class="flex-1 space-y-2">
+        <a @click="page = 'home'"
+           :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            🏠 Home
+        </a>
+        <a @click="page = 'settings'"
+           :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+           class="block px-4 py-2 rounded-lg cursor-pointer transition">
+            ⚙️ Settings
+        </a>
+    </nav>
+    <p class="text-xs text-gray-400">v1.0.0</p>
+</aside>
+
+<!-- Main Content -->
+<main class="lg:ml-64 lg:mt-0 mt-12 p-8">
+
+    <!-- Home Page -->
+    <div x-show="page === 'home'" x-cloak>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Game Servers</h2>
+            <button @click="showModal = true; editingServer = null;"
+                    class="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition">
+                + Add Server
             </button>
         </div>
-        <!-- Mobile Nav Links -->
-        <nav x-show="sidebarOpen" class="mt-4 space-y-2">
-            <a @click="page = 'home'; sidebarOpen = false"
-                :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="block px-4 py-2 rounded-lg cursor-pointer transition">
-                🏠 Home
-            </a>
-            <a @click="page = 'settings'; sidebarOpen = false"
-                :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="block px-4 py-2 rounded-lg cursor-pointer transition">
-                ⚙️ Settings
-            </a>
-            <p class="text-xs text-gray-400 pt-2">v1.0.0</p>
-        </nav>
-    </header>
 
-    <!-- Sidebar -->
-    <aside class="hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg p-4 lg:flex flex-col">
-        <h1 class="text-xl font-bold text-primary mb-8">🎮 Nautikal Panel</h1>
-        <nav class="flex-1 space-y-2">
-            <a @click="page = 'home'"
-                :class="page === 'home' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="block px-4 py-2 rounded-lg cursor-pointer transition">
-                🏠 Home
-            </a>
-            <a @click="page = 'settings'"
-                :class="page === 'settings' ? 'bg-primary text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="block px-4 py-2 rounded-lg cursor-pointer transition">
-                ⚙️ Settings
-            </a>
-        </nav>
-        <p class="text-xs text-gray-400">v1.0.0</p>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="lg:ml-64 lg:mt-0 mt-12 p-8">
-
-        <!-- Home Page -->
-        <div x-show="page === 'home'" x-cloak>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Game Servers</h2>
-                <button @click="showModal = true; editingServer = null;"
-                    class="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition">
-                    + Add Server
-                </button>
-            </div>
-
-            <!-- Server Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <template x-for="server in servers" :key="server.id">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                        <div class="flex gap-2 mb-2">
-                            <img :src="server.icon_url" width="64px" height="64px"></img>
-                            <div class="flex justify-between items-start mb-2 flex-1">
-                                <div>
-                                    <h3 class="font-semibold text-gray-800 dark:text-white" x-text="server.name"></h3>
-                                    <p class="text-sm text-gray-500" x-text="server.game"></p>
-                                </div>
-                                <span
+        <!-- Server Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="server in servers" :key="server.id">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                    <div class="flex gap-2 mb-2">
+                        <img :src="server.icon_url" width="64px" height="64px"></img>
+                        <div class="flex justify-between items-start mb-2 flex-1">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 dark:text-white" x-text="server.name"></h3>
+                                <p class="text-sm text-gray-500" x-text="server.game"></p>
+                            </div>
+                            <span
                                     :class="server.status === 'Running' ? 'bg-success' : (server.status === 'Offline' ? 'bg-gray-400' : 'bg-warn')"
                                     class="w-3 h-3 rounded-full"></span>
-                            </div>
                         </div>
-                        <div>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 font-mono mb-2"
-                                x-text="serverAddressLine(server)"></p>
-                            <p class="text-sm text-gray-500 mb-4">
-                                👥 <span x-text="server.players"></span> players
-                            </p>
-                            <div class="flex gap-2">
-                                <button type="button" @click="toggleStatus(server)"
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 font-mono mb-2"
+                           x-text="serverAddressLine(server)"></p>
+                        <p class="text-sm text-gray-500 mb-4">
+                            👥 <span x-text="server.players"></span> players
+                        </p>
+                        <div class="flex gap-2">
+                            <button type="button" @click="toggleStatus(server)"
                                     class="inline-flex rounded items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium tracking-wide text-white transition hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:opacity-100 active:outline-offset-0 disabled:opacity-75 disabled:cursor-not-allowed dark:bg-primary-dark dark:border-primary-dark dark:text-on-primary-dark dark:focus-visible:outline-primary-dark"
                                     :disabled="!['Offline','Running'].includes(server.status)"
                                     :class="server.status === 'Offline' ? 'bg-success' : (server.status === 'Running' ? 'bg-danger' : 'bg-warn')">
-                                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        class="size-5 animate-spin motion-reduce:animate-none fill-on-primary dark:fill-on-primary-dark"
-                                        x-show="!['Offline', 'Running'].includes(server.status)">
-                                        <path opacity="0.25"
-                                            d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" />
-                                        <path
-                                            d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" />
-                                    </svg>
-                                    <span
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                     class="size-5 animate-spin motion-reduce:animate-none fill-on-primary dark:fill-on-primary-dark"
+                                     x-show="!['Offline', 'Running'].includes(server.status)">
+                                    <path opacity="0.25"
+                                          d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"/>
+                                    <path
+                                            d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"/>
+                                </svg>
+                                <span
                                         x-text="server.status === 'Offline' ? 'Start' : (server.status === 'Running' ? 'Stop' : 'Wait')"></span>
-                                </button>
-                                <button @click="editServer(server)"
+                            </button>
+                            <button @click="openLogs(server)"
+                                    :disabled="server.status !== 'Running'"
+                                    class="bg-gray-200 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1 rounded hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Logs
+                            </button>
+                            <button @click="editServer(server)"
                                     class="bg-gray-200 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1 rounded hover:opacity-80">
-                                    Edit
-                                </button>
-                                <button @click="deleteServer(server.id)"
+                                Edit
+                            </button>
+                            <button @click="deleteServer(server.id)"
                                     class="bg-red-100 dark:bg-red-900 text-danger text-sm px-3 py-1 rounded hover:opacity-80">
-                                    Delete
-                                </button>
-                            </div>
+                                Delete
+                            </button>
                         </div>
-                </template>
-            </div>
-
-            <!-- Empty State -->
-            <div x-show="servers.length === 0" class="text-center py-12 text-gray-500">
-                <p class="text-4xl mb-2">🖥️</p>
-                <p>No servers yet. Click "Add Server" to get started!</p>
-            </div>
+                    </div>
+            </template>
         </div>
 
-        <!-- Settings Page -->
-        <div x-show="page === 'settings'" x-cloak>
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Settings</h2>
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 max-w-md space-y-4">
-                <label class="flex items-center justify-between">
-                    <span class="text-gray-700 dark:text-gray-300">Dark Mode</span>
-                    <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5">
-                </label>
-                <label class="block">
-                    <span class="text-gray-700 dark:text-gray-300">Refresh Interval (seconds)</span>
-                    <input type="number" x-model="settings.refreshInterval" min="5" max="300"
-                        @change="updateRefreshInterval()"
-                        class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg">
-                </label>
+        <!-- Empty State -->
+        <div x-show="servers.length === 0" class="text-center py-12 text-gray-500">
+            <p class="text-4xl mb-2">🖥️</p>
+            <p>No servers yet. Click "Add Server" to get started!</p>
+        </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div x-show="page === 'settings'" x-cloak>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Settings</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 max-w-md space-y-4">
+            <label class="flex items-center justify-between">
+                <span class="text-gray-700 dark:text-gray-300">Dark Mode</span>
+                <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5">
+            </label>
+            <label class="block">
+                <span class="text-gray-700 dark:text-gray-300">Refresh Interval (seconds)</span>
+                <input type="number" x-model="settings.refreshInterval" min="5" max="300"
+                       @change="updateRefreshInterval()"
+                       class="w-full mt-1 px-3 py-2 border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg">
+            </label>
+        </div>
+    </div>
+</main>
+
+<!-- Log Viewer Modal -->
+<div x-show="showLogViewer" x-cloak
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+     @click.self="closeLogs()">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full md:max-w-[80%] max-h-[80vh] flex flex-col m-4">
+        <div class="flex items-center justify-between p-4 border-b dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+                Logs: <span x-text="logViewerServer?.name || ''"></span>
+            </h3>
+            <div class="flex items-center gap-2">
+                <button @click="clearLogs()"
+                        class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded hover:opacity-80">
+                    Clear
+                </button>
+                <button @click="closeLogs()"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
         </div>
-    </main>
-    <!-- Toast Notification
-    <div x-show="toast.show" x-cloak x-transition
-        :class="toast.type === 'error' ? 'bg-danger' : (toast.type === 'warn' ? 'bg-warn' : 'bg-success')"
-        class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 z-50"
-        role="alert">
-        <span x-text="toast.message"></span>
-        <button @click="toast.show = false" class="ml-2 hover:opacity-80">✕</button>
-    </div> -->
+        <div class="flex-1 overflow-auto p-4 bg-gray-900" x-ref="logContainer">
+                <pre class="text-sm font-mono text-gray-100"><template x-for="(line, index) in logLines" :key="index"><div x-text="line"></div></template></pre>
+        </div>
+        <div class="flex items-center justify-between p-3 border-t dark:border-gray-700 text-xs text-gray-500">
+            <span x-show="logConnected" class="text-success">Connected</span>
+            <span x-show="!logConnected && showLogViewer" class="text-warn">Disconnected</span>
+            <span x-text="logLines.length + ' lines'"></span>
+        </div>
+    </div>
+</div>
+<!-- Toast Notification
+<div x-show="toast.show" x-cloak x-transition
+    :class="toast.type === 'error' ? 'bg-danger' : (toast.type === 'warn' ? 'bg-warn' : 'bg-success')"
+    class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 z-50"
+    role="alert">
+    <span x-text="toast.message"></span>
+    <button @click="toast.show = false" class="ml-2 hover:opacity-80">✕</button>
+</div> -->
 
-    <!-- Notifications -->
-    <div x-data="{
+<!-- Notifications -->
+<div x-data="{
         notifications: [],
         displayDuration: 8000,
         soundEffect: false,
@@ -220,250 +258,254 @@
             message: $event.detail.message,
         })">
 
-        <div x-on:mouseenter="$dispatch('pause-auto-dismiss')" x-on:mouseleave="$dispatch('resume-auto-dismiss')"
-            class="group pointer-events-none fixed inset-x-8 top-0 z-99 flex max-w-full flex-col gap-2 bg-transparent px-6 py-6 md:bottom-0 md:left-[unset] md:right-0 md:top-[unset] md:max-w-sm">
-            <template x-for="(notification, index) in notifications" x-bind:key="notification.id">
-                <!-- root div holds all of the notifications  -->
-                <div>
-                    <!-- Info Notification  -->
-                    <template x-if="notification.variant === 'info'">
-                        <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
-                            class="pointer-events-auto relative rounded border border-info dark:bg-gray-800 dark:text-gray-300"
-                            role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
-                            x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
-                            x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
-                            x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
-                            x-transition:enter-start="translate-y-8"
-                            x-transition:leave="transition duration-300 ease-in"
-                            x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
-                            x-transition:leave-start="translate-x-0 opacity-100">
-                            <div
+    <div x-on:mouseenter="$dispatch('pause-auto-dismiss')" x-on:mouseleave="$dispatch('resume-auto-dismiss')"
+         class="group pointer-events-none fixed inset-x-8 top-0 z-99 flex max-w-full flex-col gap-2 bg-transparent px-6 py-6 md:bottom-0 md:left-[unset] md:right-0 md:top-[unset] md:max-w-sm">
+        <template x-for="(notification, index) in notifications" x-bind:key="notification.id">
+            <!-- root div holds all of the notifications  -->
+            <div>
+                <!-- Info Notification  -->
+                <template x-if="notification.variant === 'info'">
+                    <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
+                         class="pointer-events-auto relative rounded border border-info dark:bg-gray-800 dark:text-gray-300"
+                         role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
+                         x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
+                         x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
+                         x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
+                         x-transition:enter-start="translate-y-8"
+                         x-transition:leave="transition duration-300 ease-in"
+                         x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
+                         x-transition:leave-start="translate-x-0 opacity-100">
+                        <div
                                 class="flex w-full items-center gap-2.5 bg-info/10 rounded p-4 transition-all duration-300">
 
-                                <!-- Icon -->
-                                <div class="rounded-full bg-info/15 p-0.5 text-info" aria-hidden="true">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                                        class="size-5" aria-hidden="true">
-                                        <path fill-rule="evenodd"
-                                            d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-
-                                <!-- Title & Message -->
-                                <div class="flex flex-col gap-2">
-                                    <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-info"
-                                        x-text="notification.title"></h3>
-                                    <p x-cloak x-show="notification.message" class="text-pretty text-sm"
-                                        x-text="notification.message"></p>
-                                </div>
-
-                                <!--Dismiss Button -->
-                                <button type="button" class="ml-auto" aria-label="dismiss notification"
-                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
-                                    <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
-                                        fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            <!-- Icon -->
+                            <div class="rounded-full bg-info/15 p-0.5 text-info" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                     class="size-5" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                          d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z"
+                                          clip-rule="evenodd"/>
+                                </svg>
                             </div>
-                        </div>
-                    </template>
 
-                    <!-- Success Notification  -->
-                    <template x-if="notification.variant === 'success'">
-                        <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
-                            class="pointer-events-auto relative rounded border border-success bg-surface dark:bg-gray-800 dark:text-gray-300"
-                            role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
-                            x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
-                            x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
-                            x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
-                            x-transition:enter-start="translate-y-8"
-                            x-transition:leave="transition duration-300 ease-in"
-                            x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
-                            x-transition:leave-start="translate-x-0 opacity-100">
-                            <div
+                            <!-- Title & Message -->
+                            <div class="flex flex-col gap-2">
+                                <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-info"
+                                    x-text="notification.title"></h3>
+                                <p x-cloak x-show="notification.message" class="text-pretty text-sm"
+                                   x-text="notification.message"></p>
+                            </div>
+
+                            <!--Dismiss Button -->
+                            <button type="button" class="ml-auto" aria-label="dismiss notification"
+                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
+                                <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
+                                     fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Success Notification  -->
+                <template x-if="notification.variant === 'success'">
+                    <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
+                         class="pointer-events-auto relative rounded border border-success bg-surface dark:bg-gray-800 dark:text-gray-300"
+                         role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
+                         x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
+                         x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
+                         x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
+                         x-transition:enter-start="translate-y-8"
+                         x-transition:leave="transition duration-300 ease-in"
+                         x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
+                         x-transition:leave-start="translate-x-0 opacity-100">
+                        <div
                                 class="flex w-full items-center gap-2.5 bg-success/10 rounded p-4 transition-all duration-300">
 
-                                <!-- Icon -->
-                                <div class="rounded-full bg-success/15 p-0.5 text-success" aria-hidden="true">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                                        class="size-5" aria-hidden="true">
-                                        <path fill-rule="evenodd"
-                                            d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-
-                                <!-- Title & Message -->
-                                <div class="flex flex-col gap-2">
-                                    <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-success"
-                                        x-text="notification.title"></h3>
-                                    <p x-cloak x-show="notification.message" class="text-pretty text-sm"
-                                        x-text="notification.message"></p>
-                                </div>
-
-                                <!--Dismiss Button -->
-                                <button type="button" class="ml-auto" aria-label="dismiss notification"
-                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
-                                    <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
-                                        fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            <!-- Icon -->
+                            <div class="rounded-full bg-success/15 p-0.5 text-success" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                     class="size-5" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                          d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+                                          clip-rule="evenodd"/>
+                                </svg>
                             </div>
-                        </div>
-                    </template>
 
-                    <!-- Warning Notification  -->
-                    <template x-if="notification.variant === 'warning'">
-                        <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
-                            class="pointer-events-auto relative rounded border border-warn bg-surface dark:bg-gray-800 dark:text-gray-300"
-                            role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
-                            x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
-                            x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
-                            x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
-                            x-transition:enter-start="translate-y-8"
-                            x-transition:leave="transition duration-300 ease-in"
-                            x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
-                            x-transition:leave-start="translate-x-0 opacity-100">
-                            <div
+                            <!-- Title & Message -->
+                            <div class="flex flex-col gap-2">
+                                <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-success"
+                                    x-text="notification.title"></h3>
+                                <p x-cloak x-show="notification.message" class="text-pretty text-sm"
+                                   x-text="notification.message"></p>
+                            </div>
+
+                            <!--Dismiss Button -->
+                            <button type="button" class="ml-auto" aria-label="dismiss notification"
+                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
+                                <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
+                                     fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Warning Notification  -->
+                <template x-if="notification.variant === 'warning'">
+                    <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
+                         class="pointer-events-auto relative rounded border border-warn bg-surface dark:bg-gray-800 dark:text-gray-300"
+                         role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
+                         x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
+                         x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
+                         x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
+                         x-transition:enter-start="translate-y-8"
+                         x-transition:leave="transition duration-300 ease-in"
+                         x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
+                         x-transition:leave-start="translate-x-0 opacity-100">
+                        <div
                                 class="flex w-full items-center gap-2.5 bg-warn/10 rounded p-4 transition-all duration-300">
 
-                                <!-- Icon -->
-                                <div class="rounded-full bg-warn/15 p-0.5 text-warn" aria-hidden="true">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                                        class="size-5" aria-hidden="true">
-                                        <path fill-rule="evenodd"
-                                            d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-
-                                <!-- Title & Message -->
-                                <div class="flex flex-col gap-2">
-                                    <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-warn"
-                                        x-text="notification.title"></h3>
-                                    <p x-cloak x-show="notification.message" class="text-pretty text-sm"
-                                        x-text="notification.message"></p>
-                                </div>
-
-                                <!--Dismiss Button -->
-                                <button type="button" class="ml-auto" aria-label="dismiss notification"
-                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
-                                    <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
-                                        fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            <!-- Icon -->
+                            <div class="rounded-full bg-warn/15 p-0.5 text-warn" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                     class="size-5" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                          d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+                                          clip-rule="evenodd"/>
+                                </svg>
                             </div>
-                        </div>
-                    </template>
 
-                    <!-- Danger Notification  -->
-                    <template x-if="notification.variant === 'danger'">
-                        <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
-                            class="pointer-events-auto relative rounded border border-danger bg-surface dark:bg-gray-800 dark:text-gray-300"
-                            role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
-                            x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
-                            x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
-                            x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
-                            x-transition:enter-start="translate-y-8"
-                            x-transition:leave="transition duration-300 ease-in"
-                            x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
-                            x-transition:leave-start="translate-x-0 opacity-100">
-                            <div
+                            <!-- Title & Message -->
+                            <div class="flex flex-col gap-2">
+                                <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-warn"
+                                    x-text="notification.title"></h3>
+                                <p x-cloak x-show="notification.message" class="text-pretty text-sm"
+                                   x-text="notification.message"></p>
+                            </div>
+
+                            <!--Dismiss Button -->
+                            <button type="button" class="ml-auto" aria-label="dismiss notification"
+                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
+                                <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
+                                     fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Danger Notification  -->
+                <template x-if="notification.variant === 'danger'">
+                    <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
+                         class="pointer-events-auto relative rounded border border-danger bg-surface dark:bg-gray-800 dark:text-gray-300"
+                         role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
+                         x-on:resume-auto-dismiss.window=" timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
+                         x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
+                         x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
+                         x-transition:enter-start="translate-y-8"
+                         x-transition:leave="transition duration-300 ease-in"
+                         x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
+                         x-transition:leave-start="translate-x-0 opacity-100">
+                        <div
                                 class="flex w-full items-center gap-2.5 bg-danger/10 rounded p-4 transition-all duration-300">
 
-                                <!-- Icon -->
-                                <div class="rounded-full bg-danger/15 p-0.5 text-danger" aria-hidden="true">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                                        class="size-5" aria-hidden="true">
-                                        <path fill-rule="evenodd"
-                                            d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-
-                                <!-- Title & Message -->
-                                <div class="flex flex-col gap-2">
-                                    <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-danger"
-                                        x-text="notification.title"></h3>
-                                    <p x-cloak x-show="notification.message" class="text-pretty text-sm"
-                                        x-text="notification.message"></p>
-                                </div>
-
-                                <!--Dismiss Button -->
-                                <button type="button" class="ml-auto" aria-label="dismiss notification"
-                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
-                                    <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
-                                        fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            <!-- Icon -->
+                            <div class="rounded-full bg-danger/15 p-0.5 text-danger" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                     class="size-5" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                          d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+                                          clip-rule="evenodd"/>
+                                </svg>
                             </div>
+
+                            <!-- Title & Message -->
+                            <div class="flex flex-col gap-2">
+                                <h3 x-cloak x-show="notification.title" class="text-sm font-semibold text-danger"
+                                    x-text="notification.title"></h3>
+                                <p x-cloak x-show="notification.message" class="text-pretty text-sm"
+                                   x-text="notification.message"></p>
+                            </div>
+
+                            <!--Dismiss Button -->
+                            <button type="button" class="ml-auto" aria-label="dismiss notification"
+                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
+                                <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
+                                     fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
                         </div>
-                    </template>
+                    </div>
+                </template>
 
-                    <!-- Message Notification  -->
-                    <template x-if="notification.variant === 'message'">
-                        <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
-                            class="pointer-events-auto relative rounded border border-outline bg-surface dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                            role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
-                            x-on:resume-auto-dismiss.window="timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration)"
-                            x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration))"
-                            x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
-                            x-transition:enter-start="translate-y-8"
-                            x-transition:leave="transition duration-300 ease-in"
-                            x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
-                            x-transition:leave-start="translate-x-0 opacity-100">
-                            <div
+                <!-- Message Notification  -->
+                <template x-if="notification.variant === 'message'">
+                    <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
+                         class="pointer-events-auto relative rounded border border-outline bg-surface dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                         role="alert" x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
+                         x-on:resume-auto-dismiss.window="timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration)"
+                         x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration))"
+                         x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
+                         x-transition:enter-start="translate-y-8"
+                         x-transition:leave="transition duration-300 ease-in"
+                         x-transition:leave-end="-translate-x-24 opacity-0 md:translate-x-24"
+                         x-transition:leave-start="translate-x-0 opacity-100">
+                        <div
                                 class="flex w-full rounded items-center gap-2.5 bg-surface-alt p-4 transition-all duration-300 dark:bg-gray-800-alt">
-                                <div class="flex w-full items-center gap-2.5">
+                            <div class="flex w-full items-center gap-2.5">
 
-                                    <!-- Avatar -->
-                                    <img x-cloak x-show="notification.sender.avatar" class="mr-2 size-12 rounded-full"
-                                        alt="avatar" aria-hidden="true" x-bind:src="notification.sender.avatar" />
-                                    <div class="flex flex-col items-start gap-2">
-                                        <!-- Title & Message -->
-                                        <h3 x-cloak x-show="notification.sender.name"
-                                            class="text-sm font-semibold text-on-surface-strong dark:text-gray-300"
-                                            x-text="notification.sender.name"></h3>
-                                        <p x-cloak x-show="notification.message" class="text-pretty text-sm"
-                                            x-text="notification.message"></p>
+                                <!-- Avatar -->
+                                <img x-cloak x-show="notification.sender.avatar" class="mr-2 size-12 rounded-full"
+                                     alt="avatar" aria-hidden="true" x-bind:src="notification.sender.avatar"/>
+                                <div class="flex flex-col items-start gap-2">
+                                    <!-- Title & Message -->
+                                    <h3 x-cloak x-show="notification.sender.name"
+                                        class="text-sm font-semibold text-on-surface-strong dark:text-gray-300"
+                                        x-text="notification.sender.name"></h3>
+                                    <p x-cloak x-show="notification.message" class="text-pretty text-sm"
+                                       x-text="notification.message"></p>
 
-                                        <!-- Action Buttons -->
-                                        <div class="flex items-center gap-4">
-                                            <button type="button"
-                                                class="whitespace-nowrap bg-transparent text-center text-sm font-bold tracking-wide text-primary transition hover:opacity-75 active:opacity-100 dark:text-primary-dark">Reply</button>
-                                            <button type="button"
+                                    <!-- Action Buttons -->
+                                    <div class="flex items-center gap-4">
+                                        <button type="button"
+                                                class="whitespace-nowrap bg-transparent text-center text-sm font-bold tracking-wide text-primary transition hover:opacity-75 active:opacity-100 dark:text-primary-dark">
+                                            Reply
+                                        </button>
+                                        <button type="button"
                                                 class="whitespace-nowrap bg-transparent text-center text-sm font-bold tracking-wide transition hover:opacity-75 active:opacity-100 dark:text-gray-300"
-                                                x-on:click=" (isVisible = false), setTimeout(() => { removeNotification(notification.id) }, 400)">Dismiss</button>
-                                        </div>
+                                                x-on:click=" (isVisible = false), setTimeout(() => { removeNotification(notification.id) }, 400)">
+                                            Dismiss
+                                        </button>
                                     </div>
                                 </div>
-
-                                <!-- Dismiss Button -->
-                                <button type="button" class="ml-auto" aria-label="dismiss notification"
-                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
-                                    <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
-                                        fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
                             </div>
+
+                            <!-- Dismiss Button -->
+                            <button type="button" class="ml-auto" aria-label="dismiss notification"
+                                    x-on:click="(isVisible = false), removeNotification(notification.id)">
+                                <svg xmlns="http://www.w3.org/2000/svg viewBox=" 0 0 24 24 stroke="currentColor"
+                                     fill="none" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
                         </div>
-                    </template>
+                    </div>
+                </template>
 
-                </div>
-            </template>
-        </div>
+            </div>
+        </template>
     </div>
+</div>
 
-    <!-- Add/Edit Modal -->
-    <div x-data="modal()" x-html="content"></div>
-    <script src="scripts/index.js"></script>
-    <script src="scripts/modal.js"></script>
+<!-- Add/Edit Modal -->
+<div x-data="modal()" x-html="content"></div>
+<script src="scripts/index.js"></script>
+<script src="scripts/modal.js"></script>
 </body>
 
 </html>

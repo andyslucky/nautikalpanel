@@ -21,9 +21,9 @@
     This could be a performance gain especially for fetching the connected user counts later on.
 ### Frontend
 #### Functionality
-- [ ] Update front end create server modal to display the remaining properties for the template and new game server request
+- [x] Update front end create server modal to display the remaining properties for the template and new game server request
     including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.
-- [ ] Add log streaming element so users can easily see logs.
+- [x] Add log streaming element so users can easily see logs.
 #### Features
 - [x] Add image to server tiles based on the `icon_url` property
 - [ ] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before

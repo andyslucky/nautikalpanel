@@ -23,15 +23,15 @@ nautikal.io/game-server-id: "{{gameServerId}}"
 - name: gameserver
   {% if server.pod_config.env -%}
   env:
-    {% for key, value in server.pod_config.env -%}
+    {%- for key, value in server.pod_config.env %}
     - name: "{{key}}"
-      value: "{{ value | evaluateTera(context=__tera_context) }}"
+      value: "{{ value | evaluateTera() }}"
     {%- endfor %}
   {%- endif %}
   image: "{{server.pod_config.image | evaluateTera()}}"
   {%- if server.pod_config.command %}
   command:
-  {% for c in server.pod_config.command -%}
+  {%- for c in server.pod_config.command %}
     - "{{c | evaluateTera()}}"
   {%- endfor %}
   {%- endif %}

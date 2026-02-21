@@ -21,6 +21,11 @@ function app() {
             storageVisible: false,
             networkVisible: false,
         },
+        showLogViewer: false,
+        logViewerServer: null,
+        logLines: [],
+        logConnected: false,
+        logSocket: null,
         // form: {},
         init() {
             this.loadSettings();
@@ -217,6 +222,56 @@ function app() {
         toggleDarkMode() {
             localStorage.setItem('darkMode', this.settings.darkMode);
             document.documentElement.classList.toggle('dark', this.settings.darkMode);
+        },
+        openLogs(server) {
+            this.logViewerServer = server;
+            this.logLines = [];
+            this.showLogViewer = true;
+            this.connectLogWebSocket(server.id);
+        },
+        closeLogs() {
+            this.showLogViewer = false;
+            this.logLines = [];
+            this.disconnectLogWebSocket();
+        },
+        clearLogs() {
+            this.logLines = [];
+        },
+        connectLogWebSocket(gameServerId) {
+            this.disconnectLogWebSocket();
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/v1/game-servers/${gameServerId}/logs`;
+            this.logSocket = new WebSocket(wsUrl);
+            this.logConnected = false;
+            this.logSocket.onopen = () => {
+                this.logConnected = true;
+            };
+            this.logSocket.onmessage = (event) => {
+                this.logLines.push(event.data);
+                if (this.logLines.length > 1000) {
+                    this.logLines = this.logLines.slice(-1000);
+                }
+                this.$nextTick(() => {
+                    const container = this.$refs.logContainer;
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+            };
+            this.logSocket.onclose = () => {
+                this.logConnected = false;
+            };
+            this.logSocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                this.logConnected = false;
+            };
+        },
+        disconnectLogWebSocket() {
+            if (this.logSocket) {
+                this.logSocket.close();
+                this.logSocket = null;
+            }
+            this.logConnected = false;
         }
     }
 }
