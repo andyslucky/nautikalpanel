@@ -309,7 +309,7 @@ const content = `
 `;
 
 
-function modal() {
+function createServerModal() {
     return {
         content,
         selectedTab: 'general',
