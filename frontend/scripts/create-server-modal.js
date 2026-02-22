@@ -8,7 +8,7 @@ const createServerModalContent = `
         class="modal-dialog">
         <div class="modal-dialog-header">
             <h3 id="defaultModalTitle" class="font-semibold tracking-wide">Create Server</h3>
-            <button x-on:click="showModal = false" aria-label="close modal">
+            <button x-on:click="resetForm(); showModal = false" aria-label="close modal">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor"
                     fill="none" stroke-width="1.4" class="icon-sm">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -43,16 +43,20 @@ const createServerModalContent = `
                 <div x-cloak x-show="selectedTab === 'general'" id="tabpanelgeneral" role="tabpanel" aria-label="general" class="form-group">
                     <div>
                         <label class="form-label-sm">Server Name</label>
-                        <input type="text" x-model="form.name" placeholder="My Minecraft Server" required class="form-input">
+                        <input type="text" x-model="form.name" :placeholder="'My ' + selectedTemplateName + ' Server'" required class="form-input">
                     </div>
                     <div>
                         <label class="form-label-sm">Template</label>
-                        <select class="form-input" x-model="form.template.template_name" @change="changedTemplate($event)">
-                            <option value="">Select a template...</option>
-                            <template x-for="temp in gameServerTemplates" :key="temp.template_name">
-                                <option x-text="temp.template_name" :value="temp.template_name"></option>
-                            </template>
-                        </select>
+                        <div class="flex gap-1">
+                          <img x-show="form.template.icon_url != null && form.template.icon_url != ''" :src="form.template.icon_url" width="32" height="32"/>
+                          <select class="form-input" x-model="selectedTemplateName" @change="changedTemplate($event)">
+                              <option value="" :selected="selectedTemplateName === ''">Select a template...</option>
+                              <template x-for="temp in gameServerTemplates">
+                              <option x-text="temp.template_name" :value="temp.template_name" :selected="selectedTemplateName === temp.template_name">
+                              </option>
+                              </template>
+                          </select>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
@@ -84,45 +88,39 @@ const createServerModalContent = `
                         <label class="form-label-sm">Container Image</label>
                         <input type="text" x-model="form.template.pod_config.image" placeholder="itzg/minecraft-server" required class="form-input">
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="form-label-sm">Min CPU</label>
-                            <div class="flex gap-1.5">
-                                <input type="number" x-model="form.template.pod_config.resources.min_cpu" placeholder="100" min="0" class="form-input-sm">
-                                <select x-model="form.template.pod_config.resources.min_cpu_unit" class="form-select-sm">
-                                    <option value="m">mC</option>
-                                    <option value="">Cores</option>
-                                </select>
+                    <div class="space-y-4">
+                        <div  x-data="dualRangeSlider(
+                                () => parseCpu(form.template.pod_config.resources?.requests?.cpu),
+                                () => parseCpu(form.template.pod_config.resources?.limits?.cpu),
+                                0, 8000
+                            )" x-init="init()" data-resource="cpu">
+                            <label class="form-label-sm mb-2 block">CPU (Cores)</label>
+                            <div class="range-slider">
+                                <div class="range-slider-track"></div>
+                                <div class="range-slider-fill" :style="'left:' + minPercent + '%; right:' + (100 - maxPercent) + '%'"></div>
+                                <input type="range" :min="min" :max="max" step="50" x-model.number="minValue" @change="syncCpu(form)">
+                                <input type="range" :min="min" :max="max" step="50" x-model.number="maxValue" @change="syncCpu(form)">
+                            </div>
+                            <div class="range-slider-labels">
+                                <span>Request: <strong x-text="formatCpuString(minValue)"></strong></span>
+                                <span>Limit: <strong x-text="formatCpuString(maxValue)"></strong></span>
                             </div>
                         </div>
-                        <div>
-                            <label class="form-label-sm">Max CPU</label>
-                            <div class="flex gap-1.5">
-                                <input type="number" x-model="form.template.pod_config.resources.max_cpu" placeholder="2" min="0" class="form-input-sm">
-                                <select x-model="form.template.pod_config.resources.max_cpu_unit" class="form-select-sm">
-                                    <option value="m">mC</option>
-                                    <option value="">Cores</option>
-                                </select>
+                        <div x-data="dualRangeSlider(
+                                () => parseMemory(form.template.pod_config.resources?.requests?.memory),
+                                () => parseMemory(form.template.pod_config.resources?.limits?.memory),
+                                0, 16384
+                            )" x-init="init()" data-resource="memory">
+                            <label class="form-label-sm mb-2 block">Memory</label>
+                            <div class="range-slider">
+                                <div class="range-slider-track"></div>
+                                <div class="range-slider-fill" :style="'left:' + minPercent + '%; right:' + (100 - maxPercent) + '%'"></div>
+                                <input type="range" :min="min" :max="max" step="32" x-model.number="minValue" @change="syncMemory(form)">
+                                <input type="range" :min="min" :max="max" step="32" x-model.number="maxValue" @change="syncMemory(form)">
                             </div>
-                        </div>
-                        <div>
-                            <label class="form-label-sm">Min Memory</label>
-                            <div class="flex gap-1.5">
-                                <input type="number" x-model="form.template.pod_config.resources.min_mem" placeholder="512" min="0" class="form-input-sm">
-                                <select x-model="form.template.pod_config.resources.min_mem_unit" class="form-select-sm">
-                                    <option value="Mi">MiB</option>
-                                    <option value="Gi">GiB</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label-sm">Max Memory</label>
-                            <div class="flex gap-1.5">
-                                <input type="number" x-model="form.template.pod_config.resources.max_mem" placeholder="4" min="0" class="form-input-sm">
-                                <select x-model="form.template.pod_config.resources.max_mem_unit" class="form-select-sm">
-                                    <option value="Mi">MiB</option>
-                                    <option value="Gi">GiB</option>
-                                </select>
+                            <div class="range-slider-labels">
+                                <span>Request: <strong x-text="formatMemoryString(minValue)"></strong></span>
+                                <span>Limit: <strong x-text="formatMemoryString(maxValue)"></strong></span>
                             </div>
                         </div>
                     </div>
@@ -136,7 +134,7 @@ const createServerModalContent = `
                             <template x-for="(entry, index) in Object.entries(form.template.pod_config.env || {})" :key="index">
                                 <div class="flex gap-1.5">
                                     <input type="text" :value="entry[0]" @input="updateEnvKey($event, entry[0], index)" placeholder="Key" class="form-input-sm">
-                                    <input type="text" x-model="form.template.pod_config.env[entry[0]]" placeholder="Value" class="form-input-sm">
+                                    <input type="text" x-model="entry[1]" placeholder="Value" class="form-input-sm">
                                     <button type="button" @click="delete form.template.pod_config.env[entry[0]]" class="btn-remove">X</button>
                                 </div>
                             </template>
@@ -227,8 +225,8 @@ const createServerModalContent = `
             </div>
         </div>
         <div class="modal-dialog-footer">
-            <button x-on:click="showModal = false" type="button" class="btn-secondary">Cancel</button>
-            <button x-on:click="createServer()" type="button" class="btn-primary">Create</button>
+            <button x-on:click="resetForm(); showModal = false" type="button" class="btn-secondary">Cancel</button>
+            <button x-on:click="createServer(); resetForm()" type="button" class="btn-primary">Create</button>
         </div>
     </div>
 </div>
@@ -249,6 +247,7 @@ function createServerModal() {
 
         changedTemplate(event) {
             const tempName = event.target.value;
+            this.selectedTemplateName = tempName;
             const template = this.gameServerTemplates.find(t => t.template_name === tempName)
             if (template == null)
                 console.error("Could not find template with name " + tempName)
@@ -270,14 +269,8 @@ function createServerModal() {
                     pod_config: {
                         image: '',
                         resources: {
-                            min_cpu: 0,
-                            min_cpu_unit: 'm',
-                            max_cpu: 0,
-                            max_cpu_unit: 'm',
-                            min_mem: 0,
-                            min_mem_unit: 'Mi',
-                            max_mem: 0,
-                            max_mem_unit: 'Mi'
+                            requests: { cpu: '250m', memory: '256Mi' },
+                            limits: { cpu: '500m', memory: '512Mi' }
                         },
                         command: [],
                         env: {},
@@ -326,20 +319,18 @@ function createServerModal() {
         },
         useTemplate(template) {
             this.form.template = _.cloneDeep(template);
+            this.form.max_players = template.default_max_users || 0
             if (!this.form.template.pod_config.resources) {
-                this.form.template.pod_config.resources = { min_cpu: 0, min_cpu_unit: 'm', max_cpu: 0, max_cpu_unit: 'm', min_mem: 0, min_mem_unit: 'Mi', max_mem: 0, max_mem_unit: 'Mi' };
+                this.form.template.pod_config.resources = {
+                    requests: { cpu: '0m', memory: '0Mi' },
+                    limits: { cpu: '0m', memory: '0Mi' }
+                };
             }
-            if (!this.form.template.pod_config.resources.min_cpu_unit) {
-                this.form.template.pod_config.resources.min_cpu_unit = 'm';
+            if (!this.form.template.pod_config.resources.requests) {
+                this.form.template.pod_config.resources.requests = { cpu: '0m', memory: '0Mi' };
             }
-            if (!this.form.template.pod_config.resources.max_cpu_unit) {
-                this.form.template.pod_config.resources.max_cpu_unit = 'm';
-            }
-            if (!this.form.template.pod_config.resources.min_mem_unit) {
-                this.form.template.pod_config.resources.min_mem_unit = 'Mi';
-            }
-            if (!this.form.template.pod_config.resources.max_mem_unit) {
-                this.form.template.pod_config.resources.max_mem_unit = 'Mi';
+            if (!this.form.template.pod_config.resources.limits) {
+                this.form.template.pod_config.resources.limits = { cpu: '0m', memory: '0Mi' };
             }
             if (!this.form.template.pod_config.mounts) {
                 this.form.template.pod_config.mounts = [];
@@ -352,8 +343,78 @@ function createServerModal() {
             }
         },
         resetForm() {
+            this.selectedTemplateName = '';
             this.form = this.formDefaultValue();
         }
     }
 
 }
+
+function dualRangeSlider(getMin, getMax, minVal, maxVal) {
+    return {
+        min: minVal,
+        max: maxVal,
+        minValue: 0,
+        maxValue: 0,
+        init() {
+            this.minValue = getMin();
+            this.maxValue = getMax();
+        },
+        get minPercent() {
+            return ((this.minValue - this.min) / (this.max - this.min)) * 100;
+        },
+        get maxPercent() {
+            return ((this.maxValue - this.min) / (this.max - this.min)) * 100;
+        },
+        syncCpu(form) {
+            if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
+            if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
+            if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
+            form.template.pod_config.resources.requests.cpu = this.minValue + "m"
+            form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
+        },
+        syncMemory(form) {
+            if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
+            if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
+            if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
+            form.template.pod_config.resources.requests.memory = this.minValue + "Mi"
+            form.template.pod_config.resources.limits.memory = this.maxValue + "Mi"
+        }
+    };
+}
+
+function parseCpu(value) {
+    if (!value) return 0;
+    const str = String(value);
+    if (str.endsWith('m')) {
+        return parseInt(str) || 0;
+    }
+    return (parseFloat(str) || 0) * 1000;
+}
+
+function formatCpuString(millicores) {
+    if (millicores >= 1000 && millicores % 1000 === 0) {
+        return (millicores / 1000).toString();
+    }
+    return millicores + 'm';
+}
+
+function parseMemory(value) {
+    if (!value) return 0;
+    const str = String(value);
+    if (str.endsWith('Gi')) {
+        return (parseFloat(str) || 0) * 1024;
+    }
+    if (str.endsWith('Mi')) {
+        return parseInt(str) || 0;
+    }
+    return parseInt(str) || 0;
+}
+
+function formatMemoryString(mib) {
+    if (mib >= 1024) {
+        return ((mib % 1024 === 0) ? Math.trunc(mib / 1024) : (mib / 1024.0).toFixed(2)) + 'Gi';
+    }
+    return mib + 'Mi';
+}
+

@@ -75,15 +75,15 @@
             }
 
             .btn-secondary {
-                @apply px-3 py-1 rounded text-sm bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80;
+                @apply btn rounded text-sm bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80;
             }
 
             .btn-danger {
-                @apply px-3 py-1 rounded text-sm bg-red-100 dark:bg-red-900 text-gray-300 hover:opacity-80;
+                @apply btn rounded text-sm bg-red-100 dark:bg-red-900 text-gray-300 hover:opacity-80;
             }
 
             .btn-action {
-                @apply inline-flex rounded items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium tracking-wide text-white transition hover:opacity-75 disabled:opacity-75 disabled:cursor-not-allowed;
+                @apply btn inline-flex rounded items-center gap-2 whitespace-nowrap text-sm font-medium tracking-wide text-white transition hover:opacity-75 disabled:opacity-75 disabled:cursor-not-allowed;
             }
 
             .nav-link {
@@ -284,6 +284,36 @@
 
             .warning-text {
                 @apply text-xs text-amber-700 dark:text-amber-300 mt-1;
+            }
+
+            .range-slider {
+                @apply relative w-full h-6;
+            }
+
+            .range-slider-track {
+                @apply absolute top-1/2 -translate-y-1/2 w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full;
+            }
+
+            .range-slider-fill {
+                @apply absolute top-1/2 -translate-y-1/2 h-2 bg-primary rounded-full;
+            }
+
+            .range-slider input[type="range"] {
+                @apply absolute w-full h-2 appearance-none bg-transparent pointer-events-none;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .range-slider input[type="range"]::-webkit-slider-thumb {
+                @apply appearance-none w-5 h-5 bg-white border-2 border-primary rounded-full cursor-pointer pointer-events-auto shadow;
+            }
+
+            .range-slider input[type="range"]::-moz-range-thumb {
+                @apply w-5 h-5 bg-white border-2 border-primary rounded-full cursor-pointer pointer-events-auto shadow;
+            }
+
+            .range-slider-labels {
+                @apply flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1;
             }
         }
     </style>

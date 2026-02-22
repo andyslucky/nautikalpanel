@@ -9,8 +9,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   {%- if storageClassName %}
-  storageClassName: "{{storageClassName}}"
+  storageClassName: "{{storageClassName | addslashes}}"
   {%- endif %}
   resources:
     requests:
-      storage: "{{storage}}"
+      storage: "{{storage | addslashes}}"

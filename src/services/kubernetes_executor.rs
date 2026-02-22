@@ -384,7 +384,7 @@ impl KubernetesExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game_servers::{PodConfig, PvcConfig, ServiceConfig};
+    use crate::game_servers::{PodConfig, PvcConfig, ResourceQuantities, Resources, ServiceConfig};
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use std::str::FromStr;
     use surrealdb::RecordId;
@@ -402,7 +402,16 @@ mod tests {
             init_template: None,
             pod_config: PodConfig {
                 image: "testimage".to_string(),
-                resources: None,
+                resources: Some(Resources {
+                    requests: Some(ResourceQuantities {
+                        cpu: Some("100m".to_string()),
+                        memory: Some("500Mi".to_string())
+                    }),
+                    limits: Some(ResourceQuantities {
+                        cpu: Some("500m".to_string()),
+                        memory: Some("1000Mi".to_string())
+                    })
+                }),
                 command: None,
                 env: Some(HashMap::from([
                     ("foo".to_string(), "bar".to_string()),
@@ -459,6 +468,7 @@ mod tests {
         };
         let pod_script = executor.render_pod(&game_server, Some(&pvc))?;
         println!("{}", pod_script);
+        let _pod: Pod = serde_saphyr::from_str(pod_script.as_str())?;
         Ok(())
     }
 }

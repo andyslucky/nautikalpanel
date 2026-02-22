@@ -27,6 +27,6 @@ spec:
     {%- else %}
     - port: {{servicePort.port}}
       targetPort: {{servicePort.port}}
-      protocol: "{{servicePort.protocol}}"
+      protocol: "{{servicePort.protocol | addslashes }}"
     {%- endif %}
     {%- endfor %}

@@ -2,16 +2,25 @@ template_name: Minecraft
 game_type: Minecraft
 description: Minecraft is a sandbox / survival / adventure game with a block art style.
 icon_url: "https://www.freeiconspng.com/uploads/minecraft-icon-13.png"
+default_max_users: 4
 pod_config:
   image: "itzg/minecraft-server:latest"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "2Gi"
+    limits:
+      cpu: "1"
+      memory: "4Gi"
   env:
     MOTD: "Welcome to {{server.name}}"
     TYPE: "VANILLA"
     DIFFICULTY: "normal"
     EULA: "true"
     VERSION: "{% if server.game_version %}{{server.game_version}}{% else %}LATEST{% endif %}"
-    INIT_MEMORY: "2G"
-    MAX_MEMORY: "4G"
+    # Convert the k8s style resource quantities to JVM compatible resource quantities
+    INIT_MEMORY: "{{ server.pod_config.resources.requests.memory | replace(from=\"Mi\", to=\"M\") | replace(from=\"Gi\",to=\"G\")}}"
+    MAX_MEMORY: "{{ server.pod_config.resources.limits.memory | replace(from=\"Mi\", to=\"M\") | replace(from=\"Gi\",to=\"G\")}}"
     MAX_PLAYERS: "{{server.max_players}}"
 pvc_config:
   container_path: "/data"

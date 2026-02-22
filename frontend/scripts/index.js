@@ -109,16 +109,10 @@ function app() {
                     },
                     pod_config: {
                         ...template.pod_config,
-                        resources: template.pod_config.resources && (template.pod_config.resources.min_cpu || template.pod_config.resources.max_cpu || template.pod_config.resources.min_mem || template.pod_config.resources.max_mem)
+                        resources: template.pod_config.resources && (template.pod_config.resources.requests || template.pod_config.resources.limits)
                             ? {
-                                min_cpu: Number.parseInt(template.pod_config.resources.min_cpu) || 0,
-                                min_cpu_unit: template.pod_config.resources.min_cpu_unit || 'm',
-                                max_cpu: Number.parseInt(template.pod_config.resources.max_cpu) || 0,
-                                max_cpu_unit: template.pod_config.resources.max_cpu_unit || 'm',
-                                min_mem: Number.parseInt(template.pod_config.resources.min_mem) || 0,
-                                min_mem_unit: template.pod_config.resources.min_mem_unit || 'Mi',
-                                max_mem: Number.parseInt(template.pod_config.resources.max_mem) || 0,
-                                max_mem_unit: template.pod_config.resources.max_mem_unit || 'Mi'
+                                requests: template.pod_config.resources.requests || null,
+                                limits: template.pod_config.resources.limits || null
                             }
                             : null,
                         command: template.pod_config.command && template.pod_config.command.length > 0 ? template.pod_config.command : null,

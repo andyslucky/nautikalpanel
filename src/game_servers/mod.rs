@@ -4,16 +4,20 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use surrealdb::RecordId;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Resources {
-    pub min_cpu: u32,
-    pub min_cpu_unit: String,
-    pub max_cpu: u32,
-    pub max_cpu_unit: String,
-    pub min_mem: u32,
-    pub min_mem_unit: String,
-    pub max_mem: u32,
-    pub max_mem_unit: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requests: Option<ResourceQuantities>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limits: Option<ResourceQuantities>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ResourceQuantities {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageRepoCredentials {
@@ -39,8 +43,8 @@ pub struct GameServer {
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
-    pub pod_template : Option<String>,
-    pub init_template: Option<String>
+    pub pod_template: Option<String>,
+    pub init_template: Option<String>,
 }
 
 impl GameServer {
@@ -68,7 +72,7 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             service_config: value.template.service_config,
             pvc_config: value.template.pvc_config,
             pod_template: value.pod_template,
-            init_template: value.init_template
+            init_template: value.init_template,
         })
     }
 }
@@ -78,7 +82,7 @@ pub struct NewGameServerRequest {
     pub name: String,
     pub game_version: Option<String>,
     pub max_players: Option<u32>,
-    pub pod_template : Option<String>,
+    pub pod_template: Option<String>,
     pub init_template: Option<String>,
     pub template: GameServerTemplate,
 }
@@ -93,6 +97,7 @@ pub struct GameServerTemplate {
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
+    pub default_max_users : Option<u32>
 }
 
 fn default_service_type() -> String {
@@ -118,6 +123,7 @@ pub struct PodConfig {
     pub resources: Option<Resources>,
     pub command: Option<Vec<String>>,
     pub env: Option<HashMap<String, String>>,
+    // TODO may not keep this.
     pub mounts: Option<Vec<VolumeMount>>,
 }
 

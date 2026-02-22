@@ -21,22 +21,35 @@ nautikal.io/game-server-id: "{{gameServerId}}"
 
 {% macro gameserver_container() -%}
 - name: gameserver
+  {%- if server.pod_config.resources %}
+  resources:
+    {%- if server.pod_config.resources.requests %}
+    requests:
+      {% if server.pod_config.resources.requests.cpu %}cpu: "{{server.pod_config.resources.requests.cpu | addslashes }}" {% endif %}
+      {% if server.pod_config.resources.requests.memory %}memory: "{{server.pod_config.resources.requests.memory | addslashes }}" {% endif %}
+    {%- endif %}
+    {%- if server.pod_config.resources.limits %}
+    limits:
+      {% if server.pod_config.resources.limits.cpu %}cpu: "{{server.pod_config.resources.limits.cpu | addslashes }}" {% endif %}
+      {% if server.pod_config.resources.limits.memory %}memory: "{{server.pod_config.resources.limits.memory | addslashes }}" {% endif %}
+    {%- endif %}
+  {%- endif %}
   {% if server.pod_config.env -%}
   env:
     {%- for key, value in server.pod_config.env %}
-    - name: "{{key}}"
-      value: "{{ value | evaluateTera() }}"
+    - name: "{{key | addslashes }}"
+      value: "{{ value | evaluateTera() | addslashes }}"
     {%- endfor %}
   {%- endif %}
-  image: "{{server.pod_config.image | evaluateTera()}}"
+  image: "{{server.pod_config.image | evaluateTera() | addslashes }}"
   {%- if server.pod_config.command %}
   command:
   {%- for c in server.pod_config.command %}
-    - "{{c | evaluateTera()}}"
+    - "{{c | evaluateTera() | addslashes }}"
   {%- endfor %}
   {%- endif %}
   volumeMounts:
-    - mountPath: "{{server.pvc_config.container_path}}"
+    - mountPath: "{{server.pvc_config.container_path | addslashes }}"
       name: data
 {%- endmacro %}
 
