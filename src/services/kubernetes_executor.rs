@@ -1,17 +1,21 @@
 use crate::app_config::AppConfig;
-use crate::game_servers::{GameServer, GameServerInstance};
+use crate::game_servers::{GameServer, GameServerInstance, SftpCredentials};
 use futures_util::io::Lines;
 use futures_util::{AsyncBufRead, AsyncBufReadExt, StreamExt};
-use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Service};
+use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Secret, Service};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::api::{
     ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams, PostParams,
 };
 use kube::runtime::reflector::Lookup;
 use kube::{Api, Client, ResourceExt};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::{Deref, Index};
+use anyhow::anyhow;
+use k8s_openapi::ByteString;
 use tera::{Context, Filter, Tera};
 use tracing::{error, info};
 
@@ -136,8 +140,10 @@ impl KubernetesExecutor {
         &self,
         game_server: &GameServer,
         persistent_volume_claim: Option<&PersistentVolumeClaim>,
+        sftp_secret : &Secret
     ) -> Result<String, Box<dyn Error>> {
         let mut context = self.create_template_context(game_server)?;
+        context.insert("sftpSecretName", &sftp_secret.name().ok_or_else(|| anyhow!("SFTP Secret name not available"))?);
         if let Some(pvc) = persistent_volume_claim {
             context.insert("pvc_name", &pvc.name())
         }
@@ -181,6 +187,21 @@ impl KubernetesExecutor {
 
         let init_template = game_server.init_template.as_ref().filter(|t| !t.is_empty()).unwrap_or(&self.config.kubernetes.init_template);
         Ok(tera.render(init_template, &context)?)
+    }
+
+
+    fn render_sftp_pod(
+        &self,
+        game_server: &GameServer,
+        persistent_volume_claim: Option<&PersistentVolumeClaim>,
+        secret: &Secret,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut context = self.create_template_context(game_server)?;
+        if let Some(pvc) = persistent_volume_claim {
+            context.insert("pvc_name", &pvc.name())
+        }
+        context.insert("sftpSecretName", &secret.name().ok_or_else(|| anyhow!("SFTP Secret name not available"))?);
+        Ok(self.tera.render("default/sftp_only.yaml.jinja", &context)?)
     }
 
     pub async fn list_services(
@@ -261,11 +282,12 @@ impl KubernetesExecutor {
         Ok(())
     }
 
-    pub async fn create_pod(&self, game_server: &GameServer) -> Result<Pod, Box<dyn Error>> {
+    pub async fn create_pod(&self, game_server: &GameServer) -> Result<(Pod, SftpCredentials), Box<dyn Error>> {
+        let credentials = SftpCredentials::generate();
+        let secret = self.create_sftp_credentials_secret(game_server, &credentials).await?;
         let pvcs = self.list_pvcs(game_server.id_string()).await?;
-        // Get the pods API for the "default" namespace
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let pod_yaml = self.render_pod(game_server, pvcs.first())?;
+        let pod_yaml = self.render_pod(game_server, pvcs.first(), &secret)?;
         tracing::debug!(
             "Yaml for pod (game server name: {}; game server id: {:?} )",
             game_server.name,
@@ -273,27 +295,16 @@ impl KubernetesExecutor {
         );
         tracing::debug!("{}", pod_yaml);
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
-        // Create the pod
         let pod = pods.create(&PostParams::default(), &pod).await?;
-        Ok(pod)
+        Ok((pod, credentials))
     }
 
-    fn render_sftp_pod(
-        &self,
-        game_server: &GameServer,
-        persistent_volume_claim: Option<&PersistentVolumeClaim>,
-    ) -> Result<String, Box<dyn Error>> {
-        let mut context = self.create_template_context(game_server)?;
-        if let Some(pvc) = persistent_volume_claim {
-            context.insert("pvc_name", &pvc.name())
-        }
-        Ok(self.tera.render("default/sftp_only.yaml.jinja", &context)?)
-    }
-
-    pub async fn create_sftp_pod(&self, game_server: &GameServer) -> Result<Pod, Box<dyn Error>> {
+    pub async fn create_sftp_pod(&self, game_server: &GameServer) -> Result<(Pod, SftpCredentials), Box<dyn Error>> {
+        let credentials = SftpCredentials::generate();
+        let secret = self.create_sftp_credentials_secret(game_server, &credentials).await?;
         let pvcs = self.list_pvcs(game_server.id_string()).await?;
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let pod_yaml = self.render_sftp_pod(game_server, pvcs.first())?;
+        let pod_yaml = self.render_sftp_pod(game_server, pvcs.first(), &secret)?;
         tracing::debug!(
             "Yaml for SFTP pod (game server name: {}; game server id: {:?} )",
             game_server.name,
@@ -302,31 +313,101 @@ impl KubernetesExecutor {
         tracing::debug!("{}", pod_yaml);
         let pod: Pod = serde_saphyr::from_str(pod_yaml.as_str())?;
         let pod = pods.create(&PostParams::default(), &pod).await?;
-        Ok(pod)
+        Ok((pod, credentials))
     }
 
+    async fn create_sftp_credentials_secret(
+        &self,
+        game_server: &GameServer,
+        credentials: &SftpCredentials,
+    ) -> Result<Secret, Box<dyn Error>> {
+        let game_server_id = game_server.id_string().unwrap();
+
+        let mut labels: BTreeMap<String, String> = BTreeMap::new();
+        labels.insert("app.kubernetes.io/managed-by".to_string(), "nautikal".to_string());
+        labels.insert("nautikal.io/game-server-id".to_string(), game_server_id.clone());
+        labels.insert("nautikal.io/secret-type".to_string(), "sftp-credentials".to_string());
+
+        // TODO change hardcoded user id to be retrieved from the GameServer
+        let uid = 1000;
+        let gid = 1000;
+        let sftp_users = format!("{}:{}:{}:{}", credentials.username, credentials.password, uid, gid);
+        let mut data: BTreeMap<String, String> = BTreeMap::new();
+        data.insert("SFTP_USERS".to_string(), sftp_users);
+
+        let secret = Secret {
+            metadata: ObjectMeta {
+                generate_name: Some("sftp-creds-".to_string()),
+                namespace: Some(self.namespace.clone()),
+                labels: Some(labels),
+                ..Default::default()
+            },
+            string_data: Some(data),
+            ..Default::default()
+        };
+
+        let secrets: Api<Secret> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        Ok(secrets.create(&PostParams::default(), &secret).await?)
+    }
+
+    pub async fn get_sftp_credentials(&self, game_server_id: &str) -> Result<Option<SftpCredentials>, Box<dyn Error>> {
+        let secrets: Api<Secret> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        let list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal")
+            .labels(format!("nautikal.io/game-server-id={}", game_server_id).as_str())
+            .labels("nautikal.io/secret-type=sftp-credentials");
+        let secret = secrets.list(&list_params).await?.items.into_iter().next();
+        if let Some(s) = secret {
+            Ok(Some(SftpCredentials::try_from(s)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn create_gs_list_params(&self, game_server_id : &String) -> ListParams {
+        ListParams::default()
+            .labels("app.kubernetes.io/managed-by=nautikal")
+            .labels(&format!("nautikal.io/game-server-id={}", game_server_id))
+    }
+
+    /// Deletes ephemeral resources for a Game Server which semantically is equivalent to stopping the server.
+    pub async fn stop_server(&self, game_server_id : String) -> Result<(), Box<dyn Error>> {
+        let list_params = self.create_gs_list_params(&game_server_id);
+        self.delete_pods(game_server_id).await?;
+        self.delete_credentials(&list_params.labels("nautikal.io/secret-type=sftp-credentials")).await?;
+        Ok(())
+    }
+
+    /// Deletes all resources for a Game Server.
     pub async fn delete_game_server_resources(
         &self,
         game_server_id: String,
     ) -> Result<(), Box<dyn Error>> {
-        let list_params = ListParams::default()
-            .labels("app.kubernetes.io/managed-by=nautikal")
-            .labels(&format!("nautikal.io/game-server-id={}", game_server_id));
-        let service_api: Api<Service> =
-            Api::namespaced(self.client.clone(), self.namespace.as_str());
-        match service_api
+        let list_params = self.create_gs_list_params(&game_server_id);
+        self.delete_services(&list_params).await?;
+        self.delete_pods(game_server_id).await?;
+        self.delete_credentials(&list_params).await?;
+        self.delete_pvcs(&list_params).await?;
+        Ok(())
+    }
+
+    async fn delete_credentials(&self, list_params: &ListParams) -> Result<(), Box<dyn Error>> {
+        let secrets: Api<Secret> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        match secrets
             .delete_collection(&DeleteParams::default(), &list_params)
             .await?
         {
             either::Left(list) => {
                 let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
-                info!("Deleting collection of services: {:?}", names);
+                info!("Deleting collection of sftp secrets: {:?}", names);
             }
             either::Right(status) => {
-                info!("Deleting collection of services status: {}", status);
+                info!("Deleting collection of secrets status: {}", status);
             }
         }
-        self.delete_pods(game_server_id).await?;
+        Ok(())
+    }
+
+    async fn delete_pvcs(&self, list_params: &ListParams) -> Result<(), Box<dyn Error>> {
         let pvc_api: Api<PersistentVolumeClaim> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
         match pvc_api
@@ -344,7 +425,25 @@ impl KubernetesExecutor {
         Ok(())
     }
 
-    pub async fn delete_pods(&self, game_server_id: String) -> Result<(), Box<dyn Error>> {
+    async fn delete_services(&self, list_params: &ListParams) -> Result<(), Box<dyn Error>> {
+        let service_api: Api<Service> =
+            Api::namespaced(self.client.clone(), self.namespace.as_str());
+        match service_api
+            .delete_collection(&DeleteParams::default(), &list_params)
+            .await?
+        {
+            either::Left(list) => {
+                let names: Vec<_> = list.iter().map(ResourceExt::name_any).collect();
+                info!("Deleting collection of services: {:?}", names);
+            }
+            either::Right(status) => {
+                info!("Deleting collection of services status: {}", status);
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_pods(&self, game_server_id: String) -> Result<(), Box<dyn Error>> {
         let list_params = ListParams::default()
             .labels("app.kubernetes.io/managed-by=nautikal")
             .labels(&format!("nautikal.io/game-server-id={}", game_server_id));
@@ -466,7 +565,14 @@ mod tests {
             spec: None,
             status: None,
         };
-        let pod_script = executor.render_pod(&game_server, Some(&pvc))?;
+        let test_secret : Secret = Secret {
+            metadata: ObjectMeta {
+                name: Some("some-secret".to_string()),
+                ..ObjectMeta::default()
+            },
+            ..Secret::default()
+        };
+        let pod_script = executor.render_pod(&game_server, Some(&pvc), &test_secret)?;
         println!("{}", pod_script);
         let _pod: Pod = serde_saphyr::from_str(pod_script.as_str())?;
         Ok(())

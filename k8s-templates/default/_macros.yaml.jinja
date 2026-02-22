@@ -59,7 +59,9 @@ nautikal.io/game-server-id: "{{gameServerId}}"
   volumeMounts:
     - name: data
       mountPath: "/home/user/upload"
-  args: ["user:pass:1000:0"]
+  envFrom:
+    - secretRef:
+        name: "{{sftpSecretName | addslashes }}"
 {%- endmacro %}
 
 {% macro service_selector() -%}

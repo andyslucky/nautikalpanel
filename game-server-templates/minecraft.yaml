@@ -10,7 +10,7 @@ pod_config:
       cpu: "500m"
       memory: "2Gi"
     limits:
-      cpu: "1"
+      cpu: "2"
       memory: "4Gi"
   env:
     MOTD: "Welcome to {{server.name}}"
@@ -24,8 +24,8 @@ pod_config:
     MAX_PLAYERS: "{{server.max_players}}"
 pvc_config:
   container_path: "/data"
-  size: 500
-  size_unit: "Mi"
+  size: 2
+  size_unit: "Gi"
 service_config:
   ports:
     - port: 25565

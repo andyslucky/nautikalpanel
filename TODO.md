@@ -18,7 +18,7 @@
 - [x] Add `default_max_players` to template.
 #### Safety
 - [x] Add better sanitization for data sent to kubernetes
-- [ ] Generate random password for sftp server
+- [x] Generate random password for sftp server
 #### Optimizations
 - [ ] Consider creating a background task for syncing certain data from kubernetes periodically (such as the pod name, service name, pvc name, connected player count (TBD)). 
     This could be a performance gain especially for fetching the connected user counts later on.

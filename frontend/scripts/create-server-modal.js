@@ -151,8 +151,8 @@ const createServerModalContent = `
                         <div>
                             <label class="form-label-sm">Size Unit</label>
                             <select x-model="form.template.pvc_config.size_unit" class="form-input">
-                                <option value="Mi">MiB</option>
-                                <option value="Gi">GiB</option>
+                                <option value="Mi">Mi</option>
+                                <option value="Gi">Gi</option>
                             </select>
                         </div>
                     </div>

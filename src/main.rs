@@ -19,7 +19,9 @@ use tracing::info;
 async fn create_executor(
     config: &AppConfig,
 ) -> Result<KubernetesExecutor, Box<dyn Error>> {
-    let client = Client::try_default().await?;
+    let mut k8s_config = kube::Config::infer().await?;
+    k8s_config.default_namespace = config.kubernetes.namespace.clone();
+    let client = Client::try_from(k8s_config)?;
     let executor =
         KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
             .await?;

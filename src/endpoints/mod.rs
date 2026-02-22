@@ -1,7 +1,7 @@
 use crate::app_config::AppConfig;
 use crate::game_servers::{
     GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
-    NewGameServerRequest,
+    NewGameServerRequest, SftpCredentials,
 };
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
@@ -46,6 +46,14 @@ pub struct StartStopGameServerRequest {
 #[derive(Serialize, Deserialize)]
 pub struct StartGameServerResponse {
     pub instance: GameServerInstance,
+    pub credentials: SftpCredentials,
+}
+
+/// Response for starting an SFTP server
+#[derive(Serialize, Deserialize)]
+pub struct StartSftpResponse {
+    pub instance: GameServerInstance,
+    pub credentials: SftpCredentials,
 }
 
 /// Error response
@@ -113,6 +121,10 @@ pub fn create_router(
         .route(
             "/api/v1/game-servers/{game_server_id}/logs",
             get(logs_handler),
+        )
+        .route(
+            "/api/v1/game-servers/{game_server_id}/sftp-credentials",
+            get(get_sftp_credentials),
         )
         // .route("/api/v1/game-servers/instances/:id", post(stop_instance))
         .with_state(state)
@@ -240,8 +252,6 @@ async fn start_server(
     State(state): State<AppState>,
     Json(req): Json<StartStopGameServerRequest>,
 ) -> Result<Json<StartGameServerResponse>, ErrorResponse> {
-    // Note: We need interior mutability for the executor trait since methods take &mut self
-    // For now, this will need a wrapper like Arc<Mutex<dyn Executor>> or similar
     let game_server = state
         .store
         .get_game_server_by_id(req.game_server_id.as_str())
@@ -253,15 +263,15 @@ async fn start_server(
             error: "Could not find game server with id".to_string(),
         })?;
 
-    let instance = state
+    let (pod, credentials) = state
         .executor
         .create_pod(&game_server)
         .await
-        .map(GameServerInstance::from)
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?;
-    Ok(Json(StartGameServerResponse { instance }))
+    let instance = GameServerInstance::from(pod);
+    Ok(Json(StartGameServerResponse { instance, credentials }))
 }
 
 /// POST /api/v1/game-servers/start-sftp
@@ -269,7 +279,7 @@ async fn start_server(
 async fn start_sftp_server(
     State(state): State<AppState>,
     Json(req): Json<StartStopGameServerRequest>,
-) -> Result<Json<StartGameServerResponse>, ErrorResponse> {
+) -> Result<Json<StartSftpResponse>, ErrorResponse> {
     let game_server = state
         .store
         .get_game_server_by_id(req.game_server_id.as_str())
@@ -281,15 +291,15 @@ async fn start_sftp_server(
             error: "Could not find game server with id".to_string(),
         })?;
 
-    let instance = state
+    let (pod, credentials) = state
         .executor
         .create_sftp_pod(&game_server)
         .await
-        .map(GameServerInstance::from)
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?;
-    Ok(Json(StartGameServerResponse { instance }))
+    let instance = GameServerInstance::from(pod);
+    Ok(Json(StartSftpResponse { instance, credentials }))
 }
 
 ///  /api/v1/game-servers/
@@ -300,7 +310,7 @@ async fn stop_server(
 ) -> Result<StatusCode, ErrorResponse> {
     state
         .executor
-        .delete_pods(req.game_server_id)
+        .stop_server(req.game_server_id)
         .await
         .map(|_| StatusCode::OK)
         .map_err(|e| ErrorResponse {
@@ -399,4 +409,23 @@ async fn handle_socket(
     if !close_received {
         let _ = ws_tx.send(Message::Close(None)).await;
     }
+}
+
+/// GET /api/v1/game-servers/{game_server_id}/sftp-credentials
+/// Retrieve SFTP credentials for a game server
+async fn get_sftp_credentials(
+    State(state): State<AppState>,
+    Path(game_server_id): Path<String>,
+) -> Result<Json<SftpCredentials>, ErrorResponse> {
+    let credentials = state
+        .executor
+        .get_sftp_credentials(&game_server_id)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?
+        .ok_or_else(|| ErrorResponse {
+            error: "SFTP credentials not found. Start SFTP first.".to_string(),
+        })?;
+    Ok(Json(credentials))
 }

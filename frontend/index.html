@@ -79,7 +79,7 @@
             }
 
             .btn-danger {
-                @apply btn rounded text-sm bg-red-100 dark:bg-red-900 text-gray-300 hover:opacity-80;
+                @apply btn rounded text-sm bg-red-100 dark:bg-red-900 text-gray-100 hover:opacity-80;
             }
 
             .btn-action {
@@ -227,7 +227,7 @@
             }
 
             .modal-dialog {
-                @apply flex w-full max-w-2xl min-h-[400px] h-[80%] md:h-[50%] flex-col gap-4 overflow-hidden rounded-xl border bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300;
+                @apply flex w-full max-w-2xl min-h-[400px] h-[80%] md:h-[540px] flex-col gap-4 overflow-hidden rounded-xl border bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300;
             }
 
             .modal-dialog-header {
@@ -412,12 +412,17 @@
                                 <span x-text="server.status === 'Offline' ? 'Start' : (server.status === 'Running' ? 'Stop' : 'Wait')"></span>
                             </button>
                             <button type="button" @click="startSftpOnly(server)"
-                                    :disabled="server.status !== 'Offline'"
+                                    x-show="server.status === 'Offline'"
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 SFTP Only
                             </button>
+                            <button @click="fetchSftpCredentials(server)"
+                                    x-show="server.status === 'Running'"
+                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+                                SFTP Credentials
+                            </button>
                             <button @click="openLogs(server)"
-                                    :disabled="server.status !== 'Running' || server.instance_type !== 'gameserver'"
+                                    x-show="server.status === 'Running' && server.instance_type === 'gameserver'"
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 Logs
                             </button>
@@ -477,6 +482,56 @@
             <span x-show="logConnected" class="text-success">Connected</span>
             <span x-show="!logConnected && showLogViewer" class="text-warn">Disconnected</span>
             <span x-text="logLines.length + ' lines'"></span>
+        </div>
+    </div>
+</div>
+
+<!-- SFTP Credentials Modal -->
+<div x-show="showSftpCredentials" x-cloak class="modal-backdrop" @click.self="closeSftpCredentials()">
+    <div class="modal-content max-w-md">
+        <div class="modal-header">
+            <h3 class="heading-tertiary">SFTP Credentials</h3>
+            <button @click="closeSftpCredentials()" class="close-btn">
+                <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="warning-box">
+                <p class="warning-title">Keep these credentials secure!</p>
+                <p class="warning-text">These credentials are ephemeral and will be lost when the Game Server is stopped.</p>
+            </div>
+            <div class="space-y-2">
+                <label class="form-label-sm">Host</label>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="sftpCredentialsServer?.ip || 'Pending...'"></code>
+                    <button @click="navigator.clipboard.writeText(sftpCredentialsServer?.ip || ''); showToast('Copied host!', 'success')"
+                            class="btn-secondary text-xs">Copy</button>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="form-label-sm">Port</label>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label">22</code>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="form-label-sm">Username</label>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="sftpCredentials?.username || ''"></code>
+                    <button @click="navigator.clipboard.writeText(sftpCredentials?.username || ''); showToast('Copied username!', 'success')"
+                            class="btn-secondary text-xs">Copy</button>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="form-label-sm">Password</label>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-label" x-text="sftpCredentials?.password || ''"></code>
+                    <button @click="navigator.clipboard.writeText(sftpCredentials?.password || ''); showToast('Copied password!', 'success')"
+                            class="btn-secondary text-xs">Copy</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

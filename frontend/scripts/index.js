@@ -26,6 +26,9 @@ function app() {
         logLines: [],
         logConnected: false,
         logSocket: null,
+        showSftpCredentials: false,
+        sftpCredentials: null,
+        sftpCredentialsServer: null,
         init() {
             this.loadSettings();
             this.fetchServers();
@@ -216,6 +219,27 @@ function app() {
                 this.showToast(`Starting SFTP for ${server.name}`, 'info')
                 await this.fetchServers();
             }
+        },
+        async fetchSftpCredentials(server) {
+            try {
+                const resp = await fetch(`/api/v1/game-servers/${server.id}/sftp-credentials`);
+                if (resp.ok) {
+                    const credentials = await resp.json();
+                    this.sftpCredentials = credentials;
+                    this.sftpCredentialsServer = server;
+                    this.showSftpCredentials = true;
+                } else {
+                    this.showToast("No SFTP credentials found. Start SFTP first.", "error");
+                }
+            } catch (e) {
+                console.error(e);
+                this.showToast("Failed to fetch SFTP credentials", "error");
+            }
+        },
+        closeSftpCredentials() {
+            this.showSftpCredentials = false;
+            this.sftpCredentials = null;
+            this.sftpCredentialsServer = null;
         },
         async stopServerInstance(server) {
             const resp = await fetch("/api/v1/game-servers/stop", {

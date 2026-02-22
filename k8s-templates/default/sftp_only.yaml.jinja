@@ -7,6 +7,8 @@ metadata:
     {{ macros::standard_labels() | indent(prefix="    ") }}
     nautikal.io/pod-type: "sftp-only"
 spec:
+  securityContext:
+    fsGroup: 1000
   volumes:
     - name: data
       persistentVolumeClaim:

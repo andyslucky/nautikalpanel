@@ -1,5 +1,7 @@
 use anyhow::anyhow;
-use k8s_openapi::api::core::v1::{Pod, Service};
+use k8s_openapi::api::core::v1::{Pod, Secret, Service};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use surrealdb::RecordId;
@@ -97,7 +99,7 @@ pub struct GameServerTemplate {
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
-    pub default_max_users : Option<u32>
+    pub default_max_users: Option<u32>,
 }
 
 fn default_service_type() -> String {
@@ -133,6 +135,40 @@ pub struct PvcConfig {
     pub container_path: String,
     pub size: u32,
     pub size_unit: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SftpCredentials {
+    pub username: String,
+    pub password: String,
+}
+
+impl SftpCredentials {
+    pub fn generate() -> Self {
+        let mut rng = rng();
+        let password: String = (0..24).map(|_| rng.sample(Alphanumeric) as char).collect();
+        Self { username: "user".to_string(), password }
+    }
+}
+
+impl TryFrom<Secret> for SftpCredentials {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: Secret) -> Result<Self, Self::Error> {
+        let mut data = value.data.ok_or_else(|| anyhow::anyhow!("Secret has no data"))?;
+        let sftp_users = data.remove("SFTP_USERS")
+            .ok_or_else(|| anyhow::anyhow!("Secret missing SFTP_USERS key"))
+            .map(|sv| String::from_utf8(sv.0))??;
+        let parts: Vec<&str> = sftp_users.split(":").collect();
+        if parts.len() < 2 {
+            return Err(anyhow!("Invalid SFT_USERS secret property. Expected format user:<password>:<uid>:<gid>").into_boxed_dyn_error());
+        }
+
+        Ok(Self {
+            username: parts[0].to_string(),
+            password: parts[1].to_string(),
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
