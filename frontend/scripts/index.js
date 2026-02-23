@@ -2,10 +2,10 @@ function app() {
     return {
         page: 'home',
         showModal: false,
-        editingServer: null,
         sidebarOpen: false,
         servers: [],
         gameServerTemplates: [],
+        // editingServer: null,
         toast: {
             show: false,
             message: '',
@@ -70,6 +70,7 @@ function app() {
                     name: s.game_server.name,
                     game: s.game_server.game_type,
                     game_version: s.game_server.game_version,
+                    game_server: s.game_server,
                     image: s.game_server.pod_config?.image || '',
                     storage_size: s.game_server.pvc_config?.size_mib || 0,
                     network_identity: s.network_identity,
@@ -142,27 +143,6 @@ function app() {
             } catch (e) {
                 console.error(e);
             }
-        },
-
-        editServer(server) {
-            // let storageSize = server.storage_size || 1024;
-            // let storageUnit = 'mib';
-            // if (storageSize >= 1024) {
-            //     storageSize = Math.round(storageSize / 1024);
-            //     storageUnit = 'gib';
-            // }
-            // this.editingServer = server;
-            // this.form = {
-            //     name: server.name,
-            //     id: server.id,
-            //     image: server.image,
-            //     storage_size: storageSize,
-            //     storage_unit: storageUnit,
-            //     ip: server.ip,
-            //     ports: server.ports,
-            //     max_players: server.max_players
-            // };
-            // this.showModal = true;
         },
 
         async deleteServer(id) {

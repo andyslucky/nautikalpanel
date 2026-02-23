@@ -89,6 +89,17 @@ pub struct NewGameServerRequest {
     pub template: GameServerTemplate,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateGameServerRequest {
+    pub name: String,
+    pub game_version: Option<String>,
+    pub max_players: Option<u32>,
+    pub icon_url: Option<String>,
+    pub description: Option<String>,
+    pub pod_config: PodConfig,
+    pub pod_template: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameServerTemplate {
     pub template_name: String,
@@ -147,7 +158,10 @@ impl SftpCredentials {
     pub fn generate() -> Self {
         let mut rng = rng();
         let password: String = (0..24).map(|_| rng.sample(Alphanumeric) as char).collect();
-        Self { username: "user".to_string(), password }
+        Self {
+            username: "user".to_string(),
+            password,
+        }
     }
 }
 
@@ -155,13 +169,19 @@ impl TryFrom<Secret> for SftpCredentials {
     type Error = Box<dyn std::error::Error>;
 
     fn try_from(value: Secret) -> Result<Self, Self::Error> {
-        let mut data = value.data.ok_or_else(|| anyhow::anyhow!("Secret has no data"))?;
-        let sftp_users = data.remove("SFTP_USERS")
+        let mut data = value
+            .data
+            .ok_or_else(|| anyhow::anyhow!("Secret has no data"))?;
+        let sftp_users = data
+            .remove("SFTP_USERS")
             .ok_or_else(|| anyhow::anyhow!("Secret missing SFTP_USERS key"))
             .map(|sv| String::from_utf8(sv.0))??;
         let parts: Vec<&str> = sftp_users.split(":").collect();
         if parts.len() < 2 {
-            return Err(anyhow!("Invalid SFT_USERS secret property. Expected format user:<password>:<uid>:<gid>").into_boxed_dyn_error());
+            return Err(anyhow!(
+                "Invalid SFT_USERS secret property. Expected format user:<password>:<uid>:<gid>"
+            )
+            .into_boxed_dyn_error());
         }
 
         Ok(Self {

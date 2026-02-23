@@ -4,7 +4,7 @@ use std::sync::Arc;
 use surrealdb::engine::local::Db;
 
 use crate::app_config::DatabaseConfig;
-use crate::game_servers::GameServer;
+use crate::game_servers::{GameServer, UpdateGameServerRequest};
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use surrealdb::Surreal;
 
@@ -69,5 +69,36 @@ impl GameServerStore {
         let game_server: Option<GameServer> =
             self.db.select(("game_servers", game_server_id)).await?;
         Ok(game_server)
+    }
+
+    pub async fn update_game_server(
+        &self,
+        game_server_id: &str,
+        update: UpdateGameServerRequest,
+    ) -> Result<GameServer, Box<dyn Error>> {
+        let existing: Option<GameServer> = self.db.select(("game_servers", game_server_id)).await?;
+        let existing = existing.ok_or_else(|| anyhow!("Game server not found"))?;
+        
+        let updated = GameServer {
+            id: existing.id,
+            icon_url: update.icon_url,
+            description: update.description,
+            name: update.name,
+            game_type: existing.game_type,
+            game_version: update.game_version.unwrap_or(existing.game_version),
+            max_players: update.max_players.unwrap_or(existing.max_players),
+            pod_config: update.pod_config,
+            service_config: existing.service_config,
+            pvc_config: existing.pvc_config,
+            pod_template: update.pod_template,
+            init_template: existing.init_template,
+        };
+        
+        let result: Option<GameServer> = self
+            .db
+            .update(("game_servers", game_server_id))
+            .content(updated)
+            .await?;
+        result.ok_or_else(|| anyhow!("Failed to update game server").into())
     }
 }

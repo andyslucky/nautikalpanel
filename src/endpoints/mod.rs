@@ -1,7 +1,7 @@
 use crate::app_config::AppConfig;
 use crate::game_servers::{
     GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
-    NewGameServerRequest, SftpCredentials,
+    NewGameServerRequest, SftpCredentials, UpdateGameServerRequest,
 };
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
@@ -14,7 +14,7 @@ use axum::{
     },
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use k8s_openapi::api::core::v1::Pod;
 use kube::runtime::reflector::Lookup;
@@ -110,6 +110,10 @@ pub fn create_router(
             get(list_servers)
                 .post(create_game_server)
                 .delete(delete_game_server),
+        )
+        .route(
+            "/api/v1/game-servers/{game_server_id}",
+            put(update_game_server),
         )
         .route(
             "/api/v1/game-server-templates",
@@ -244,6 +248,23 @@ async fn delete_game_server(
             error: e.to_string(),
         })
         .map(|_| StatusCode::OK)
+}
+
+/// PUT /api/v1/game-servers/{game_server_id}
+/// Update an existing game server (only editable fields)
+async fn update_game_server(
+    State(state): State<AppState>,
+    Path(game_server_id): Path<String>,
+    Json(req): Json<UpdateGameServerRequest>,
+) -> Result<Json<GameServer>, ErrorResponse> {
+    state
+        .store
+        .update_game_server(&game_server_id, req)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })
+        .map(Json)
 }
 
 /// POST /api/v1/game-servers/start

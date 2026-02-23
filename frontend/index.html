@@ -370,7 +370,7 @@
     <div x-show="page === 'home'" x-cloak>
         <div class="flex justify-between items-center mb-6">
             <h2 class="heading-secondary">Game Servers</h2>
-            <button @click="showModal = true; editingServer = null;" class="btn-primary">
+            <button @click="showModal = true;" class="btn-primary">
                 + Add Server
             </button>
         </div>
@@ -426,11 +426,17 @@
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 Logs
                             </button>
-                            <button @click="deleteServer(server.id)" class="btn-danger">
-                                Delete
+                             <button @click="deleteServer(server.id)" class="btn-danger">
+                                 Delete
+                             </button>
+                            <button @click="$dispatch('edit', {server: server})"
+                                    :disabled="server.status !== 'Offline'"
+                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+                                Edit
                             </button>
-                        </div>
+                         </div>
                     </div>
+                </div>
             </template>
         </div>
 
@@ -548,9 +554,13 @@
 <!-- Add/Edit Modal -->
 <div x-data="createServerModal()" x-html="content"></div>
 
+<!-- Edit Server Modal - uses main app's state -->
+<div x-data="editServerModal()" x-html="content" @edit.window="openEditModal($event.detail.server)"></div>
+
 <script src="scripts/index.js"></script>
 <script src="scripts/create-server-modal.js"></script>
 <script src="scripts/notification-component.js"></script>
+<script src="scripts/edit-server-modal.js"></script>
 </body>
 
 </html>

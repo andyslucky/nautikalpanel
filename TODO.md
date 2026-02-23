@@ -12,7 +12,7 @@
 - [ ] ~~Support tera reloading?~~
 - [x] Support starting a container for SFTP only
 - [ ] Add support for sftp_user_id property
-- [ ] Implement editing a server.
+- [x] Implement editing a server.
 - [ ] Implement connected user count
 - [x] Implement log streaming
 - [x] Add `default_max_players` to template.

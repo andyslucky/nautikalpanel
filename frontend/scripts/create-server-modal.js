@@ -379,6 +379,26 @@ function dualRangeSlider(getMin, getMax, minVal, maxVal) {
             if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
             form.template.pod_config.resources.requests.memory = this.minValue + "Mi"
             form.template.pod_config.resources.limits.memory = this.maxValue + "Mi"
+        },
+        syncCpuEdit() {
+            const parentData = this.$el.closest('[x-data]').__x?.$data;
+            if (parentData?.editForm?.pod_config) {
+                if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+                if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+                if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+                parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
+                parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
+            }
+        },
+        syncMemoryEdit() {
+            const parentData = this.$el.closest('[x-data]').__x?.$data;
+            if (parentData?.editForm?.pod_config) {
+                if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+                if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+                if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+                parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
+                parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
+            }
         }
     };
 }
