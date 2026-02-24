@@ -1,3 +1,6 @@
+import Alpine from 'alpinejs';
+import {serverResourceSliderFunctions} from "./resource-utils.ts";
+
 const createServerModalContent = `
 <div x-cloak x-show="showModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showModal"
     x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
@@ -90,8 +93,8 @@ const createServerModalContent = `
                     </div>
                     <div class="space-y-4">
                         <div  x-data="dualRangeSlider(
-                                () => parseCpu(form.template.pod_config.resources?.requests?.cpu),
-                                () => parseCpu(form.template.pod_config.resources?.limits?.cpu),
+                                () => parseCpu(form.template.pod_config?.resources?.requests?.cpu),
+                                () => parseCpu(form.template.pod_config?.resources?.limits?.cpu),
                                 0, 8000
                             )" x-init="init()" data-resource="cpu">
                             <label class="form-label-sm mb-2 block">CPU (Cores)</label>
@@ -107,8 +110,8 @@ const createServerModalContent = `
                             </div>
                         </div>
                         <div x-data="dualRangeSlider(
-                                () => parseMemory(form.template.pod_config.resources?.requests?.memory),
-                                () => parseMemory(form.template.pod_config.resources?.limits?.memory),
+                                () => parseMemory(form.template.pod_config?.resources?.requests?.memory),
+                                () => parseMemory(form.template.pod_config?.resources?.limits?.memory),
                                 0, 16384
                             )" x-init="init()" data-resource="memory">
                             <label class="form-label-sm mb-2 block">Memory</label>
@@ -232,209 +235,214 @@ const createServerModalContent = `
 </div>
 `;
 
-
-function createServerModal() {
-    return {
-        content: createServerModalContent,
-        selectedTab: 'general',
-        form: {},
-        gameServerTemplates: [],
-        selectedTemplateName: '',
-        async init() {
-            this.resetForm();
-            await this.fetchGameServerTemplates();
-        },
-
-        changedTemplate(event) {
-            const tempName = event.target.value;
-            this.selectedTemplateName = tempName;
-            const template = this.gameServerTemplates.find(t => t.template_name === tempName)
-            if (template == null)
-                console.error("Could not find template with name " + tempName)
-            else
-                this.useTemplate(template);
-        },
-        formDefaultValue() {
-            return {
-                name: '',
-                game_version: '',
-                max_players: 0,
-                template: {
-                    template_name: '',
-                    description: '',
-                    game_type: '',
-                    icon_url: '',
-                    pod_template: null,
-                    init_template: null,
-                    pod_config: {
-                        image: '',
-                        resources: {
-                            requests: { cpu: '250m', memory: '256Mi' },
-                            limits: { cpu: '500m', memory: '512Mi' }
-                        },
-                        command: [],
-                        env: {},
-                        mounts: []
-                    },
-                    service_config: {
-                        ports: [{port: '', protocol: 'TCP'}],
-                        ip_address: '',
-                        service_type: 'LoadBalancer'
-                    },
-                    pvc_config: {
-                        size: 0,
-                        size_unit: 'Gi',
-                        container_path: '',
-                        storage_class: ''
-                    }
-                },
-            }
-        },
-        get commandInput() {
-            return Array.isArray(this.form.template?.pod_config?.command)
-                ? this.form.template.pod_config.command.join(', ')
-                : '';
-        },
-        set commandInput(value) {
-            this.updateCommandArray(value);
-        },
-        updateCommandArray(value) {
-            if (!this.form.template.pod_config) return;
-            this.form.template.pod_config.command = value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-        },
-        updateEnvKey(event, oldKey, index) {
-            const newKey = event.target.value;
-            if (newKey !== oldKey) {
-                const env = this.form.template.pod_config.env;
-                const value = env[oldKey];
-                delete env[oldKey];
-                env[newKey] = value;
-            }
-        },
-        async fetchGameServerTemplates() {
-            this.gameServerTemplates = (await (await fetch("/api/v1/game-server-templates")).json()) || [];
-        },
-        useTemplate(template) {
-            this.form.template = _.cloneDeep(template);
-            this.form.max_players = template.default_max_users || 0
-            if (!this.form.template.pod_config.resources) {
-                this.form.template.pod_config.resources = {
-                    requests: { cpu: '0m', memory: '0Mi' },
-                    limits: { cpu: '0m', memory: '0Mi' }
-                };
-            }
-            if (!this.form.template.pod_config.resources.requests) {
-                this.form.template.pod_config.resources.requests = { cpu: '0m', memory: '0Mi' };
-            }
-            if (!this.form.template.pod_config.resources.limits) {
-                this.form.template.pod_config.resources.limits = { cpu: '0m', memory: '0Mi' };
-            }
-            if (!this.form.template.pod_config.mounts) {
-                this.form.template.pod_config.mounts = [];
-            }
-            if (!this.form.template.pod_config.command) {
-                this.form.template.pod_config.command = [];
-            }
-            if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
-                this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
-            }
-        },
-        resetForm() {
-            this.selectedTemplateName = '';
-            this.form = this.formDefaultValue();
-        }
-    }
-
-}
-
-function dualRangeSlider(getMin, getMax, minVal, maxVal) {
-    return {
-        min: minVal,
-        max: maxVal,
-        minValue: 0,
-        maxValue: 0,
-        init() {
-            this.minValue = getMin();
-            this.maxValue = getMax();
-        },
-        get minPercent() {
-            return ((this.minValue - this.min) / (this.max - this.min)) * 100;
-        },
-        get maxPercent() {
-            return ((this.maxValue - this.min) / (this.max - this.min)) * 100;
-        },
-        syncCpu(form) {
-            if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-            if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-            if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-            form.template.pod_config.resources.requests.cpu = this.minValue + "m"
-            form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
-        },
-        syncMemory(form) {
-            if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-            if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-            if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-            form.template.pod_config.resources.requests.memory = this.minValue + "Mi"
-            form.template.pod_config.resources.limits.memory = this.maxValue + "Mi"
-        },
-        syncCpuEdit() {
-            const parentData = this.$el.closest('[x-data]').__x?.$data;
-            if (parentData?.editForm?.pod_config) {
-                if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-                if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-                if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-                parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-                parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
-            }
-        },
-        syncMemoryEdit() {
-            const parentData = this.$el.closest('[x-data]').__x?.$data;
-            if (parentData?.editForm?.pod_config) {
-                if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-                if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-                if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-                parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-                parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
-            }
-        }
+type GameServerTemplateData = {
+    template_name: string;
+    icon_url?: string;
+    description?: string;
+    game_type?: string;
+    game_version?: string;
+    pod_template?: string | null;
+    init_template?: string | null;
+    default_max_users?: number;
+    pod_config?: {
+        image?: string;
+        resources?: {
+            requests?: { cpu?: string; memory?: string };
+            limits?: { cpu?: string; memory?: string };
+        };
+        command?: string[];
+        env?: Record<string, string>;
+        mounts?: any[];
     };
+    service_config?: {
+        ports?: Array<{ port: string; protocol: string }>;
+        ip_address?: string;
+        service_type?: string;
+    };
+    pvc_config?: {
+        size: number | string;
+        size_unit: string;
+        container_path?: string;
+        storage_class?: string;
+    };
+};
+
+
+type GameServerForm = {
+    template: GameServerTemplateData
 }
 
-function parseCpu(value) {
-    if (!value) return 0;
-    const str = String(value);
-    if (str.endsWith('m')) {
-        return parseInt(str) || 0;
-    }
-    return (parseFloat(str) || 0) * 1000;
-}
 
-function formatCpuString(millicores) {
-    if (millicores >= 1000 && millicores % 1000 === 0) {
-        return (millicores / 1000).toString();
-    }
-    return millicores + 'm';
-}
+type CreateServerModalData = {
+    content: string,
+    selectedTab: 'general' | 'podconfig' | 'storageconfig' | 'svcconfig' | 'misc',
+    form: GameServerForm | any,
+    gameServerTemplates: GameServerTemplateData[],
+    selectedTemplateName: string,
+    init(): Promise<void>,
+    changedTemplate(event: Event): void,
+    formDefaultValue(): GameServerForm,
+    commandInput: string,
+    updateCommandArray(value?: string): void,
+    updateEnvKey(event: Event, oldKey: string): void,
+    fetchGameServerTemplates(): Promise<void>,
+    useTemplate(template: GameServerTemplateData): void,
+    resetForm(): void,
+    syncCpu(form: any): void,
+    syncMemory(form: any),
+    syncCpuEdit(form: any),
+    syncMemoryEdit(form: any)
+};
 
-function parseMemory(value) {
-    if (!value) return 0;
-    const str = String(value);
-    if (str.endsWith('Gi')) {
-        return (parseFloat(str) || 0) * 1024;
-    }
-    if (str.endsWith('Mi')) {
-        return parseInt(str) || 0;
-    }
-    return parseInt(str) || 0;
-}
 
-function formatMemoryString(mib) {
-    if (mib >= 1024) {
-        return ((mib % 1024 === 0) ? Math.trunc(mib / 1024) : (mib / 1024.0).toFixed(2)) + 'Gi';
-    }
-    return mib + 'Mi';
-}
+Alpine.data('createServerModal', (): CreateServerModalData => ({
+    content: createServerModalContent,
+    selectedTab: 'general',
+    form: {},
+    gameServerTemplates: [] as GameServerTemplateData[],
+    selectedTemplateName: '',
+    async init() {
+        this.resetForm();
+        await this.fetchGameServerTemplates();
+    },
+
+    changedTemplate(event: Event) {
+        const tempName = (event.target as HTMLSelectElement).value;
+        this.selectedTemplateName = tempName;
+        const template = this.gameServerTemplates.find(t => t.template_name === tempName);
+        if (template == null)
+            console.error("Could not find template with name " + tempName);
+        else
+            this.useTemplate(template);
+    },
+    formDefaultValue() {
+        return {
+            name: '',
+            game_version: '',
+            max_players: 0,
+            template: {
+                template_name: '',
+                description: '',
+                game_type: '',
+                icon_url: '',
+                pod_template: null,
+                init_template: null,
+                pod_config: {
+                    image: '',
+                    resources: {
+                        requests: {cpu: '250m', memory: '256Mi'},
+                        limits: {cpu: '500m', memory: '512Mi'}
+                    },
+                    command: [],
+                    env: {},
+                    mounts: []
+                },
+                service_config: {
+                    ports: [{port: '', protocol: 'TCP'}],
+                    ip_address: '',
+                    service_type: 'LoadBalancer'
+                },
+                pvc_config: {
+                    size: 0,
+                    size_unit: 'Gi',
+                    container_path: '',
+                    storage_class: ''
+                }
+            },
+        }
+    },
+    get commandInput() {
+        return Array.isArray(this.form.template?.pod_config?.command)
+            ? this.form.template.pod_config.command.join(', ')
+            : '';
+    },
+    set commandInput(value: string) {
+        this.updateCommandArray(value);
+    },
+    updateCommandArray(value?: string) {
+        if (!this.form.template.pod_config) return;
+        this.form.template.pod_config.command = (value || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    },
+    updateEnvKey(event: Event, oldKey: string) {
+        const newKey = (event.target as HTMLInputElement).value;
+        if (newKey !== oldKey) {
+            const env = this.form.template.pod_config.env;
+            const val = env[oldKey];
+            delete env[oldKey];
+            env[newKey] = val;
+        }
+    },
+    async fetchGameServerTemplates() {
+        this.gameServerTemplates = (await (await fetch("/api/v1/game-server-templates")).json()) || [];
+    },
+    useTemplate(template: GameServerTemplateData) {
+        this.form.template = JSON.parse(JSON.stringify(template));
+        this.form.max_players = template.default_max_users || 0;
+        if (!this.form.template.pod_config.resources) {
+            this.form.template.pod_config.resources = {
+                requests: {cpu: '0m', memory: '0Mi'},
+                limits: {cpu: '0m', memory: '0Mi'}
+            };
+        }
+        if (!this.form.template.pod_config.resources.requests) {
+            this.form.template.pod_config.resources.requests = {cpu: '0m', memory: '0Mi'};
+        }
+        if (!this.form.template.pod_config.resources.limits) {
+            this.form.template.pod_config.resources.limits = {cpu: '0m', memory: '0Mi'};
+        }
+        if (!this.form.template.pod_config.mounts) {
+            this.form.template.pod_config.mounts = [];
+        }
+        if (!this.form.template.pod_config.command) {
+            this.form.template.pod_config.command = [];
+        }
+        if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
+            this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
+        }
+    },
+    resetForm() {
+        this.selectedTemplateName = '';
+        this.form = this.formDefaultValue();
+    },
+
+    syncCpu(form: any) {
+        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
+        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
+        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
+        form.template.pod_config.resources.requests.cpu = this.minValue + "m";
+        form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
+    },
+    syncMemory(form: any) {
+        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
+        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
+        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
+        form.template.pod_config.resources.requests.memory = this.minValue + "Mi";
+        form.template.pod_config.resources.limits.memory = this.maxValue + "Mi";
+    },
+    syncCpuEdit() {
+        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        if (parentData?.editForm?.pod_config) {
+            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+            parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
+            parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
+        }
+    },
+    syncMemoryEdit() {
+        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        if (parentData?.editForm?.pod_config) {
+            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+            parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
+            parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
+        }
+    },
+    ...serverResourceSliderFunctions
+}));
+
 

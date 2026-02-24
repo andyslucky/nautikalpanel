@@ -61,13 +61,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let executor = Arc::new(create_executor(&config).await?);
     let store = create_db(executor.clone(), &config).await?;
 
-    let frontend_dir = "frontend";
-    let index = ServeFile::new(format!("{}/index.html", frontend_dir));
-    let scripts_dir = ServeDir::new(format!("{}/scripts", frontend_dir));
 
-    let router = endpoints::create_router(executor, Arc::new(store), config.clone())
-        .nest_service("/scripts", scripts_dir)
-        .route_service("/", index);
+
+    let mut router = endpoints::create_router(executor, Arc::new(store), config.clone());
+
+    if cfg!(debug_assertions) {
+        info!("Running in development mode. Not serving front end")
+    } else {
+        let frontend_dir = "frontend/dist";
+        let index = ServeFile::new(format!("{}/index.html", frontend_dir));
+        let scripts_dir = ServeDir::new(format!("{}/assets", frontend_dir));
+        router = router.nest_service("/assets", scripts_dir).route_service("/", index);
+    }
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_address()).await?;
     info!("Server listening on {}", config.server.bind_address());

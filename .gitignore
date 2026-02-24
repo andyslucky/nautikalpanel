@@ -2,3 +2,6 @@
 .idea
 /db
 .env
+**/node_modules
+**/.astro
+**/dist

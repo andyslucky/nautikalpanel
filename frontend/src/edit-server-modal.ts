@@ -1,3 +1,7 @@
+import Alpine from 'alpinejs';
+import type {Server} from './app.ts';
+import {serverResourceSliderFunctions} from "./resource-utils.ts";
+
 const editServerModalContent = `
 <div x-cloak x-show="showEditModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showEditModal"
     x-on:keydown.esc.window="closeEditModal()" x-on:click.self="closeEditModal()"
@@ -106,7 +110,7 @@ const editServerModalContent = `
                         <div class="flex flex-col gap-1.5">
                             <template x-for="(entry, index) in Object.entries(editForm.pod_config?.env || {})" :key="index">
                                 <div class="flex gap-1.5">
-                                    <input type="text" :value="entry[0]" @input="updateEditEnvKey($event, entry[0], index)" placeholder="Key" class="form-input-sm">
+                                    <input type="text" :value="entry[0]" @input="updateEditEnvKey($event, entry[0])" placeholder="Key" class="form-input-sm">
                                     <input type="text" :value="entry[1]" @input="editForm.pod_config.env[entry[0]] = $event.target.value" placeholder="Value" class="form-input-sm">
                                     <button type="button" @click="delete editForm.pod_config.env[entry[0]]" class="btn-remove">X</button>
                                 </div>
@@ -132,137 +136,172 @@ const editServerModalContent = `
 </div>
 `;
 
-function editServerModal() {
-    return {
-        content: editServerModalContent,
-        showEditModal: false,
-        editTab: 'general',
-        editForm: {
-            pod_config: {}
-        },
-        init() {},
-        get editCommandInput() {
-            return Array.isArray(this.editForm.pod_config?.command)
-                ? this.editForm.pod_config.command.join(', ')
-                : '';
-        },
-        set editCommandInput(value) {
-            if (!this.editForm.pod_config) return;
-            this.editForm.pod_config.command = value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-        },
-        openEditModal(server) {
-            this.editTab = 'general';
-            this.editForm = {
-                id: server.id,
-                name: server.name,
-                game_version: server.game_version || '',
-                max_players: server.max_players || 0,
-                icon_url: server.icon_url || '',
-                description: server.game_server?.description || '',
-                pod_config: _.cloneDeep(server.game_server?.pod_config || {
-                    image: '',
-                    resources: {
-                        requests: { cpu: '250m', memory: '256Mi' },
-                        limits: { cpu: '500m', memory: '512Mi' }
-                    },
-                    command: [],
-                    env: {},
-                    mounts: []
-                }),
-                pod_template: server.game_server?.pod_template || ''
-            };
-            if (!this.editForm.pod_config.resources) {
-                this.editForm.pod_config.resources = {
-                    requests: { cpu: '250m', memory: '256Mi' },
-                    limits: { cpu: '500m', memory: '512Mi' }
-                };
-            }
-            if (!this.editForm.pod_config.env) {
-                this.editForm.pod_config.env = {};
-            }
-            if (!this.editForm.pod_config.command) {
-                this.editForm.pod_config.command = [];
-            }
-            this.showEditModal = true;
-        },
-        closeEditModal() {
-            this.showEditModal = false;
-        },
-        updateEditEnvKey(event, oldKey, index) {
-            const newKey = event.target.value;
-            if (newKey !== oldKey) {
-                const env = this.editForm.pod_config.env;
-                const value = env[oldKey];
-                delete env[oldKey];
-                env[newKey] = value;
-            }
-        },
-        async saveEditServer() {
-            const updateData = {
-                name: this.editForm.name,
-                game_version: this.editForm.game_version || null,
-                max_players: this.editForm.max_players ? Number.parseInt(this.editForm.max_players) : null,
-                icon_url: this.editForm.icon_url || null,
-                description: this.editForm.description || null,
-                pod_config: {
-                    ...this.editForm.pod_config,
-                    resources: this.editForm.pod_config.resources && (this.editForm.pod_config.resources.requests || this.editForm.pod_config.resources.limits)
-                        ? {
-                            requests: this.editForm.pod_config.resources.requests || null,
-                            limits: this.editForm.pod_config.resources.limits || null
-                        }
-                        : null,
-                    command: this.editForm.pod_config.command && this.editForm.pod_config.command.length > 0 ? this.editForm.pod_config.command : null,
-                    mounts: this.editForm.pod_config.mounts && this.editForm.pod_config.mounts.length > 0 ? this.editForm.pod_config.mounts : null
-                },
-                pod_template: this.editForm.pod_template || null
-            };
-            
-            try {
-                const resp = await fetch(`/api/v1/game-servers/${this.editForm.id}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(updateData)
-                });
-                if (!resp.ok) {
-                    const err = await resp.text();
-                    this.showToast(err || 'Failed to update server', 'error');
-                } else {
-                    this.showToast("Successfully updated server", 'success');
-                    this.closeEditModal();
-                    await this.fetchServers();
-                }
-            } catch (e) {
-                console.error(e);
-                this.showToast("Failed to update server", "error");
-            }
-        }
+type PodConfig = {
+    image?: string;
+    resources?: {
+        requests?: { cpu?: string; memory?: string };
+        limits?: { cpu?: string; memory?: string };
     };
+    command?: string[];
+    env?: Record<string, string>;
+    mounts?: any[];
+};
+
+type EditForm = {
+    id: string;
+    name: string;
+    game_version: string;
+    max_players: number;
+    icon_url: string;
+    description: string;
+    pod_config: PodConfig;
+    pod_template: string;
+};
+
+type EditServerModalData = {
+    content: string,
+    showEditModal: false,
+    editTab: 'general' | 'podconfig' | 'misc',
+    editForm: EditForm,
+    init() : void,
+    editCommandInput: string,
+    openEditModal(server : Server) : void,
+    closeEditModal() : void,
+    updateEditEnvKey(event: Event, oldKey: string) : void,
+    saveEditServer() : Promise<void>,
+    syncCpuEdit() : void,
+    syncMemoryEdit() : void
 }
 
-function syncCpuEdit() {
-    const parentData = this.$el.closest('[x-data]').__x?.$data;
-    if (parentData?.editForm?.pod_config) {
-        if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-        if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-        if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-        parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-        parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
-    }
-}
+Alpine.data('editServerModal', () : EditServerModalData => ({
+    content: editServerModalContent,
+    showEditModal: false,
+    editTab: 'general' as 'general' | 'podconfig' | 'misc',
+    editForm: {
+        pod_config: {}
+    } as EditForm,
+    init() {
+    },
+    get editCommandInput() {
+        return Array.isArray(this.editForm.pod_config?.command)
+            ? this.editForm.pod_config.command.join(', ')
+            : '';
+    },
+    set editCommandInput(value: string) {
+        if (!this.editForm.pod_config) return;
+        this.editForm.pod_config.command = value
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    },
+    openEditModal(server: any) {
+        this.editTab = 'general';
+        this.editForm = {
+            id: server.id,
+            name: server.name,
+            game_version: server.game_version || '',
+            max_players: server.max_players || 0,
+            icon_url: server.icon_url || '',
+            description: server.game_server?.description || '',
+            pod_config: JSON.parse(JSON.stringify(server.game_server?.pod_config || {
+                image: '',
+                resources: {
+                    requests: {cpu: '250m', memory: '256Mi'},
+                    limits: {cpu: '500m', memory: '512Mi'}
+                },
+                command: [],
+                env: {},
+                mounts: []
+            })),
+            pod_template: server.game_server?.pod_template || ''
+        };
+        if (!this.editForm.pod_config.resources) {
+            this.editForm.pod_config.resources = {
+                requests: {cpu: '250m', memory: '256Mi'},
+                limits: {cpu: '500m', memory: '512Mi'}
+            };
+        }
+        if (!this.editForm.pod_config.env) {
+            this.editForm.pod_config.env = {};
+        }
+        if (!this.editForm.pod_config.command) {
+            this.editForm.pod_config.command = [];
+        }
+        this.showEditModal = true;
+    },
+    closeEditModal() {
+        this.showEditModal = false;
+    },
+    updateEditEnvKey(event: Event, oldKey: string) {
+        const newKey = (event.target as HTMLInputElement).value;
+        if (newKey !== oldKey) {
+            const env = this.editForm.pod_config.env;
+            const value = env[oldKey];
+            delete env[oldKey];
+            env[newKey] = value;
+        }
+    },
+    syncCpuEdit() {
+        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        if (parentData?.editForm?.pod_config) {
+            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+            parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
+            parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
+        }
+    },
+    syncMemoryEdit() {
+        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        if (parentData?.editForm?.pod_config) {
+            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
+            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
+            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
+            parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
+            parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
+        }
+    },
+    async saveEditServer() {
+        const updateData = {
+            name: this.editForm.name,
+            game_version: this.editForm.game_version || null,
+            max_players: this.editForm.max_players ? parseInt(this.editForm.max_players) : null,
+            icon_url: this.editForm.icon_url || null,
+            description: this.editForm.description || null,
+            pod_config: {
+                ...this.editForm.pod_config,
+                resources: this.editForm.pod_config.resources && (this.editForm.pod_config.resources.requests || this.editForm.pod_config.resources.limits)
+                    ? {
+                        requests: this.editForm.pod_config.resources.requests || null,
+                        limits: this.editForm.pod_config.resources.limits || null
+                    }
+                    : null,
+                command: this.editForm.pod_config.command && this.editForm.pod_config.command.length > 0 ? this.editForm.pod_config.command : null,
+                mounts: this.editForm.pod_config.mounts && this.editForm.pod_config.mounts.length > 0 ? this.editForm.pod_config.mounts : null
+            },
+            pod_template: this.editForm.pod_template || null
+        };
 
-function syncMemoryEdit() {
-    const parentData = this.$el.closest('[x-data]').__x?.$data;
-    if (parentData?.editForm?.pod_config) {
-        if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-        if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-        if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-        parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-        parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
-    }
-}
+        try {
+            const resp = await fetch(`/api/v1/game-servers/${this.editForm.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(updateData)
+            });
+            if (!resp.ok) {
+                const err = await resp.text();
+                this.showToast(err || 'Failed to update server', 'error');
+            } else {
+                this.showToast("Successfully updated server", 'success');
+                this.closeEditModal();
+                await this.fetchServers();
+            }
+        } catch (e) {
+            console.error(e);
+            this.showToast("Failed to update server", "error");
+        }
+    },
+    ...serverResourceSliderFunctions
+}));

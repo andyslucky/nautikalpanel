@@ -1,14 +1,29 @@
+import Alpine from 'alpinejs';
+
+type NotificationSender = {
+    name?: string;
+    avatar?: string;
+};
+
+type Notification = {
+    id: number;
+    variant: 'info' | 'success' | 'warning' | 'danger' | 'message';
+    sender?: NotificationSender;
+    title?: string;
+    message?: string;
+};
+
 const notificationContent = `
 <div class="group notification-container"
-     x-on:mouseenter="$dispatch('pause-auto-dismiss')" 
+     x-on:mouseenter="$dispatch('pause-auto-dismiss')"
      x-on:mouseleave="$dispatch('resume-auto-dismiss')">
-    <template x-for="(notification, index) in notifications" x-bind:key="notification.id">
+    <template x-for="(notification, index) in notifications" :key="notification.id">
         <div>
             <!-- Info Notification -->
             <template x-if="notification.variant === 'info'">
                 <div x-data="{ isVisible: false, timeout: null }" x-cloak x-show="isVisible"
                      class="notification border-info"
-                     role="alert" 
+                     role="alert"
                      x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
                      x-on:resume-auto-dismiss.window="timeout = setTimeout(() => {(isVisible = false), removeNotification(notification.id) }, displayDuration)"
                      x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
@@ -147,7 +162,7 @@ const notificationContent = `
                      role="alert"
                      x-on:pause-auto-dismiss.window="clearTimeout(timeout)"
                      x-on:resume-auto-dismiss.window="timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration)"
-                     x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id) }, displayDuration))"
+                     x-init="$nextTick(() => { isVisible = true }), (timeout = setTimeout(() => { isVisible = false, removeNotification(notification.id)}, displayDuration))"
                      x-transition:enter="transition duration-300 ease-out" x-transition:enter-end="translate-y-0"
                      x-transition:enter-start="translate-y-8"
                      x-transition:leave="transition duration-300 ease-in"
@@ -182,36 +197,53 @@ const notificationContent = `
 </div>
 `;
 
-function notificationComponent() {
-    return {
-        content: notificationContent,
-        notifications: [],
-        displayDuration: 8000,
-        soundEffect: false,
 
-        addNotification({variant = 'info', sender = null, title = null, message = null}) {
-            const id = Date.now()
-            const notification = {id, variant, sender, title, message}
-
-            if (this.notifications.length >= 20) {
-                this.notifications.splice(0, this.notifications.length - 19)
-            }
-
-            this.notifications.push(notification)
-
-            if (this.soundEffect) {
-                const notificationSound = new Audio('https://res.cloudinary.com/ds8pgw1pf/video/upload/v1728571480/penguinui/component-assets/sounds/ding.mp3')
-                notificationSound.play().catch((error) => {
-                    console.error('Error playing the sound:', error)
-                })
-            }
-        },
-        removeNotification(id) {
-            setTimeout(() => {
-                this.notifications = this.notifications.filter(
-                    (notification) => notification.id !== id,
-                )
-            }, 400);
-        },
-    }
+type NotificationComponentData = {
+    content: string;
+    notifications: Notification[];
+    displayDuration: 8000;
+    soundEffect: false;
+    addNotification({variant, sender, title, message}: {
+        variant?: "info" | "success" | "warning" | "danger" | "message";
+        sender?: NotificationSender | null;
+        title?: string | null;
+        message?: string | null
+    }): void;
+    removeNotification(id: number): void
 }
+Alpine.data('notificationComponent', (): NotificationComponentData => ({
+    content: notificationContent,
+    notifications: [] as Notification[],
+    displayDuration: 8000,
+    soundEffect: false,
+
+    addNotification({variant = 'info', sender = null, title = null, message = null}: {
+        variant?: 'info' | 'success' | 'warning' | 'danger' | 'message',
+        sender?: NotificationSender | null,
+        title?: string | null,
+        message?: string | null
+    }) {
+        const id = Date.now();
+        const notification: Notification = {id, variant, sender, title, message};
+
+        if (this.notifications.length >= 20) {
+            this.notifications.splice(0, this.notifications.length - 19);
+        }
+
+        this.notifications.push(notification);
+
+        if (this.soundEffect) {
+            const notificationSound = new Audio('https://res.cloudinary.com/ds8pgw1pf/video/upload/v1728571480/penguinui/component-assets/sounds/ding.mp3');
+            notificationSound.play().catch((error: Error) => {
+                console.error('Error playing the sound:', error);
+            });
+        }
+    },
+    removeNotification(id: number) {
+        setTimeout(() => {
+            this.notifications = this.notifications.filter(
+                (notification: Notification) => notification.id !== id,
+            );
+        }, 400);
+    },
+}));
