@@ -167,6 +167,11 @@ const createServerModalContent = `
                         <label class="form-label-sm">Storage Class (Optional)</label>
                         <input type="text" x-model="form.template.pvc_config.storage_class" placeholder="standard" class="form-input">
                     </div>
+                    <div>
+                        <label class="form-label-sm">User/Group ID</label>
+                        <input type="number" x-model.number="form.template.user_id" placeholder="1000" min="1" class="form-input">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">UID/GID for file permissions. Used for PVC fsGroup and SFTP user.</p>
+                    </div>
                 </div>
                 <div x-cloak x-show="selectedTab === 'svcconfig'" id="tabpanelsvcconfig" role="tabpanel" aria-label="svcconfig" class="form-group">
                     <div class="grid grid-cols-2 gap-2">
@@ -244,6 +249,7 @@ type GameServerTemplateData = {
     pod_template?: string | null;
     init_template?: string | null;
     default_max_users?: number;
+    user_id?: number;
     pod_config?: {
         image?: string;
         resources?: {
@@ -264,6 +270,7 @@ type GameServerTemplateData = {
         size_unit: string;
         container_path?: string;
         storage_class?: string;
+        user_id?: number;
     };
 };
 
@@ -327,6 +334,7 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
                 icon_url: '',
                 pod_template: null,
                 init_template: null,
+                user_id: 1000,
                 pod_config: {
                     image: '',
                     resources: {
@@ -346,7 +354,8 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
                     size: 0,
                     size_unit: 'Gi',
                     container_path: '',
-                    storage_class: ''
+                    storage_class: '',
+                    user_id: 1000
                 }
             },
         }
@@ -381,6 +390,9 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
     useTemplate(template: GameServerTemplateData) {
         this.form.template = JSON.parse(JSON.stringify(template));
         this.form.max_players = template.default_max_users || 0;
+        if (!this.form.template.user_id) {
+            this.form.template.user_id = 1000;
+        }
         if (!this.form.template.pod_config.resources) {
             this.form.template.pod_config.resources = {
                 requests: {cpu: '0m', memory: '0Mi'},
@@ -401,6 +413,9 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
         }
         if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
             this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
+        }
+        if (!this.form.template.pvc_config.user_id) {
+            this.form.template.pvc_config.user_id = 1000;
         }
     },
     resetForm() {

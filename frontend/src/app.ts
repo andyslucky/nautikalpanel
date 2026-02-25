@@ -19,6 +19,13 @@ export type Server = {
     instance_id: string | null;
 };
 
+export type GameServerInstance = {
+    game_server_id : string,
+    id: string,
+    nautikal_pod_type: string,
+    pod_status?: string,
+};
+
 type GameServerTemplate = {
     template_name: string;
     icon_url?: string;
@@ -57,7 +64,9 @@ type AppData = {
     sidebarOpen: false;
     servers: Server[];
     gameServerTemplates: GameServerTemplate[];
-    refreshTimerId: -1;
+    watchSocket: WebSocket | null;
+    watchReconnectDelay: number;
+    watchReconnectTimer: number;
     showLogViewer: false;
     logViewerServer: {};
     logLines: string[];
@@ -66,12 +75,13 @@ type AppData = {
     showSftpCredentials: false;
     sftpCredentials: {};
     sftpCredentialsServer: null;
-    settings: { darkMode: boolean; refreshInterval: number };
+    settings: { darkMode: boolean };
     init(): void;
     loadSettings(): void;
     showToast(message: string, variant?: ("info" | "success" | "warning" | "danger")): void;
-    updateRefreshInterval(): void;
-    setupRefreshTimer(): void;
+    connectWatchSocket(): void;
+    disconnectWatchSocket(): void;
+    handleWatchEvent(event: {event_type: string, game_server_instance: GameServerInstance}): void;
     fetchServers(): Promise<void>;
     serverAddressLine(server: Server): string;
     createServer(): Promise<void>;
@@ -96,7 +106,9 @@ Alpine.data("app", (): AppData => ({
     sidebarOpen: false,
     servers: [] as Server[],
     gameServerTemplates: [] as GameServerTemplate[],
-    refreshTimerId: -1,
+    watchSocket: null,
+    watchReconnectDelay: 1000,
+    watchReconnectTimer: -1,
     showLogViewer: false,
     logViewerServer: {},
     logLines: [] as string[],
@@ -107,18 +119,16 @@ Alpine.data("app", (): AppData => ({
     sftpCredentialsServer: null,
     settings: {
         darkMode: false,
-        refreshInterval: 30
     },
 
-    init() {
+    async init() {
         this.loadSettings();
-        this.fetchServers();
-        this.setupRefreshTimer();
+        await this.fetchServers();
+        this.connectWatchSocket();
     },
 
     loadSettings() {
         this.settings.darkMode = localStorage.getItem('darkMode') === 'true';
-        this.settings.refreshInterval = parseInt(localStorage.getItem("refreshInterval") || "30");
         if (this.settings.darkMode) document.documentElement.classList.add('dark');
     },
 
@@ -129,18 +139,70 @@ Alpine.data("app", (): AppData => ({
         });
     },
 
-    updateRefreshInterval() {
-        localStorage.setItem("refreshInterval", this.settings.refreshInterval.toString());
-        this.setupRefreshTimer();
+    connectWatchSocket() {
+        this.disconnectWatchSocket();
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/api/v1/game-servers/watch`;
+        this.watchSocket = new WebSocket(wsUrl);
+
+        this.watchSocket.onopen = () => {
+            console.log('Watch WebSocket connected');
+            // Reset reconnect delay on successful connection
+            this.watchReconnectDelay = 1000;
+        };
+
+        this.watchSocket.onmessage = (event: MessageEvent) => {
+            try {
+                const data: GameServerInstance = JSON.parse(event.data);
+                this.handleWatchEvent(data);
+            } catch (e) {
+                console.error('Failed to parse watch event:', e);
+            }
+        };
+
+        this.watchSocket.onclose = () => {
+            console.log('Watch WebSocket closed. Reconnecting in', this.watchReconnectDelay, 'ms');
+            this.watchReconnectTimer = setTimeout(() => {
+                // Exponential backoff capped at 30s
+                this.watchReconnectDelay = Math.min(this.watchReconnectDelay * 2, 30000);
+                this.connectWatchSocket();
+            }, this.watchReconnectDelay) as unknown as number;
+        };
+
+        this.watchSocket.onerror = (error: Event) => {
+            console.error('Watch WebSocket error:', error);
+        };
     },
 
-    setupRefreshTimer() {
-        if (this.refreshTimerId !== -1) {
-            clearInterval(this.refreshTimerId);
+    disconnectWatchSocket() {
+        if (this.watchReconnectTimer !== -1) {
+            clearTimeout(this.watchReconnectTimer);
+            this.watchReconnectTimer = -1;
         }
-        this.refreshTimerId = setInterval(async () => {
-            await this.fetchServers();
-        }, this.settings.refreshInterval * 1_000);
+        if (this.watchSocket) {
+            this.watchSocket.onclose = null; // Prevent reconnect on intentional close
+            this.watchSocket.close();
+            this.watchSocket = null;
+        }
+    },
+
+    handleWatchEvent(event: {event_type: string, game_server_instance?: GameServerInstance}) {
+        console.log("Received game server update", event)
+        if (event.game_server_instance == null) return;
+        const server : Server | undefined = this.servers.find( ( s : Server) : boolean => s.id === event.game_server_instance.game_server_id);
+        if (!server) return;
+        let status = '';
+        if (event.event_type == 'Deleted') {
+            status = 'Offline'
+        } else if (event.game_server_instance != null) {
+            status = event.game_server_instance.pod_status;
+        } else {
+            status = event.event_type;
+        }
+        server.status = status
+        if (event.game_server_instance) {
+            server.instance_type = event.game_server_instance.nautikal_pod_type
+        }
     },
 
     async fetchServers() {
@@ -266,7 +328,6 @@ Alpine.data("app", (): AppData => ({
             this.showToast((await resp.text()) || "Failed to start server", "error");
         } else {
             this.showToast(`Starting server ${server.name}`, 'info');
-            await this.fetchServers();
         }
     },
 
@@ -282,7 +343,6 @@ Alpine.data("app", (): AppData => ({
             this.showToast((await resp.text()) || "Failed to start SFTP server", "error");
         } else {
             this.showToast(`Starting SFTP for ${server.name}`, 'info');
-            await this.fetchServers();
         }
     },
 
@@ -320,7 +380,6 @@ Alpine.data("app", (): AppData => ({
             this.showToast((await resp.text()) || "Failed to stop server", "error");
         } else {
             this.showToast(`Stopping server ${server.name}`, "info");
-            await this.fetchServers();
         }
     },
 

@@ -3,15 +3,15 @@
 - [ ] Add support for init containers.
 - [x] Add rocksdb backend for Surreal to persist data across restarts
 - [ ] Make creations transactional so if the init template fails the database doesn't contain any uninitialized servers.
-- [ ] Troubleshoot status updates for "Terminating" pods.
-- [ ] Utilize the resource watching capabilities of kube for more realtime updates.
+- [x] Troubleshoot status updates for "Terminating" pods.
+- [x] Utilize the resource watching capabilities of kube for more realtime updates.
 - [x] Update application to accept configuration for default storage class, pod template name, port, etc.
 - [x] Complete the pod_template so that it uses resources etc.
 - [x] Decompose the individual resources from init.yaml into separate templates.
 - [x] Decompose individual resources from pod_template.yaml into separate templates.
 - [ ] ~~Support tera reloading?~~
 - [x] Support starting a container for SFTP only
-- [ ] Add support for sftp_user_id property
+- [x] Add support for sftp_user_id property
 - [x] Implement editing a server.
 - [ ] Implement connected user count
 - [x] Implement log streaming

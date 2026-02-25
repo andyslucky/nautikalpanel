@@ -16,6 +16,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post, put},
 };
+use futures_util::FutureExt;
 use k8s_openapi::api::core::v1::Pod;
 use kube::runtime::reflector::Lookup;
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,7 @@ use std::sync::Arc;
 use tokio::fs::DirEntry;
 use tokio::io::AsyncBufReadExt;
 use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
+use tracing::{error, info};
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -130,6 +132,7 @@ pub fn create_router(
             "/api/v1/game-servers/{game_server_id}/sftp-credentials",
             get(get_sftp_credentials),
         )
+        .route("/api/v1/game-servers/watch", get(watch_handler))
         // .route("/api/v1/game-servers/instances/:id", post(stop_instance))
         .with_state(state)
 }
@@ -284,15 +287,19 @@ async fn start_server(
             error: "Could not find game server with id".to_string(),
         })?;
 
-    let (pod, credentials) = state
-        .executor
-        .create_pod(&game_server)
-        .await
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?;
+    let (pod, credentials) =
+        state
+            .executor
+            .create_pod(&game_server)
+            .await
+            .map_err(|e| ErrorResponse {
+                error: e.to_string(),
+            })?;
     let instance = GameServerInstance::from(pod);
-    Ok(Json(StartGameServerResponse { instance, credentials }))
+    Ok(Json(StartGameServerResponse {
+        instance,
+        credentials,
+    }))
 }
 
 /// POST /api/v1/game-servers/start-sftp
@@ -320,7 +327,10 @@ async fn start_sftp_server(
             error: e.to_string(),
         })?;
     let instance = GameServerInstance::from(pod);
-    Ok(Json(StartSftpResponse { instance, credentials }))
+    Ok(Json(StartSftpResponse {
+        instance,
+        credentials,
+    }))
 }
 
 ///  /api/v1/game-servers/
@@ -344,10 +354,10 @@ async fn logs_handler(
     Path(game_server_id): Path<String>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state.executor.clone(), game_server_id))
+    ws.on_upgrade(move |socket| stream_logs_to_ws(socket, state.executor.clone(), game_server_id))
 }
 
-async fn handle_socket(
+async fn stream_logs_to_ws(
     socket: WebSocket,
     executor: Arc<KubernetesExecutor>,
     game_server_id: String,
@@ -366,20 +376,6 @@ async fn handle_socket(
     } else {
         return;
     }
-    // let pod = executor.list_pods(Some(game_server_id)).await
-    //     .map(|pods| pods.into_iter().next()).map(|opt_pod| opt_pod.map(|p| p.name()).flatten());
-    // let pod_name : Cow<'_, str>;
-    // match pod {
-    //     Ok(Some(name)) => {
-    //         pod_name = name;
-    //     },
-    //     Ok(None) => {
-    //         return;
-    //     },
-    //     Err(e) => {
-    //         return;
-    //     }
-    // };
 
     let mut log_stream = match executor.stream_logs(game_instance).await {
         Ok(stream) => stream,
@@ -449,4 +445,84 @@ async fn get_sftp_credentials(
             error: "SFTP credentials not found. Start SFTP first.".to_string(),
         })?;
     Ok(Json(credentials))
+}
+
+/// GET /api/v1/game-servers/watch (WebSocket)
+/// Stream real-time updates about pod and service changes from Kubernetes.
+/// On connect, sends a full snapshot, then streams incremental updates.
+async fn watch_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_watch_socket(socket, state.executor.clone()))
+}
+
+#[derive(Serialize)]
+struct GameServerInstanceEvent {
+    pub event_type: String,
+    pub game_server_instance: Option<GameServerInstance>,
+}
+
+async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<KubernetesExecutor>) {
+    use futures_util::{SinkExt, StreamExt};
+
+    let (mut ws_tx, mut ws_rx) = socket.split();
+
+    let mut close_received = false;
+    let mut pod_stream = kubernetes_executor.stream_pod_changes().boxed();
+    use kube::runtime::watcher::Event;
+    loop {
+        tokio::select! {
+            // Forward broadcast events to the WebSocket client
+            event = futures_util::StreamExt::next(&mut pod_stream) => {
+                let message = match event {
+                    Some(Ok(Event::Apply(pod))) => {
+                        Some(GameServerInstanceEvent {
+                            event_type: "Applied".to_string(),
+                            game_server_instance: Some(GameServerInstance::from(pod))
+                        })
+                    },
+                    Some(Ok(Event::Delete(pod))) => {
+                        Some(GameServerInstanceEvent {
+                            event_type: "Deleted".to_string(),
+                            game_server_instance: Some(GameServerInstance::from(pod))
+                        })
+                    },
+                    Some(Ok(Event::InitApply(pod))) => {
+                        Some(GameServerInstanceEvent {
+                            event_type: "Running".to_string(),
+                            game_server_instance: Some(GameServerInstance::from(pod))
+                        })
+                    },
+                    Some(Ok(_)) => {
+                        Some(GameServerInstanceEvent {
+                            event_type: "Unknown".to_string(),
+                            game_server_instance: None
+                        })
+                    }
+                    _ => None
+                };
+                if let Ok(game_server_instance) = serde_json::to_string(&message) && message.is_some() {
+                    if ws_tx.send(Message::Text(game_server_instance.into())).await.is_err() { break; }
+                }
+            }
+            // Handle incoming WebSocket messages (ping/pong/close)
+            msg = futures_util::StreamExt::next(&mut ws_rx) => {
+                match msg {
+                    Some(Ok(Message::Close(_))) => {
+                        close_received = true;
+                        break;
+                    }
+                    Some(Ok(Message::Ping(data))) => {
+                        let _ = ws_tx.send(Message::Pong(data)).await;
+                    }
+                    Some(Err(_)) | None => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    if !close_received {
+        let _ = ws_tx.send(Message::Close(None)).await;
+    }
 }

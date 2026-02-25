@@ -47,6 +47,8 @@ pub struct GameServer {
     pub pvc_config: PvcConfig,
     pub pod_template: Option<String>,
     pub init_template: Option<String>,
+    #[serde(default = "default_user_id")]
+    pub user_id: u32,
 }
 
 impl GameServer {
@@ -75,6 +77,7 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             pvc_config: value.template.pvc_config,
             pod_template: value.pod_template,
             init_template: value.init_template,
+            user_id: value.template.user_id,
         })
     }
 }
@@ -98,6 +101,7 @@ pub struct UpdateGameServerRequest {
     pub description: Option<String>,
     pub pod_config: PodConfig,
     pub pod_template: Option<String>,
+    pub user_id: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -111,6 +115,8 @@ pub struct GameServerTemplate {
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
     pub default_max_users: Option<u32>,
+    #[serde(default = "default_user_id")]
+    pub user_id: u32,
 }
 
 fn default_service_type() -> String {
@@ -140,12 +146,18 @@ pub struct PodConfig {
     pub mounts: Option<Vec<VolumeMount>>,
 }
 
+fn default_user_id() -> u32 {
+    1000
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PvcConfig {
     pub storage_class: Option<String>,
     pub container_path: String,
     pub size: u32,
     pub size_unit: String,
+    #[serde(default = "default_user_id")]
+    pub user_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -145,12 +145,7 @@
                 <span class="text-label">Dark Mode</span>
                 <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5 cursor-pointer">
             </label>
-            <label class="form-label">
-                <span class="text-label">Refresh Interval (seconds)</span>
-                <input type="number" x-model="settings.refreshInterval" min="5" max="300"
-                       @change="updateRefreshInterval()"
-                       class="input">
-            </label>
+            <p class="text-muted text-sm">Server status updates are streamed in real-time via WebSocket.</p>
         </div>
     </div>
 </main>

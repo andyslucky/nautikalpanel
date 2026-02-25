@@ -125,6 +125,11 @@ const editServerModalContent = `
                         <input type="text" x-model="editForm.pod_template" placeholder="default/pod_template.yaml.jinja" class="form-input">
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to create the Pod manifest.</p>
                     </div>
+                    <div>
+                        <label class="form-label-sm">User/Group ID</label>
+                        <input type="number" x-model.number="editForm.user_id" placeholder="1000" min="1" class="form-input">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">UID/GID for file permissions. Used for PVC fsGroup and SFTP user.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -156,6 +161,7 @@ type EditForm = {
     description: string;
     pod_config: PodConfig;
     pod_template: string;
+    user_id: number;
 };
 
 type EditServerModalData = {
@@ -213,7 +219,8 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
                 env: {},
                 mounts: []
             })),
-            pod_template: server.game_server?.pod_template || ''
+            pod_template: server.game_server?.pod_template || '',
+            user_id: server.game_server?.user_id || 1000
         };
         if (!this.editForm.pod_config.resources) {
             this.editForm.pod_config.resources = {
@@ -279,7 +286,8 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
                 command: this.editForm.pod_config.command && this.editForm.pod_config.command.length > 0 ? this.editForm.pod_config.command : null,
                 mounts: this.editForm.pod_config.mounts && this.editForm.pod_config.mounts.length > 0 ? this.editForm.pod_config.mounts : null
             },
-            pod_template: this.editForm.pod_template || null
+            pod_template: this.editForm.pod_template || null,
+            user_id: this.editForm.user_id || 1000
         };
 
         try {

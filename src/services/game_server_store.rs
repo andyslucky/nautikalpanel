@@ -92,6 +92,7 @@ impl GameServerStore {
             pvc_config: existing.pvc_config,
             pod_template: update.pod_template,
             init_template: existing.init_template,
+            user_id: update.user_id.unwrap_or(existing.user_id),
         };
         
         let result: Option<GameServer> = self

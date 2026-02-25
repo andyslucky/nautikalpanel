@@ -8,7 +8,7 @@ metadata:
     nautikal.io/pod-type: "sftp-only"
 spec:
   securityContext:
-    fsGroup: 1000
+    fsGroup: {{server.user_id}}
   volumes:
     - name: data
       persistentVolumeClaim:

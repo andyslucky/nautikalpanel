@@ -9,7 +9,8 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: "http://localhost:9090"
+        target: "http://localhost:9090",
+        ws: true
       }
     }
   }

@@ -7,6 +7,8 @@ metadata:
     {{ macros::standard_labels() | indent(prefix="    ") }}
     nautikal.io/pod-type: "gameserver"
 spec:
+  securityContext:
+    fsGroup: {{server.user_id}}
   volumes:
     - name: data
       persistentVolumeClaim:

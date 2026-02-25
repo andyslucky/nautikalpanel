@@ -1,11 +1,13 @@
 template_name: Generic
 game_type: Generic
 description: This is a generic template for creating a game server. All fields are intentionally blank.
+user_id: 1000
 pod_config:
   image: ""
 pvc_config:
   container_path: "/data"
   size: 500
   size_unit: "Mi"
+  user_id: 1000
 service_config:
   ports: []

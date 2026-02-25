@@ -3,6 +3,7 @@ game_type: Minecraft
 description: Minecraft is a sandbox / survival / adventure game with a block art style.
 icon_url: "https://www.freeiconspng.com/uploads/minecraft-icon-13.png"
 default_max_users: 4
+user_id: 1000
 pod_config:
   image: "itzg/minecraft-server:latest"
   resources:
@@ -26,6 +27,7 @@ pvc_config:
   container_path: "/data"
   size: 2
   size_unit: "Gi"
+  user_id: 1000
 service_config:
   ports:
     - port: 25565
