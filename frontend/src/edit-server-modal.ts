@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import type {Server} from './app.ts';
+import type {Server} from './game-server-store';
 import {serverResourceSliderFunctions} from "./resource-utils.ts";
 
 const editServerModalContent = `
@@ -290,6 +290,7 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
             user_id: this.editForm.user_id || 1000
         };
 
+        const store = Alpine.store('gameServers') as any;
         try {
             const resp = await fetch(`/api/v1/game-servers/${this.editForm.id}`, {
                 method: "PUT",
@@ -300,15 +301,15 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
             });
             if (!resp.ok) {
                 const err = await resp.text();
-                this.showToast(err || 'Failed to update server', 'error');
+                this.$dispatch('notify', { variant: 'error', message: err || 'Failed to update server' });
             } else {
-                this.showToast("Successfully updated server", 'success');
+                this.$dispatch('notify', { variant: 'success', message: 'Successfully updated server' });
                 this.closeEditModal();
-                await this.fetchServers();
+                await store.fetchServers();
             }
         } catch (e) {
             console.error(e);
-            this.showToast("Failed to update server", "error");
+            this.$dispatch('notify', { variant: 'error', message: 'Failed to update server' });
         }
     },
     ...serverResourceSliderFunctions

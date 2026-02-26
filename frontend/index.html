@@ -67,7 +67,7 @@
 
         <!-- Server Grid -->
         <div class="server-grid">
-            <template x-for="server in servers" :key="server.id">
+            <template x-for="server in $store.gameServers.servers" :key="server.id">
                 <div class="server-card">
                     <div class="flex gap-2 mb-2">
                         <img :src="server.icon_url" width="64px" height="64px"/>
@@ -82,12 +82,12 @@
                         </div>
                     </div>
                     <div>
-                        <p class="server-address" x-text="serverAddressLine(server)"></p>
+                        <p class="server-address" x-text="$store.gameServers.serverAddressLine(server)"></p>
                         <p class="server-info">
                             👥 <span x-text="server.players"></span> players
                         </p>
                         <div class="flex gap-2">
-                            <button type="button" @click="toggleStatus(server)"
+                            <button type="button" @click="$store.gameServers.toggleStatus(server)"
                                     class="btn-action"
                                     :disabled="!['Offline','Running'].includes(server.status)"
                                     :class="server.status === 'Offline' ? 'bg-success' : (server.status === 'Running' ? 'bg-danger' : 'bg-warn')">
@@ -101,22 +101,22 @@
                                 </svg>
                                 <span x-text="server.status === 'Offline' ? 'Start' : (server.status === 'Running' ? 'Stop' : 'Wait')"></span>
                             </button>
-                            <button type="button" @click="startSftpOnly(server)"
+                            <button type="button" @click="$store.gameServers.startSftpOnly(server)"
                                     x-show="server.status === 'Offline'"
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 SFTP Only
                             </button>
-                            <button @click="fetchSftpCredentials(server)"
+                            <button @click="$store.gameServers.fetchSftpCredentials(server)"
                                     x-show="server.status === 'Running'"
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 SFTP Credentials
                             </button>
-                            <button @click="openLogs(server)"
+                            <button @click="$store.gameServers.openLogs(server)"
                                     x-show="server.status === 'Running' && server.instance_type === 'gameserver'"
                                     class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                                 Logs
                             </button>
-                            <button @click="deleteServer(server.id)" class="btn-danger">
+                            <button @click="$store.gameServers.deleteServer(server.id)" class="btn-danger">
                                 Delete
                             </button>
                             <button @click="$dispatch('edit', {server: server})"
@@ -131,7 +131,7 @@
         </div>
 
         <!-- Empty State -->
-        <div x-show="servers.length === 0" class="text-center py-12 text-muted">
+        <div x-show="$store.gameServers.servers.length === 0" class="text-center py-12 text-muted">
             <p class="text-4xl mb-2">🖥️</p>
             <p>No servers yet. Click "Add Server" to get started!</p>
         </div>
@@ -151,15 +151,15 @@
 </main>
 
 <!-- Log Viewer Modal -->
-<div x-show="showLogViewer" x-cloak class="modal-backdrop" @click.self="closeLogs()">
+<div x-show="$store.gameServers.showLogViewer" x-cloak class="modal-backdrop" @click.self="$store.gameServers.closeLogs()">
     <div class="modal-content">
         <div class="modal-header">
             <h3 class="heading-tertiary">
-                Logs: <span x-text="logViewerServer?.name || ''"></span>
+                Logs: <span x-text="$store.gameServers.logViewerServer?.name || ''"></span>
             </h3>
             <div class="flex items-center gap-2">
-                <button @click="clearLogs()" class="btn-secondary">Clear</button>
-                <button @click="closeLogs()" class="close-btn">
+                <button @click="$store.gameServers.clearLogs()" class="btn-secondary">Clear</button>
+                <button @click="$store.gameServers.closeLogs()" class="close-btn">
                     <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -167,22 +167,22 @@
             </div>
         </div>
         <div class="log-viewer" x-ref="logContainer">
-            <pre class="log-content"><template x-for="(line, index) in logLines" :key="index"><div x-text="line"></div></template></pre>
+            <pre class="log-content"><template x-for="(line, index) in $store.gameServers.logLines" :key="index"><div x-text="line"></div></template></pre>
         </div>
         <div class="modal-footer">
-            <span x-show="logConnected" class="text-success">Connected</span>
-            <span x-show="!logConnected && showLogViewer" class="text-warn">Disconnected</span>
-            <span x-text="logLines.length + ' lines'"></span>
+            <span x-show="$store.gameServers.logConnected" class="text-success">Connected</span>
+            <span x-show="!$store.gameServers.logConnected && $store.gameServers.showLogViewer" class="text-warn">Disconnected</span>
+            <span x-text="$store.gameServers.logLines.length + ' lines'"></span>
         </div>
     </div>
 </div>
 
 <!-- SFTP Credentials Modal -->
-<div x-show="showSftpCredentials" x-cloak class="modal-backdrop" @click.self="closeSftpCredentials()">
+<div x-show="$store.gameServers.showSftpCredentials" x-cloak class="modal-backdrop" @click.self="$store.gameServers.closeSftpCredentials()">
     <div class="modal-content max-w-md">
         <div class="modal-header">
             <h3 class="heading-tertiary">SFTP Credentials</h3>
-            <button @click="closeSftpCredentials()" class="close-btn">
+            <button @click="$store.gameServers.closeSftpCredentials()" class="close-btn">
                 <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
@@ -196,8 +196,8 @@
             <div class="space-y-2">
                 <label class="form-label-sm">Host</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="sftpCredentialsServer?.ip || 'Pending...'"></code>
-                    <button @click="navigator.clipboard.writeText(sftpCredentialsServer?.ip || ''); showToast('Copied host!', 'success')"
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="$store.gameServers.sftpCredentialsServer?.ip || 'Pending...'"></code>
+                    <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentialsServer?.ip || ''); showToast('Copied host!', 'success')"
                             class="btn-secondary text-xs">Copy</button>
                 </div>
             </div>
@@ -210,16 +210,16 @@
             <div class="space-y-2">
                 <label class="form-label-sm">Username</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="sftpCredentials?.username || ''"></code>
-                    <button @click="navigator.clipboard.writeText(sftpCredentials?.username || ''); showToast('Copied username!', 'success')"
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="$store.gameServers.sftpCredentials?.username || ''"></code>
+                    <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentials?.username || ''); showToast('Copied username!', 'success')"
                             class="btn-secondary text-xs">Copy</button>
                 </div>
             </div>
             <div class="space-y-2">
                 <label class="form-label-sm">Password</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-label" x-text="sftpCredentials?.password || ''"></code>
-                    <button @click="navigator.clipboard.writeText(sftpCredentials?.password || ''); showToast('Copied password!', 'success')"
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-label" x-text="$store.gameServers.sftpCredentials?.password || ''"></code>
+                    <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentials?.password || ''); showToast('Copied password!', 'success')"
                             class="btn-secondary text-xs">Copy</button>
                 </div>
             </div>

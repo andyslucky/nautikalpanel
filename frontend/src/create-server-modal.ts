@@ -295,6 +295,7 @@ type CreateServerModalData = {
     fetchGameServerTemplates(): Promise<void>,
     useTemplate(template: GameServerTemplateData): void,
     resetForm(): void,
+    createServer(): Promise<void>,
     syncCpu(form: any): void,
     syncMemory(form: any),
     syncCpuEdit(form: any),
@@ -421,6 +422,60 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
     resetForm() {
         this.selectedTemplateName = '';
         this.form = this.formDefaultValue();
+    },
+
+    async createServer() {
+        const template = this.form.template;
+        const newServerRequest = {
+            name: this.form.name,
+            game_version: this.form.game_version || null,
+            max_players: this.form.max_players ? parseInt(this.form.max_players) : null,
+            template: {
+                ...template,
+                service_config: {
+                    ...template.service_config,
+                    ports: template.service_config.ports.map((p: any) => ({
+                        port: parseInt(p.port),
+                        protocol: p.protocol
+                    }))
+                },
+                pvc_config: {
+                    ...template.pvc_config,
+                    size: typeof template.pvc_config.size === 'number' ? template.pvc_config.size : parseInt(template.pvc_config.size) || 0
+                },
+                pod_config: {
+                    ...template.pod_config,
+                    resources: template.pod_config.resources && (template.pod_config.resources.requests || template.pod_config.resources.limits)
+                        ? {
+                            requests: template.pod_config.resources.requests || null,
+                            limits: template.pod_config.resources.limits || null
+                        }
+                        : null,
+                    command: template.pod_config.command && template.pod_config.command.length > 0 ? template.pod_config.command : null,
+                    mounts: template.pod_config.mounts && template.pod_config.mounts.length > 0 ? template.pod_config.mounts : null
+                }
+            }
+        };
+        const store = Alpine.store('gameServers') as any;
+        try {
+            const resp = await fetch("/api/v1/game-servers", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newServerRequest)
+            });
+            if (!resp.ok) {
+                let err = await resp.text();
+                this.$dispatch('notify', { variant: 'error', message: err || 'Failed to create server' });
+            } else {
+                this.$dispatch('notify', { variant: 'success', message: 'Successfully created server ' + this.form.name });
+                await store.fetchServers();
+                this.showModal = false;
+            }
+        } catch (e) {
+            console.error(e);
+        }
     },
 
     syncCpu(form: any) {
