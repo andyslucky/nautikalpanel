@@ -1,0 +1,14 @@
+**/node_modules/
+**/dist/
+.git
+**/.gitignore
+Dockerfile
+.dockerignore
+**/README.md
+.env
+*.log
+db/
+target/
+.ignore
+CLAUDE.md
+TODO.md
