@@ -8,6 +8,7 @@ import './app';
 import './create-server-modal';
 import './notification-component';
 import './edit-server-modal';
+import './logs-modal';
 import focus from "@alpinejs/focus";
 //@ts-ignore
 window.Alpine = Alpine;
