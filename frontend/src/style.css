@@ -2,9 +2,6 @@
 
 
 /* Alpine.js x-cloak handling */
-[x-cloak] {
-    display: none !important;
-}
 @custom-variant dark (&:where(.dark, .dark *));
 @theme {
     --color-primary: #3059BF;
@@ -54,7 +51,7 @@
     }
 
     .btn-danger {
-        @apply rounded text-sm bg-red-100 dark:bg-red-900 text-gray-100 hover:opacity-80;
+        @apply rounded text-sm bg-red-700 text-gray-100 hover:opacity-80;
     }
 
     .btn-action {

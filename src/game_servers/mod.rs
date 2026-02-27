@@ -5,6 +5,7 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use surrealdb::RecordId;
+use url::Url;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Resources {
@@ -117,6 +118,14 @@ pub struct GameServerTemplate {
     pub default_max_users: Option<u32>,
     #[serde(default = "default_user_id")]
     pub user_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemplateRepository {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<RecordId>,
+    pub name: String,
+    pub url: String,
 }
 
 fn default_service_type() -> String {

@@ -1,7 +1,7 @@
 import Alpine from "alpinejs";
 
 // Re-export types from the store for backward compatibility
-export type { Server, GameServerInstance } from "./game-server-store";
+export type { Server, GameServerInstance } from "./stores/game-server-store";
 
 Alpine.data("app", () => ({
     page: 'home' as 'home' | 'settings',
@@ -12,6 +12,16 @@ Alpine.data("app", () => ({
     },
 
     init() {
+        if (window.location.hash == "")
+            window.location.hash = "home"
+        this.page = window.location.hash.toLowerCase().replace("#","")
+        const app = this;
+        window.addEventListener("hashchange", ({newURL}) => {
+            let hashIndex = newURL.indexOf("#");
+            if (hashIndex > -1) {
+                app.page = newURL.substring(hashIndex + 1);
+            }
+        });
         this.loadSettings();
     },
 
@@ -25,10 +35,5 @@ Alpine.data("app", () => ({
             variant,
             message
         });
-    },
-
-    toggleDarkMode() {
-        localStorage.setItem('darkMode', this.settings.darkMode.toString());
-        document.documentElement.classList.toggle('dark', this.settings.darkMode);
     },
 }));

@@ -5,11 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautikal Panel</title>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
     <link rel="stylesheet" href="./src/style.css">
     <script type="module" src="src/main.ts"></script>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 min-h-screen" x-data="app()">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen" x-data="app()" x-cloak>
 
 <!-- Mobile Header -->
 <header class="mobile-header">
@@ -25,11 +30,11 @@
         </button>
     </div>
     <nav x-show="sidebarOpen" class="mt-4 space-y-2">
-        <a @click="page = 'home'; sidebarOpen = false"
+        <a @click="window.location.hash = '#home'; sidebarOpen = false"
            :class="page === 'home' ? 'nav-link-active' : 'nav-link-inactive'">
             🏠 Home
         </a>
-        <a @click="page = 'settings'; sidebarOpen = false"
+        <a @click="window.location.hash='#settings'; sidebarOpen = false"
            :class="page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'">
             ⚙️ Settings
         </a>
@@ -41,11 +46,11 @@
 <aside class="sidebar">
     <h1 class="heading-primary mb-8">🎮 Nautikal Panel</h1>
     <nav class="flex-1 space-y-2">
-        <a @click="page = 'home'"
+        <a @click="window.location.hash = '#home'"
            :class="page === 'home' ? 'nav-link-active' : 'nav-link-inactive'">
             🏠 Home
         </a>
-        <a @click="page = 'settings'"
+        <a @click="window.location.hash = '#settings'"
            :class="page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'">
             ⚙️ Settings
         </a>
@@ -138,15 +143,7 @@
     </div>
 
     <!-- Settings Page -->
-    <div x-show="page === 'settings'" x-cloak>
-        <h2 class="heading-secondary mb-6">Settings</h2>
-        <div class="settings-panel">
-            <label class="form-row">
-                <span class="text-label">Dark Mode</span>
-                <input type="checkbox" x-model="settings.darkMode" @change="toggleDarkMode()" class="w-5 h-5 cursor-pointer">
-            </label>
-            <p class="text-muted text-sm">Server status updates are streamed in real-time via WebSocket.</p>
-        </div>
+    <div x-show="page === 'settings'" x-html="content" x-data="settings()">
     </div>
 </main>
 

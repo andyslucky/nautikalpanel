@@ -1,11 +1,15 @@
 use crate::app_config::AppConfig;
 use crate::game_servers::{
     GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
-    NewGameServerRequest, SftpCredentials, UpdateGameServerRequest,
+    NewGameServerRequest, SftpCredentials, TemplateRepository, UpdateGameServerRequest,
 };
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
+use crate::services::template_repository_manager::TemplateRepositoryManager;
+use crate::services::template_repository_store::TemplateRepositoryStore;
+use anyhow::anyhow;
 use axum::extract::Query;
+use axum::routing::delete;
 use axum::{
     Json, Router,
     extract::{
@@ -17,17 +21,10 @@ use axum::{
     routing::{get, post, put},
 };
 use futures_util::FutureExt;
-use k8s_openapi::api::core::v1::Pod;
-use kube::runtime::reflector::Lookup;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
-use tokio::fs::DirEntry;
-use tokio::io::AsyncBufReadExt;
-use tokio_stream::{StreamExt as _, wrappers::ReadDirStream};
-use tracing::{error, info};
+use tokio_stream::StreamExt as _;
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -36,6 +33,8 @@ pub struct AppState {
     pub executor: Arc<KubernetesExecutor>,
     pub store: Arc<GameServerStore>,
     pub config: AppConfig,
+    pub template_repository_store: Arc<TemplateRepositoryStore>,
+    pub template_repository_manager: Arc<TemplateRepositoryManager>,
 }
 
 /// Request body for starting a new game server instance
@@ -100,11 +99,15 @@ pub fn create_router(
     executor: Arc<KubernetesExecutor>,
     store: Arc<GameServerStore>,
     config: AppConfig,
+    template_repository_store: Arc<TemplateRepositoryStore>,
+    template_repository_manager: Arc<TemplateRepositoryManager>,
 ) -> Router {
     let state = AppState {
         executor,
         store,
         config,
+        template_repository_store,
+        template_repository_manager,
     };
     Router::new()
         .route(
@@ -120,6 +123,14 @@ pub fn create_router(
         .route(
             "/api/v1/game-server-templates",
             get(fetch_game_server_templates),
+        )
+        .route(
+            "/api/v1/template-repositories",
+            get(list_template_repositories).post(create_template_repository),
+        )
+        .route(
+            "/api/v1/template-repositories/{repository_id}",
+            delete(delete_template_repository),
         )
         .route("/api/v1/game-servers/start", post(start_server))
         .route("/api/v1/game-servers/start-sftp", post(start_sftp_server))
@@ -140,29 +151,92 @@ pub fn create_router(
 async fn fetch_game_server_templates(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<GameServerTemplate>>, ErrorResponse> {
-    let dirs = tokio::fs::read_dir(&state.config.paths.game_server_templates)
+    let templates = state
+        .template_repository_manager
+        .fetch_all_templates()
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?;
+    Ok(Json(templates))
+}
+
+#[derive(Deserialize)]
+struct CreateTemplateRepositoryRequest {
+    pub name: String,
+    pub url: String,
+}
+
+async fn create_template_repository(
+    State(state): State<AppState>,
+    Json(req): Json<CreateTemplateRepositoryRequest>,
+) -> Result<StatusCode, ErrorResponse> {
+    let repository = TemplateRepository {
+        id: None,
+        name: req.name,
+        url: req.url,
+    };
+    state
+        .template_repository_store
+        .create_repository(repository)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })
-        .map(|rd| ReadDirStream::new(rd))?;
-    let result: Vec<DirEntry> = dirs.filter_map(|entry| entry.ok()).collect().await;
-    let mut templates: Vec<GameServerTemplate> = vec![];
-    for e in result {
-        let temp: GameServerTemplate = serde_saphyr::from_slice(
-            tokio::fs::read(e.path())
-                .await
-                .map_err(|e| ErrorResponse {
-                    error: e.to_string(),
-                })?
-                .as_slice(),
-        )
+        .map(|_repo| StatusCode::CREATED)
+}
+
+#[derive(Serialize)]
+struct TemplateRepositoryResponse {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+}
+
+impl From<TemplateRepository> for TemplateRepositoryResponse {
+
+    fn from(value: TemplateRepository) -> Self {
+        Self {
+            id: value
+                .id
+                .expect("Row doesnt have id")
+                .key()
+                .to_string(),
+            name: value.name,
+            url: value.url,
+        }
+    }
+}
+
+async fn list_template_repositories(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<TemplateRepositoryResponse>>, ErrorResponse> {
+    let repositories = state
+        .template_repository_store
+        .list_repositories()
+        .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?;
-        templates.push(temp);
-    }
-    Ok(Json(templates))
+    let response = repositories
+        .into_iter()
+        .map(|r| TemplateRepositoryResponse::from(r))
+        .collect();
+    Ok(Json(response))
+}
+
+async fn delete_template_repository(
+    State(state): State<AppState>,
+    Path(repository_id): Path<String>,
+) -> Result<StatusCode, ErrorResponse> {
+    state
+        .template_repository_store
+        .delete_repository(repository_id)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })
+        .map(|_| StatusCode::OK)
 }
 
 /// GET /api/v1/game-servers

@@ -1,6 +1,3 @@
-import Alpine from 'alpinejs';
-
-const logsModalContent = `
 <div x-show="$store.gameServers.showLogViewer" x-cloak class="modal-backdrop" @click.self="$store.gameServers.closeLogs()">
     <div class="modal-content">
         <div class="modal-header">
@@ -26,8 +23,3 @@ const logsModalContent = `
         </div>
     </div>
 </div>
-`;
-
-Alpine.data('logsModal', () => ({
-    content: logsModalContent
-}));

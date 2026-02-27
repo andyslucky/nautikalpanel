@@ -1,48 +1,44 @@
-import Alpine from 'alpinejs';
-import {serverResourceSliderFunctions} from "./resource-utils.ts";
-
-const createServerModalContent = `
 <div x-cloak x-show="showModal" x-transition.opacity.duration.200ms x-trap.inert.noscroll="showModal"
-    x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
-    class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="defaultModalTitle">
+     x-on:keydown.esc.window="showModal = false" x-on:click.self="showModal = false"
+     class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="defaultModalTitle">
     <div x-show="showModal"
-        x-transition:enter="transition ease-out duration-200 delay-100 motion-reduce:transition-opacity"
-        x-transition:enter-start="opacity-0 scale-50" x-transition:enter-end="opacity-100 scale-100"
-        class="modal-dialog">
+         x-transition:enter="transition ease-out duration-200 delay-100 motion-reduce:transition-opacity"
+         x-transition:enter-start="opacity-0 scale-50" x-transition:enter-end="opacity-100 scale-100"
+         class="modal-dialog">
         <div class="modal-dialog-header">
             <h3 id="defaultModalTitle" class="font-semibold tracking-wide">Create Server</h3>
             <button x-on:click="resetForm(); showModal = false" aria-label="close modal">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor"
-                    fill="none" stroke-width="1.4" class="icon-sm">
+                     fill="none" stroke-width="1.4" class="icon-sm">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
         <div class="modal-dialog-body">
             <div x-on:keydown.right.prevent="$focus.wrap().next()" x-on:keydown.left.prevent="$focus.wrap().previous()"
-                class="tab-list" role="tablist" aria-label="tab options">
+                 class="tab-list" role="tablist" aria-label="tab options">
                 <button x-on:click="selectedTab = 'general'" x-bind:aria-selected="selectedTab === 'general'"
-                    x-bind:tabindex="selectedTab === 'general' ? '0' : '-1'"
-                    x-bind:class="selectedTab === 'general' ? 'tab-btn-active' : 'tab-btn-inactive'"
-                    type="button" role="tab" aria-controls="tabpanelgeneral">General</button>
+                        x-bind:tabindex="selectedTab === 'general' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'general' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelgeneral">General</button>
                 <button x-on:click="selectedTab = 'podconfig'" x-bind:aria-selected="selectedTab === 'podconfig'"
-                    x-bind:tabindex="selectedTab === 'podconfig' ? '0' : '-1'"
-                    x-bind:class="selectedTab === 'podconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
-                    type="button" role="tab" aria-controls="tabpanelpodconfig">Pod Config</button>
+                        x-bind:tabindex="selectedTab === 'podconfig' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'podconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelpodconfig">Pod Config</button>
                 <button x-on:click="selectedTab = 'storageconfig'" x-bind:aria-selected="selectedTab === 'storageconfig'"
-                    x-bind:tabindex="selectedTab === 'storageconfig' ? '0' : '-1'"
-                    x-bind:class="selectedTab === 'storageconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
-                    type="button" role="tab" aria-controls="tabpanelstorageconfig">Storage Config</button>
+                        x-bind:tabindex="selectedTab === 'storageconfig' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'storageconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelstorageconfig">Storage Config</button>
                 <button x-on:click="selectedTab = 'svcconfig'" x-bind:aria-selected="selectedTab === 'svcconfig'"
-                    x-bind:tabindex="selectedTab === 'svcconfig' ? '0' : '-1'"
-                    x-bind:class="selectedTab === 'svcconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
-                    type="button" role="tab" aria-controls="tabpanelsvcconfig">Service Config</button>
+                        x-bind:tabindex="selectedTab === 'svcconfig' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'svcconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelsvcconfig">Service Config</button>
                 <button x-on:click="selectedTab = 'misc'" x-bind:aria-selected="selectedTab === 'misc'"
-                    x-bind:tabindex="selectedTab === 'misc' ? '0' : '-1'"
-                    x-bind:class="selectedTab === 'misc' ? 'tab-btn-active' : 'tab-btn-inactive'"
-                    type="button" role="tab" aria-controls="tabpanelmisc">Misc</button>
+                        x-bind:tabindex="selectedTab === 'misc' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'misc' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelmisc">Misc</button>
             </div>
-            <div class="px-4 py-3 overflow-y-scroll min-h-[0] flex-1">
+            <div class="px-4 py-3 overflow-y-scroll min-h-0 flex-1">
                 <div x-cloak x-show="selectedTab === 'general'" id="tabpanelgeneral" role="tabpanel" aria-label="general" class="form-group">
                     <div>
                         <label class="form-label-sm">Server Name</label>
@@ -51,14 +47,14 @@ const createServerModalContent = `
                     <div>
                         <label class="form-label-sm">Template</label>
                         <div class="flex gap-1">
-                          <img x-show="form.template.icon_url != null && form.template.icon_url != ''" :src="form.template.icon_url" width="32" height="32"/>
-                          <select class="form-input" x-model="selectedTemplateName" @change="changedTemplate($event)">
-                              <option value="" :selected="selectedTemplateName === ''">Select a template...</option>
-                              <template x-for="temp in gameServerTemplates">
-                              <option x-text="temp.template_name" :value="temp.template_name" :selected="selectedTemplateName === temp.template_name">
-                              </option>
-                              </template>
-                          </select>
+                            <img x-show="form.template.icon_url != null && form.template.icon_url !== ''" :src="form.template.icon_url" width="32" height="32"/>
+                            <select class="form-input" x-model="selectedTemplateName" @change="changedTemplate($event)">
+                                <option value="" :selected="selectedTemplateName === ''">Select a template...</option>
+                                <template x-for="temp in gameServerTemplates">
+                                    <option x-text="temp.template_name" :value="temp.template_name" :selected="selectedTemplateName === temp.template_name">
+                                    </option>
+                                </template>
+                            </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -141,7 +137,7 @@ const createServerModalContent = `
                                     <button type="button" @click="delete form.template.pod_config.env[entry[0]]" class="btn-remove">X</button>
                                 </div>
                             </template>
-                            <button type="button" @click="form.template.pod_config.env[''] = ''" class="btn-add">Add Env Var +</button>
+                            <button type="button" @click="form.template.template.pod_config.env = form.template.template.pod_config.env || {}; form.template.pod_config.env[''] = ''" class="btn-add">Add Env Var +</button>
                         </div>
                     </div>
                 </div>
@@ -215,7 +211,7 @@ const createServerModalContent = `
                             <span class="warning-title">Warning</span>
                         </div>
                         <p class="warning-text">
-                            Modifying these templates can pose <strong>security risks</strong> and <strong>data loss risks</strong> for your cluster. 
+                            Modifying these templates can pose <strong>security risks</strong> and <strong>data loss risks</strong> for your cluster.
                             Only change these if you understand the implications, and completely trust the templates you will use.
                         </p>
                     </div>
@@ -238,281 +234,3 @@ const createServerModalContent = `
         </div>
     </div>
 </div>
-`;
-
-type GameServerTemplateData = {
-    template_name: string;
-    icon_url?: string;
-    description?: string;
-    game_type?: string;
-    game_version?: string;
-    pod_template?: string | null;
-    init_template?: string | null;
-    default_max_users?: number;
-    user_id?: number;
-    pod_config?: {
-        image?: string;
-        resources?: {
-            requests?: { cpu?: string; memory?: string };
-            limits?: { cpu?: string; memory?: string };
-        };
-        command?: string[];
-        env?: Record<string, string>;
-        mounts?: any[];
-    };
-    service_config?: {
-        ports?: Array<{ port: string; protocol: string }>;
-        ip_address?: string;
-        service_type?: string;
-    };
-    pvc_config?: {
-        size: number | string;
-        size_unit: string;
-        container_path?: string;
-        storage_class?: string;
-        user_id?: number;
-    };
-};
-
-
-type GameServerForm = {
-    template: GameServerTemplateData
-}
-
-
-type CreateServerModalData = {
-    content: string,
-    selectedTab: 'general' | 'podconfig' | 'storageconfig' | 'svcconfig' | 'misc',
-    form: GameServerForm | any,
-    gameServerTemplates: GameServerTemplateData[],
-    selectedTemplateName: string,
-    init(): Promise<void>,
-    changedTemplate(event: Event): void,
-    formDefaultValue(): GameServerForm,
-    commandInput: string,
-    updateCommandArray(value?: string): void,
-    updateEnvKey(event: Event, oldKey: string): void,
-    fetchGameServerTemplates(): Promise<void>,
-    useTemplate(template: GameServerTemplateData): void,
-    resetForm(): void,
-    createServer(): Promise<void>,
-    syncCpu(form: any): void,
-    syncMemory(form: any),
-    syncCpuEdit(form: any),
-    syncMemoryEdit(form: any)
-};
-
-
-Alpine.data('createServerModal', (): CreateServerModalData => ({
-    content: createServerModalContent,
-    selectedTab: 'general',
-    form: {},
-    gameServerTemplates: [] as GameServerTemplateData[],
-    selectedTemplateName: '',
-    async init() {
-        this.resetForm();
-        await this.fetchGameServerTemplates();
-    },
-
-    changedTemplate(event: Event) {
-        const tempName = (event.target as HTMLSelectElement).value;
-        this.selectedTemplateName = tempName;
-        const template = this.gameServerTemplates.find(t => t.template_name === tempName);
-        if (template == null)
-            console.error("Could not find template with name " + tempName);
-        else
-            this.useTemplate(template);
-    },
-    formDefaultValue() {
-        return {
-            name: '',
-            game_version: '',
-            max_players: 0,
-            template: {
-                template_name: '',
-                description: '',
-                game_type: '',
-                icon_url: '',
-                pod_template: null,
-                init_template: null,
-                user_id: 1000,
-                pod_config: {
-                    image: '',
-                    resources: {
-                        requests: {cpu: '250m', memory: '256Mi'},
-                        limits: {cpu: '500m', memory: '512Mi'}
-                    },
-                    command: [],
-                    env: {},
-                    mounts: []
-                },
-                service_config: {
-                    ports: [{port: '', protocol: 'TCP'}],
-                    ip_address: '',
-                    service_type: 'LoadBalancer'
-                },
-                pvc_config: {
-                    size: 0,
-                    size_unit: 'Gi',
-                    container_path: '',
-                    storage_class: '',
-                    user_id: 1000
-                }
-            },
-        }
-    },
-    get commandInput() {
-        return Array.isArray(this.form.template?.pod_config?.command)
-            ? this.form.template.pod_config.command.join(', ')
-            : '';
-    },
-    set commandInput(value: string) {
-        this.updateCommandArray(value);
-    },
-    updateCommandArray(value?: string) {
-        if (!this.form.template.pod_config) return;
-        this.form.template.pod_config.command = (value || '')
-            .split(',')
-            .map(s => s.trim())
-            .filter(s => s.length > 0);
-    },
-    updateEnvKey(event: Event, oldKey: string) {
-        const newKey = (event.target as HTMLInputElement).value;
-        if (newKey !== oldKey) {
-            const env = this.form.template.pod_config.env;
-            const val = env[oldKey];
-            delete env[oldKey];
-            env[newKey] = val;
-        }
-    },
-    async fetchGameServerTemplates() {
-        this.gameServerTemplates = (await (await fetch("/api/v1/game-server-templates")).json()) || [];
-    },
-    useTemplate(template: GameServerTemplateData) {
-        this.form.template = JSON.parse(JSON.stringify(template));
-        this.form.max_players = template.default_max_users || 0;
-        if (!this.form.template.user_id) {
-            this.form.template.user_id = 1000;
-        }
-        if (!this.form.template.pod_config.resources) {
-            this.form.template.pod_config.resources = {
-                requests: {cpu: '0m', memory: '0Mi'},
-                limits: {cpu: '0m', memory: '0Mi'}
-            };
-        }
-        if (!this.form.template.pod_config.resources.requests) {
-            this.form.template.pod_config.resources.requests = {cpu: '0m', memory: '0Mi'};
-        }
-        if (!this.form.template.pod_config.resources.limits) {
-            this.form.template.pod_config.resources.limits = {cpu: '0m', memory: '0Mi'};
-        }
-        if (!this.form.template.pod_config.mounts) {
-            this.form.template.pod_config.mounts = [];
-        }
-        if (!this.form.template.pod_config.command) {
-            this.form.template.pod_config.command = [];
-        }
-        if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
-            this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
-        }
-        if (!this.form.template.pvc_config.user_id) {
-            this.form.template.pvc_config.user_id = 1000;
-        }
-    },
-    resetForm() {
-        this.selectedTemplateName = '';
-        this.form = this.formDefaultValue();
-    },
-
-    async createServer() {
-        const template = this.form.template;
-        const newServerRequest = {
-            name: this.form.name,
-            game_version: this.form.game_version || null,
-            max_players: this.form.max_players ? parseInt(this.form.max_players) : null,
-            template: {
-                ...template,
-                service_config: {
-                    ...template.service_config,
-                    ports: template.service_config.ports.map((p: any) => ({
-                        port: parseInt(p.port),
-                        protocol: p.protocol
-                    }))
-                },
-                pvc_config: {
-                    ...template.pvc_config,
-                    size: typeof template.pvc_config.size === 'number' ? template.pvc_config.size : parseInt(template.pvc_config.size) || 0
-                },
-                pod_config: {
-                    ...template.pod_config,
-                    resources: template.pod_config.resources && (template.pod_config.resources.requests || template.pod_config.resources.limits)
-                        ? {
-                            requests: template.pod_config.resources.requests || null,
-                            limits: template.pod_config.resources.limits || null
-                        }
-                        : null,
-                    command: template.pod_config.command && template.pod_config.command.length > 0 ? template.pod_config.command : null,
-                    mounts: template.pod_config.mounts && template.pod_config.mounts.length > 0 ? template.pod_config.mounts : null
-                }
-            }
-        };
-        const store = Alpine.store('gameServers') as any;
-        try {
-            const resp = await fetch("/api/v1/game-servers", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(newServerRequest)
-            });
-            if (!resp.ok) {
-                let err = await resp.text();
-                this.$dispatch('notify', { variant: 'error', message: err || 'Failed to create server' });
-            } else {
-                this.$dispatch('notify', { variant: 'success', message: 'Successfully created server ' + this.form.name });
-                await store.fetchServers();
-                this.showModal = false;
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    },
-
-    syncCpu(form: any) {
-        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        form.template.pod_config.resources.requests.cpu = this.minValue + "m";
-        form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
-    },
-    syncMemory(form: any) {
-        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        form.template.pod_config.resources.requests.memory = this.minValue + "Mi";
-        form.template.pod_config.resources.limits.memory = this.maxValue + "Mi";
-    },
-    syncCpuEdit() {
-        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-            parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
-        }
-    },
-    syncMemoryEdit() {
-        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-            parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
-        }
-    },
-    ...serverResourceSliderFunctions
-}));
-
-
