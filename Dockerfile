@@ -17,9 +17,9 @@ RUN npm run build
 
 # Stage 2: Build the Rust backend
 FROM rust:1.93-alpine3.23 AS backend-builder
-
+RUN apk update
 # Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev
+RUN apk add --no-cache musl-dev openssl-dev clang-dev
 
 WORKDIR /app
 
@@ -41,6 +41,7 @@ RUN touch src/main.rs && cargo build --release
 # Stage 3: Final runtime image
 FROM alpine:3.23
 
+RUN apk update
 # Install runtime dependencies
 RUN apk add --no-cache ca-certificates libgcc
 
