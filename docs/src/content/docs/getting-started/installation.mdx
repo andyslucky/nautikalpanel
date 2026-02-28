@@ -1,0 +1,296 @@
+---
+title: Installation
+description: Deploy Nautikal Panel to your Kubernetes cluster using Helm.
+---
+
+This guide covers deploying Nautikal Panel to production Kubernetes clusters using the official Helm chart.
+
+## Prerequisites
+
+Before installing Nautikal Panel, ensure you have:
+
+- **Kubernetes cluster** (v1.19+) with kubectl configured
+- **Helm 3.0+** installed on your local machine
+- **Storage class** configured in Kubernetes (or specify a default)
+
+:::tip
+For development or testing, see the [Development](/getting-started/development) guide for building and running from source.
+:::
+
+## Installation
+
+The recommended way to install Nautikal Panel is using the Helm chart.
+
+### Install using GitHub Releases
+
+```bash
+helm install nautikalpanel https://github.com/andyslucky/nautikalpanel/releases/download/VERSION/nautikalpanel-VERSION.tgz --namespace nautikalpanel --create-namespace
+```
+
+Replace `VERSION` with the desired release version (e.g., `v0.1.0`).
+
+### Install with Custom Values
+
+Create a `custom-values.yaml` file:
+
+```yaml
+replicaCount: 2
+
+persistence:
+  storageClass: fast-ssd
+  size: 20Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: nautikalpanel.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - nautikalpanel.example.com
+      secretName: nautikalpanel-tls
+
+config:
+  kubernetes:
+    defaultStorageClass: fast-ssd
+```
+
+Install with custom values:
+
+```bash
+helm install nautikalpanel https://github.com/andyslucky/nautikalpanel/releases/download/VERSION/nautikalpanel-VERSION.tgz -f custom-values.yaml --namespace nautikalpanel --create-namespace
+```
+
+### Using GitHub Token for Template Repositories
+
+If you need to fetch templates from private GitHub repositories, you can provide a GitHub token:
+
+```yaml
+githubToken: your_github_token_here
+```
+
+Or use an existing secret:
+
+```yaml
+existingSecret: my-github-secret
+```
+
+The secret should contain a key named `github-token` with the GitHub token value.
+
+## Accessing Nautikal Panel
+
+### Using Port-Forward
+
+```bash
+kubectl port-forward svc/nautikalpanel 8080:80 -n nautikalpanel
+```
+
+Then access at http://localhost:8080
+
+### Using LoadBalancer Service
+
+Update `values.yaml`:
+
+```yaml
+service:
+  type: LoadBalancer
+```
+
+Then get the external IP:
+
+```bash
+kubectl get svc nautikalpanel -n nautikalpanel
+```
+
+### Using Ingress
+
+Enable ingress in `values.yaml` and configure your ingress controller:
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: nautikalpanel.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+## Upgrading
+
+To upgrade an existing installation:
+
+```bash
+helm upgrade nautikalpanel https://github.com/andyslucky/nautikalpanel/releases/download/VERSION/nautikalpanel-VERSION.tgz --namespace nautikalpanel
+```
+
+To upgrade with custom values:
+
+```bash
+helm upgrade nautikalpanel https://github.com/andyslucky/nautikalpanel/releases/download/VERSION/nautikalpanel-VERSION.tgz -f custom-values.yaml --namespace nautikalpanel
+```
+
+## Uninstalling
+
+To remove Nautikal Panel:
+
+```bash
+helm uninstall nautikalpanel --namespace nautikalpanel
+```
+
+## Configuration
+
+The Helm chart provides extensive configuration options. Key parameters include:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of replicas | `1` |
+| `image.repository` | Image repository | `ghcr.io/andyslucky/nautikalpanel` |
+| `image.tag` | Image tag | `""` (uses Chart.AppVersion) |
+| `service.type` | Service type | `ClusterIP` |
+| `service.port` | Service port | `80` |
+| `ingress.enabled` | Enable ingress | `false` |
+| `persistence.enabled` | Enable persistence | `true` |
+| `persistence.storageClass` | Storage class | `""` |
+| `persistence.size` | Storage size | `10Gi` |
+| `config.server.host` | Server host | `0.0.0.0` |
+| `config.server.port` | Server port | `9090` |
+| `config.kubernetes.namespace` | Kubernetes namespace for game servers | `nautikal` |
+| `config.kubernetes.createNamespace` | Create namespace if it doesn't exist | `true` |
+| `config.kubernetes.defaultStorageClass` | Default storage class for game servers | `""` |
+
+For a complete list of configuration options, see the [Helm chart README](https://github.com/andyslucky/nautikalpanel/blob/main/charts/nautikalpanel/README.md) and the [values.yaml](https://github.com/andyslucky/nautikalpanel/blob/main/charts/nautikalpanel/values.yaml) file.
+
+## Storage Configuration
+
+Ensure your Kubernetes cluster has a default storage class, or specify one:
+
+```bash
+# Check available storage classes
+kubectl get storageclass
+
+# If no default, mark one as default
+kubectl patch storageclass standard -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+Or configure in the Helm values:
+
+```yaml
+config:
+  kubernetes:
+    defaultStorageClass: your-storage-class
+```
+
+## RBAC
+
+The chart automatically creates a `ClusterRole` and `ClusterRoleBinding` with the following permissions:
+
+- `get`, `list`, `create` on `namespaces`
+- `get`, `list`, `watch`, `create`, `update`, `patch`, `delete` on `pods`, `services`, `persistentvolumeclaims`, `secrets`
+- `get` on `pods/log`
+- `get`, `list`, `watch` on `events`
+
+These permissions are required for Nautikalpanel to manage game server resources.
+
+## Verifying Installation
+
+After deploying Nautikalpanel:
+
+1. Check that the pods are running:
+   ```bash
+   kubectl get pods -n nautikalpanel
+   ```
+
+2. Check the service status:
+   ```bash
+   kubectl get svc nautikalpanel -n nautikalpanel
+   ```
+
+3. Open a browser to the external IP address (or use port-forward as shown above)
+
+4. You should see the Nautikalpanel dashboard
+5. Click "Add Server" to verify templates are loaded
+
+## Troubleshooting
+
+### Pod Not Starting
+
+Check pod status and logs:
+
+```bash
+kubectl get pods -n nautikalpanel
+kubectl logs -f deployment/nautikalpanel -n nautikalpanel
+```
+
+### Service Not Accessible
+
+Check service status and events:
+
+```bash
+kubectl get svc nautikalpanel -n nautikalpanel
+kubectl describe svc nautikalpanel -n nautikalpanel
+```
+
+### Permission Errors
+
+Verify the service account has correct RBAC permissions:
+
+```bash
+kubectl auth can-i create pods --as=system:serviceaccount:nautikalpanel:nautikalpanel
+```
+
+### Storage Issues
+
+Check PersistentVolumeClaim status:
+
+```bash
+kubectl get pvc -n nautikalpanel
+kubectl describe pvc -n nautikalpanel
+```
+
+## Troubleshooting
+
+### Pod Not Starting
+
+Check pod status and logs:
+
+```bash
+kubectl get pods -n nautikal
+kubectl logs <pod-name> -n nautikal
+```
+
+### Service Not Accessible
+
+Check service status and events:
+
+```bash
+kubectl get svc nautikal-panel -n nautikal
+kubectl describe svc nautikal-panel -n nautikal
+```
+
+### Permission Errors
+
+Verify the service account has correct RBAC permissions:
+
+```bash
+kubectl auth can-i create pods --as=system:serviceaccount:nautikal:nautikal-panel
+```
+
+### Storage Issues
+
+Check PersistentVolumeClaim status:
+
+```bash
+kubectl get pvc nautikal-db -n nautikal
+kubectl describe pvc nautikal-db -n nautikal
+```
+
+## Next Steps
+
+- [Development](/getting-started/development) - Build and run from source for development
+- [Configuration](/configuration/environment-variables) - Explore all configuration options
+- [Quick Start](/getting-started/quick-start) - Deploy your first server

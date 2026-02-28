@@ -1,0 +1,112 @@
+---
+title: SFTP Access
+description: Secure file access to game server data.
+---
+
+Nautikal Panel provides built-in SFTP access for managing game server files.
+
+## How SFTP Works
+
+1. An SFTP container is created with access to your server's persistent volume
+2. Random username and password are generated
+3. Credentials are stored in a Kubernetes secret
+4. Use any SFTP client to connect and manage files
+
+## Starting SFTP
+
+### SFTP Only Mode
+
+For file management without running the game:
+
+1. Ensure server is **Offline**
+2. Click **SFTP Only** button
+3. Wait for status to show "Running"
+4. Click **Credentials** to view login details
+
+:::tip
+Use SFTP Only mode to manage configuration and files before the game launches.
+It also uses fewer resources since the game server isn't running.
+:::
+
+## Viewing Credentials
+<a href="/Nautikal-Sftp-Creds.png">
+![](/Nautikal-Sftp-Creds.png)
+</a>
+1. Click **Credentials** button on a server card
+2. A modal displays:
+   - **Host**: Server IP address
+   - **Port**: 22
+   - **Username**: Generated (8 characters)
+   - **Password**: Generated (24 characters)
+3. Click **Copy** buttons for each value
+
+:::warning
+Credentials are regenerated each time SFTP starts. They are not stored in the database. Always check credentials before connecting.
+:::
+
+## Connecting with SFTP Clients
+
+### Command Line (Linux/macOS)
+
+```bash
+sftp username@server-ip
+# Enter password when prompted
+```
+
+Common commands:
+```
+put file.txt       # Upload file
+get file.txt       # Download file  
+ls                 # List files
+cd directory       # Change directory
+exit               # Close connection
+```
+
+### FileZilla
+
+1. File → Site Manager → New Site
+2. Protocol: **SFTP**
+3. Host: Server IP
+4. Port: 22
+5. Logon Type: Normal
+6. Enter username and password
+7. Connect
+
+### WinSCP (Windows)
+
+1. New Session
+2. File protocol: **SFTP**
+3. Host name: Server IP
+4. Port: 22
+5. Enter username and password
+6. Login
+
+## File Locations
+
+Files are located in the SFTP user's home directory:
+
+```
+/home/{username}/upload/
+├── world/           # Game world data
+├── plugins/         # Plugins/mods
+├── config/          # Configuration files
+└── ...
+```
+
+The exact structure depends on your game and template.
+
+## Security Notes
+
+- Credentials are **ephemeral** - they change when SFTP restarts
+- Credentials are **not stored** in the database
+- Use strong network policies in production
+- Consider VPN or IP restrictions for sensitive servers
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Connection refused | Ensure SFTP pod is running |
+| Auth failed | Re-check credentials - may have regenerated |
+| Slow transfers | Normal for large files; check network speed |
+| Permission denied | File may be in use by game server |

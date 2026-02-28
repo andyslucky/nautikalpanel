@@ -1,0 +1,356 @@
+---
+title: Template Repositories
+description: Manage template repositories for game server configurations.
+---
+
+Template repositories in Nautikal Panel allow you to organize and manage game server templates from multiple sources. This system makes it easy to share templates across teams or with the community.
+
+## What are Template Repositories?
+
+A template repository is a collection of game server template files. Instead of maintaining all templates in a single directory, you can organize them into logical groups and access them from different locations:
+
+- **Local repositories** - Templates stored in a directory on your filesystem
+- **GitHub repositories** - Templates from GitHub repositories using `github://` URL scheme
+
+## How Repositories Work
+
+When Nautikal Panel loads, it:
+
+1. Reads all configured repositories from the database
+2. Fetches templates from each repository
+3. Aggregates all templates into a single collection
+4. Makes them available in the UI dropdown when creating servers
+
+This means you can maintain separate template collections for different purposes (e.g., production templates, test templates, community templates) and access them all from one place.
+
+## Default Repository
+
+On first startup, Nautikal Panel automatically creates a default local repository:
+
+- **Name**: "Local Templates"
+- **URL**: `file://./{path-to-templates}`
+- **Location**: Configured via `NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES`
+
+You cannot delete this default repository, but you can add others.
+
+## Repository URL Format
+
+Repository URLs follow standard URL formats:
+
+### Local Repositories
+
+```
+file:///path/to/templates
+file://./relative/path
+```
+
+The path is resolved relative to the Nautikal Panel working directory.
+
+### GitHub Repositories
+
+Access templates directly from GitHub repositories using the `github://` scheme:
+
+```
+github://user/repo/path/to/templates
+github://org/repo/folder-with-templates
+```
+
+**Format breakdown:**
+- `github://` - Repository scheme identifier
+- `user/repo` - GitHub username or organization and repository name
+- `path/to/templates` - Optional path within the repository to template files
+
+**Examples:**
+```
+github://andyslucky/nautikalpanel-templates/minecraft
+github://my-org/game-templates/all-games
+github://community/awesome-templates
+```
+
+#### GitHub Token Requirement
+
+To use GitHub repositories, you must configure a GitHub personal access token:
+
+```bash
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+:::warning
+GitHub repositories require a personal access token to work. Without the token configured, Nautikal Panel will not be able to fetch templates from GitHub repositories.
+:::
+
+**Creating a GitHub Token:**
+
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate a new token
+3. Select the `public_repo` scope (for public repositories) or `repo` scope (for private repositories)
+4. Copy the token and set it as `NAUTIKAL__GITHUB__TOKEN`
+
+:::tip
+For security, use a personal access token with the minimum required scope. If you only access public repositories, the `public_repo` scope is sufficient.
+:::
+
+When you use a GitHub repository URL, Nautikal Panel authenticates using your token and fetches the repository content via the GitHub API. All template files are then made available for server creation.
+
+## Managing Repositories
+
+### Prerequisites for GitHub Repositories
+
+Before adding a GitHub repository, ensure you've configured a GitHub token:
+
+```bash
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+### Adding a Repository
+
+Add a new repository via API:
+
+**Local repository:**
+```bash
+curl -X POST http://localhost:3000/api/v1/template-repositories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Local Templates",
+    "url": "file:///opt/nautikal/community-templates"
+  }'
+```
+
+**GitHub repository:**
+```bash
+curl -X POST http://localhost:3000/api/v1/template-repositories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Official Nautikal Templates",
+    "url": "github://andyslucky/nautikalpanel-templates"
+  }'
+```
+
+### Listing Repositories
+
+View all configured repositories:
+
+```bash
+curl http://localhost:3000/api/v1/template-repositories
+```
+
+Response:
+
+```json
+[
+  {
+    "id": "template_repositories:abc123",
+    "name": "Local Templates",
+    "url": "file:///opt/nautikal/game-server-templates"
+  },
+  {
+    "id": "template_repositories:def456",
+    "name": "Official Nautikal Templates",
+    "url": "github://andyslucky/nautikalpanel-templates"
+  }
+]
+```
+
+### Listing Repositories
+
+View all configured repositories:
+
+```bash
+curl http://localhost:3000/api/v1/template-repositories
+```
+
+Response:
+
+```json
+[
+  {
+    "id": "template_repositories:abc123",
+    "name": "Local Templates",
+    "url": "file:///opt/nautikal/game-server-templates"
+  },
+  {
+    "id": "template_repositories:def456",
+    "name": "Community Templates",
+    "url": "file:///opt/nautikal/community-templates"
+  }
+]
+```
+
+### Deleting a Repository
+
+Remove a repository:
+
+```bash
+curl -X DELETE http://localhost:3000/api/v1/template-repositories/{repository_id}
+```
+
+:::warning
+Deleting a repository only removes it from Nautikal Panel's configuration. Template files on disk are not affected. Servers created from templates in that repository continue to function.
+:::
+
+## Template Discovery
+
+Templates are automatically discovered from repositories:
+
+### Local Repositories
+
+Nautikal Panel scans the directory for files matching:
+- `*.yaml`
+- `*.yml`
+
+Each file should contain a single game server template definition.
+
+### GitHub Repositories
+
+For GitHub repositories, Nautikal Panel:
+- Fetches the repository content
+- Scans all `.yaml` and `.yml` files
+- Makes discovered templates available in the UI
+
+If a path is specified in the GitHub URL (e.g., `github://user/repo/templates/minecraft`), only files within that subdirectory are discovered.
+
+### Validation
+
+Templates are validated when loaded from repositories using the JSON Schema (`game-server-template.schema.json`). Invalid templates:
+- Generate warnings in logs
+- Do not appear in the UI
+- Do not affect other templates
+
+For detailed information about schema validation, see the [JSON Schema](/templates/json-schema) documentation.
+
+## Use Cases
+
+### Team Collaboration
+
+Organize templates by team or project using GitHub repositories:
+
+```bash
+# Team's private GitHub repo for their templates
+github://my-org/team-templates
+```
+
+This allows teams to:
+- Maintain templates in version control
+- Share templates easily within the organization
+- Track changes and contributions
+- Use pull requests for template updates
+
+### Environment Separation
+
+Maintain separate template sets for different environments:
+
+```bash
+# Production templates
+github://my-org/prod-templates
+
+# Development templates
+github://my-org/dev-templates
+
+# Local development templates
+file:///opt/nautikal/local-dev-templates
+```
+
+### Community Templates
+
+Leverage community-maintained templates:
+
+```bash
+# Official Nautikal templates
+github://andyslucky/nautikalpanel-templates
+
+# Community template collection
+github://community/nautikal-awesome-templates
+
+# Game-specific templates
+github://minecraft-paper/templates
+```
+
+### Hybrid Approach
+
+Combine local and GitHub repositories for maximum flexibility:
+
+Repository Name         | URL
+------------------------|-------------------------------------
+Local Dev               | `file:///opt/nautikal/local-templates`
+Official Templates      | `github://andyslucky/nautikal-game-servers`
+
+## Best Practices
+
+### Repository Organization
+
+- Use descriptive repository names
+- Keep related templates in the same repository
+- Document template differences in file names or descriptions
+
+### File Naming
+
+Use clear, descriptive names:
+
+- ✓ `minecraft-paper-1.20.yaml`
+- ✓ `valheim-plus-dedicated.yaml`
+- ✗ `template1.yaml`
+- ✗ `server.yaml`
+
+### Template Metadata
+
+Include helpful metadata in templates:
+
+```yaml
+template_name: "Minecraft Paper"
+description: "High-performance Minecraft with plugins"
+icon_url: "https://example.com/paper-icon.png"
+game_type: "minecraft-paper"
+```
+
+## Troubleshooting
+
+### Templates Not Appearing
+
+If templates from a repository don't appear:
+
+1. Check repository exists: `curl http://localhost:3000/api/v1/template-repositories`
+2. **For local repos:** Verify path is accessible: `ls /path/to/repo`
+3. **For GitHub repos:** Verify repository is public and accessible
+4. Check Nautikal Panel logs for validation errors
+
+### Repository Path Issues
+
+Local repository paths must:
+- Be absolute or relative to Nautikal Panel working directory
+- Use `file://` scheme
+- Be readable by the Nautikal Panel process
+
+### GitHub Repository Issues
+
+GitHub repositories must be:
+- **Public repositories** - Private repositories are not currently supported
+- **Accessible** - Repository must exist and contain template files
+- **Properly formatted** - URL must follow `github://user/repo[/path]` format
+- **Token configured** - A valid GitHub token must be set via `NAUTIKAL__GITHUB__TOKEN`
+
+Common GitHub issues:
+- `github://user/repo-name` - Repository doesn't exist
+- `github://user/repo/path` - Path doesn't exist in repository
+- `github://user/private-repo` - Private repositories are not supported
+- "No GitHub token set" - You must configure `NAUTIKAL__GITHUB__TOKEN` before using GitHub repositories
+- "GitHub API request failed: 401" - Invalid or expired token
+- "GitHub API request failed: 403" - Token lacks required permissions or rate limit exceeded
+
+### Duplicate Template Names
+
+If multiple repositories have templates with the same `game_type`, behavior is undefined. Ensure template game types are unique across all repositories.
+
+### GitHub Rate Limiting
+
+GitHub has API rate limits. If you're fetching from many repositories or frequently refreshing templates, you might encounter rate limit errors. These are typically temporary and resolve automatically.
+
+## Future Enhancements
+
+The template repository system is designed for future expansion:
+
+- **Private GitHub repositories** - Current implementation requires public repositories; private repo support will be added
+- **Repository sync** - Periodic sync of GitHub repositories to keep templates up-to-date
+- **Versioning** - Track template versions from repositories
+- **Dependencies** - Define template dependencies between repositories
+- **Branch/Tag support** - Fetch templates from specific branches or tags (e.g., `github://user/repo@main/path`)
+- **Multiple git providers** - Support for GitLab, Bitbucket, and other providers

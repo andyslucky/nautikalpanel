@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nautikalpanel.fullname" . }}-templates
+  labels:
+    {{- include "nautikalpanel.labels" . | nindent 4 }}
+data:
+  {{- range $path, $_ := .Files.Glob "templates/k8s-templates/**" }}
+  {{ $path | base }}: |
+{{- $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- range $path, $_ := .Files.Glob "templates/game-server-templates/**" }}
+  {{ $path | base }}: |
+{{- $.Files.Get $path | indent 4 }}
+  {{- end }}

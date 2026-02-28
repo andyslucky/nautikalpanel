@@ -1,0 +1,161 @@
+---
+title: Environment Variables
+description: Configure via environment variables.
+---
+
+All configuration options can be set via environment variables.
+
+## Variable Format
+
+Use the prefix `NAUTIKAL__` with double underscores:
+
+```bash
+NAUTIKAL__SECTION__KEY=VALUE
+```
+
+## Examples
+
+### Server Settings
+
+```bash
+export NAUTIKAL__SERVER__HOST=0.0.0.0
+export NAUTIKAL__SERVER__PORT=8080
+```
+
+### Kubernetes Settings
+
+```bash
+export NAUTIKAL__KUBERNETES__NAMESPACE=game-servers
+export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=false
+export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=local-path
+```
+
+### Database Settings
+
+```bash
+export NAUTIKAL__DATABASE__PATH=/var/lib/nautikal/db
+export NAUTIKAL__DATABASE__NAMESPACE=production
+export NAUTIKAL__DATABASE__NAME=servers
+```
+
+### Path Settings
+
+```bash
+export NAUTIKAL__PATHS__K8S_TEMPLATES=/etc/nautikal/templates
+export NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES=/etc/nautikal/game-templates
+export NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR=/opt/nautikal/custom-templates
+```
+
+### GitHub Settings
+
+```bash
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+## Complete Reference
+
+| Config Path | Environment Variable |
+|-------------|----------------------|
+| `server.host` | `NAUTIKAL__SERVER__HOST` |
+| `server.port` | `NAUTIKAL__SERVER__PORT` |
+| `kubernetes.namespace` | `NAUTIKAL__KUBERNETES__NAMESPACE` |
+| `kubernetes.create_namespace` | `NAUTIKAL__KUBERNETES__CREATE_NAMESPACE` |
+| `kubernetes.default_storage_class` | `NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS` |
+| `kubernetes.init_template` | `NAUTIKAL__KUBERNETES__INIT_TEMPLATE` |
+| `kubernetes.pod_template` | `NAUTIKAL__KUBERNETES__POD_TEMPLATE` |
+| `database.path` | `NAUTIKAL__DATABASE__PATH` |
+| `database.namespace` | `NAUTIKAL__DATABASE__NAMESPACE` |
+| `database.name` | `NAUTIKAL__DATABASE__NAME` |
+| `paths.k8s_templates` | `NAUTIKAL__PATHS__K8S_TEMPLATES` |
+| `paths.game_server_templates` | `NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES` |
+| `paths.extra_k8s_templates_dir` | `NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR` |
+| `github.token` | `NAUTIKAL__GITHUB__TOKEN` |
+
+## Kubernetes Deployment
+
+### Using Helm (Recommended)
+
+When using the Helm chart, you can set these values in `values.yaml`:
+
+```yaml
+config:
+  kubernetes:
+    namespace: "nautikal"
+    defaultStorageClass: "standard"
+  database:
+    path: "/data/db"
+githubToken: "your_token_here"
+```
+
+Or use an existing secret for the GitHub token:
+
+```yaml
+existingSecret: "my-github-secret"
+```
+
+### Manual Deployment
+
+For manual Kubernetes deployments without Helm:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nautikalpanel
+  namespace: nautikalpanel
+spec:
+  template:
+    spec:
+      containers:
+        - name: nautikalpanel
+          env:
+            - name: NAUTIKAL__KUBERNETES__NAMESPACE
+              value: "nautikal"
+            - name: NAUTIKAL__DATABASE__PATH
+              value: "/app/db"
+            - name: NAUTIKAL__GITHUB__TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-token
+                  key: token
+```
+
+For the GitHub token, it's recommended to use a Kubernetes Secret instead of setting it directly:
+
+```bash
+kubectl create secret generic github-token --from-literal=token=ghp_xxxxxxxxxxxxxxxxxxxx -n nautikalpanel
+```
+
+## Docker Compose
+
+```yaml
+services:
+  nautikal-panel:
+    image: nautikalpanel:latest
+    environment:
+      - NAUTIKAL__SERVER__PORT=3000
+      - NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+Or use an `.env` file for sensitive data:
+
+```yaml
+services:
+  nautikal-panel:
+    image: nautikalpanel:latest
+    env_file:
+      - .env
+```
+
+`.env`:
+```
+NAUTIKAL__SERVER__PORT=3000
+NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+## Type Conversion
+
+Values are automatically converted:
+- Strings stay strings
+- Numbers (like port) become integers
+- Booleans (`true`, `false`) become booleans

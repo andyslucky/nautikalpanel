@@ -1,0 +1,342 @@
+---
+title: Development
+description: Build and run Nautikal Panel from source.
+---
+
+This guide covers building and running Nautikal Panel from source for development or local testing.
+
+## Prerequisites
+
+For development, you need:
+
+- **Rust** (v1.75+) - Toolchain for building Nautikal Panel
+- **Git** - For cloning the repository
+- **Kubernetes cluster** (v1.24+) with kubectl configured
+- **Node.js** (v18+) - For the frontend (optional, for frontend development)
+
+## Building from Source
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/andyslucky/nautikalpanel.git
+cd nautikalpanel
+```
+
+### 2. Build the Project
+
+For development builds (faster, not optimized):
+
+```bash
+cargo build
+```
+
+For release builds (optimized, slower to compile):
+
+```bash
+cargo build --release
+```
+
+The binary will be available at:
+- `target/debug/nautikalpanel` (development)
+- `target/release/nautikalpanel` (release)
+
+### 3. Configure Environment Variables
+
+Set configuration via environment variables:
+
+```bash
+export NAUTIKAL__SERVER__HOST=0.0.0.0
+export NAUTIKAL__SERVER__PORT=3000
+export NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
+export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
+export NAUTIKAL__DATABASE__PATH=./db
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Optional, for GitHub templates
+```
+
+### 4. Run
+
+**Development build:**
+```bash
+./target/debug/nautikalpanel
+```
+
+**Release build:**
+```bash
+./target/release/nautikalpanel
+```
+
+## Development Workflow
+
+### Using `cargo run`
+
+For faster iteration during development, use `cargo run` instead of building separately:
+
+```bash
+cargo run
+```
+
+This compiles and runs the application in one step. Subsequent runs are faster as Cargo reuses compiled artifacts.
+
+### Environment File
+
+Create a `.env` file for persistent configuration during development:
+
+```bash
+cat > .env << EOF
+NAUTIKAL__SERVER__HOST=0.0.0.0
+NAUTIKAL__SERVER__PORT=3000
+NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
+NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
+NAUTIKAL__DATABASE__PATH=./db
+NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+EOF
+```
+
+The application will automatically load variables from `.env` on startup.
+
+### Hot Reloading
+
+Nautikal Panel does not support hot reloading. After making code changes, restart the application:
+
+```bash
+# Ctrl+C to stop, then
+cargo run
+```
+
+## Frontend Development
+
+The frontend is a separate application in the `frontend/` directory.
+
+### Setting up Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend development server runs on `http://localhost:5173` (or as shown in terminal output).
+
+### Development Mode
+
+When running the backend in debug mode (`cargo build` or `cargo run`), it does not serve the frontend. You should run the frontend development server separately and access it directly at `http://localhost:5173`.
+
+The frontend proxies API requests to the backend, so it will still communicate with your running backend instance.
+
+## Testing
+
+### Running Tests
+
+Run the full test suite:
+
+```bash
+cargo test
+```
+
+Run specific tests:
+
+```bash
+cargo test test_name
+```
+
+### Running Tests with Output
+
+See test output:
+
+```bash
+cargo test -- --nocapture
+```
+
+### Running a Single Test
+
+Run a specific test and show output:
+
+```bash
+cargo test test_name -- --nocapture
+```
+
+## Code Quality
+
+### Linting
+
+Run Clippy for code quality checks:
+
+```bash
+cargo clippy
+```
+
+Fix Clippy suggestions automatically:
+
+```bash
+cargo clippy --fix
+```
+
+### Formatting
+
+Format code with rustfmt:
+
+```bash
+cargo fmt
+```
+
+Check code formatting without making changes:
+
+```bash
+cargo fmt -- --check
+```
+
+## Running Lint and Typecheck
+
+After making changes, run lint and typecheck commands to ensure code quality:
+
+```bash
+cargo clippy
+cargo fmt --check
+cargo test
+```
+
+## Configuration
+
+### Database Path
+
+For development, the default database path `./db` works well. The database file will be created in the project root.
+
+### Kubernetes Namespace
+
+The default namespace is `nautikal`. You can change this for development isolation:
+
+```bash
+export NAUTIKAL__KUBERNETES__NAMESPACE=nautikal-dev
+```
+
+### GitHub Token
+
+For testing GitHub template repositories, configure a GitHub token:
+
+```bash
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+See the [Environment Variables](/configuration/environment-variables) documentation for all available options.
+
+## Debugging
+
+### Logging
+
+Nautikal Panel uses `tracing` for logging. Set log level via `RUST_LOG`:
+
+```bash
+# Debug level (verbose)
+RUST_LOG=debug cargo run
+
+# Info level (default)
+RUST_LOG=info cargo run
+
+# Warn level (quiet)
+RUST_LOG=warn cargo run
+
+# Trace level (very verbose, includes tokio runtime details)
+RUST_LOG=trace cargo run
+```
+
+### IDE Configuration
+
+**VS Code**
+
+Install the `rust-analyzer` extension for:
+- Code completion
+- Go to definition
+- Type hints
+- Inline errors
+
+**IntelliJ IDEA / CLion**
+
+Install the Rust plugin for similar features.
+
+## Project Structure
+
+```
+nautikalpanel/
+├── src/
+│   ├── main.rs              # Application entry point
+│   ├── app_config.rs        # Configuration loading
+│   ├── endpoints/           # HTTP API handlers
+│   ├── game_servers/        # Domain models
+│   └── services/           # Business logic
+├── k8s-templates/         # Kubernetes templates (Jinja2)
+├── game-server-templates/  # Game server templates
+├── frontend/               # Frontend application
+├── docs/                   # Documentation
+└── Cargo.toml             # Rust dependencies
+```
+
+## Building Docker Image
+
+To build a Docker image from source:
+
+```bash
+docker build -t nautikalpanel:dev .
+```
+
+Run the container:
+
+```bash
+docker run -d \
+  -e NAUTIKAL__SERVER__HOST=0.0.0.0 \
+  -e NAUTIKAL__SERVER__PORT=3000 \
+  -p 3000:3000 \
+  nautikalpanel:dev
+```
+
+## Troubleshooting
+
+### Build Failures
+
+If `cargo build` fails:
+
+1. Update Rust: `rustup update`
+2. Clean build artifacts: `cargo clean`
+3. Try building again: `cargo build`
+
+### Database Errors
+
+If you see database-related errors:
+
+1. Remove the database directory: `rm -rf ./db`
+2. Restart the application
+
+### Kubernetes Connection Issues
+
+Ensure your kubeconfig is properly configured:
+
+```bash
+kubectl cluster-info
+kubectl get nodes
+```
+
+### Port Already in Use
+
+Change the port:
+
+```bash
+export NAUTIKAL__SERVER__PORT=8080
+cargo run
+```
+
+## Contributing
+
+When contributing to Nautikal Panel:
+
+1. Run tests: `cargo test`
+2. Run linter: `cargo clippy`
+3. Format code: `cargo fmt`
+4. Update documentation as needed
+
+See the repository's `CONTRIBUTING.md` file for more details.
+
+## Next Steps
+
+- [Configuration](/configuration/environment-variables) - Explore all configuration options
+- [Installation](/getting-started/installation) - Learn about production deployment
+- [Quick Start](/getting-started/quick-start) - Deploy your first server

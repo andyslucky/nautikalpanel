@@ -45,7 +45,7 @@ async fn create_template_repository_store(
     config: &AppConfig,
 ) -> Result<(TemplateRepositoryStore, TemplateRepositoryManager), Box<dyn Error>> {
     let store = TemplateRepositoryStore::new(db, &config.database).await?;
-    let manager = TemplateRepositoryManager::new(store.clone());
+    let manager = TemplateRepositoryManager::new(store.clone(), config.clone());
     Ok((store, manager))
 }
 

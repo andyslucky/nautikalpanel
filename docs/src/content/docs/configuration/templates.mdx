@@ -1,0 +1,91 @@
+---
+title: Templates
+description: Understanding template directories.
+---
+
+Nautikal Panel uses two template systems: game server templates for game configurations, and Kubernetes templates for infrastructure definitions.
+
+## Template Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `game-server-templates/` | Game server configurations (Minecraft, Valheim, etc.) |
+| `k8s-templates/` | Kubernetes resource templates (internal) |
+
+## Configuring Paths
+
+Set template directories via environment variables:
+
+```bash
+export NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES=game-server-templates
+export NAUTIKAL__PATHS__K8S_TEMPLATES=k8s-templates
+export NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR=/opt/custom-templates
+```
+
+## Game Server Templates
+
+Game server templates define how to run different games. You can create your own templates or use community templates.
+
+Nautikal Panel supports **template repositories**, allowing you to organize templates from multiple sources:
+
+- **Local repositories** - Templates in filesystem directories
+- **GitHub repositories** - Templates fetched directly from GitHub repositories (requires GitHub token)
+
+A default local repository is automatically created on first startup, pointing to your configured `game-server-templates/` directory.
+
+To use GitHub repositories, configure a GitHub token via:
+
+```bash
+export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+See [Game Server Templates](/templates/game-server-templates) for a complete guide to creating and organizing templates, or [Template Repositories](/templates/template-repositories) for managing multiple template sources including GitHub integration.
+
+## Kubernetes Templates
+
+Kubernetes templates are Jinja2 files that define how Nautikal Panel creates K8s resources:
+
+| Template | Purpose |
+|----------|---------|
+| `pod_template.yaml.jinja` | Game server pod definition |
+| `init.yaml.jinja` | K8s resource initialization |
+| `service.yaml.jinja` | Service/LoadBalancer definition |
+| `pvc.yaml.jinja` | Persistent volume claim |
+| `sftp_only.yaml.jinja` | SFTP-only pod |
+
+### Template Context Variables
+
+Kubernetes templates receive the following context variables:
+
+| Variable | Description |
+|----------|-------------|
+| `gameType` | Sanitized game type (lowercase, alphanumeric) |
+| `gameServerId` | Unique server identifier |
+| `server` | Full GameServer object with all configuration |
+| `pvc_name` | Name of the PVC (if created) |
+| `sftpSecretName` | Name of the SFTP credentials secret |
+| `ports` | List of ports from service configuration |
+| `storage` | Formatted storage string (e.g., "10Gi") |
+| `storageClassName` | Storage class to use |
+
+### Template Functions
+
+Templates can use custom Jinja2 filters and functions:
+
+- **evaluateTera** - Recursively evaluate strings as Tera templates
+- **replace** - String replacement (e.g., `replace(from='Gi', to='G')`)
+
+### Custom K8s Templates
+
+Override the default templates on a per-server basis or globally:
+
+**Globally:**
+```bash
+export NAUTIKAL__KUBERNETES__POD_TEMPLATE=default/pod_template.yaml.jinja
+export NAUTIKAL__KUBERNETES__INIT_TEMPLATE=default/init.yaml.jinja
+```
+
+**Per-server:**
+Set the `pod_template` or `init_template` fields when creating a server.
+
+For advanced customization, see [Custom Templates](/advanced/custom-templates).

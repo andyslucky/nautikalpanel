@@ -1,0 +1,155 @@
+---
+title: Managing Servers
+description: Starting, stopping, and managing game servers.
+---
+
+Once you've created a server, you'll need to manage its lifecycle. This guide covers all management operations.
+
+## Starting a Server
+
+1. Locate the server in the dashboard
+2. Ensure status shows "Offline"
+3. Click **Start** button
+4. Status transitions: Offline → Pending → Running
+
+The status updates in real-time via WebSocket, so you'll see the transition happen immediately without refreshing the page.
+
+### What Happens During Start
+
+1. Kubernetes pod is created from the pod template
+2. Container image is pulled (if not cached)
+3. Game server process starts
+4. Service becomes available with external IP
+5. SFTP credentials are generated and stored in K8s secret
+6. Dashboard receives real-time updates as the pod transitions through states
+
+### Troubleshooting Startup
+
+If the server stays in "Pending":
+- Check Kubernetes events: `kubectl describe pod <pod-name> -n nautikal`
+- Verify image is valid and accessible
+- Check resource requests don't exceed node capacity
+
+## Stopping a Server
+
+1. Click **Stop** on a running server
+2. Status transitions: Running → (brief Pending) → Offline
+
+### What Happens During Stop
+
+1. Pod is deleted
+2. SFTP credentials secret is deleted
+3. PVC and data are preserved
+4. Service remains (for LoadBalancer IP retention)
+
+## SFTP Access Mode
+
+For file management without running the game:
+
+1. Ensure server is Offline
+2. Click **SFTP Only**
+3. A pod with only SFTP container starts
+4. Access files via SFTP client
+
+### Why Use SFTP Only?
+
+- Lower resource usage
+- Upload worlds/mods before first start
+- Backup or restore data
+- Game server doesn't need to be running
+
+## Editing Server Settings
+
+:::note
+Servers can only be edited when offline.
+:::
+
+1. Stop the server if running
+2. Click **Edit** on the server card
+3. Modify desired settings
+4. Click **Save**
+
+### What Can Be Changed
+
+| Setting | Editable |
+|---------|----------|
+| Server Name | ✅ |
+| Game Version | ✅ |
+| Max Players | ✅ |
+| Icon URL | ✅ |
+| Description | ✅ |
+| Container Image | ✅ |
+| Resources (CPU/Memory) | ✅ |
+| Environment Variables | ✅ |
+| Command | ✅ |
+| Pod Template | ✅ |
+| Game Type | ❌ |
+| Storage Size | ❌ |
+| Service Type | ❌ |
+| Ports | ❌ |
+
+### Why Some Fields Are Not Editable
+
+Storage and network settings are tied to Kubernetes resources created during server initialization. Changing these would require:
+- Deleting and recreating PVCs (data loss risk)
+- Recreating Services (IP address changes)
+
+## Deleting a Server
+
+1. Click **Delete** on any server card
+2. Confirm the deletion
+
+:::danger
+Deletion is permanent and removes:
+- Server configuration from database
+- Persistent Volume Claim (all data)
+- Service (releases IP address)
+- Any running pods
+:::
+
+### Before Deleting
+
+- Download important files via SFTP
+- Note your configuration if you might recreate
+
+## Monitoring Server Status
+
+### Dashboard Status
+
+The colored status dot indicates:
+- 🟢 **Running**: Pod is active, server should be accessible
+- ⚫ **Offline**: No pod running
+- 🟡 **Pending**: Pod is being created/terminated
+
+### Detailed Status
+
+Hover over or check the pod status for more details:
+- `Pending`: Waiting for resources
+- `Running`: Active container
+- `Failed`: Container exited with error
+- `Unknown`: API communication issue
+
+## Refresh Behavior
+
+The dashboard automatically refreshes at the configured interval:
+- Default: 30 seconds
+- Configurable in Settings
+- Updates status for all servers
+
+## Bulk Operations
+
+Currently, operations must be performed on individual servers. Future versions may include:
+- Bulk start/stop
+- Bulk delete
+- Filtering and search
+
+## Resource Cleanup
+
+When a server is deleted, Nautikal Panel:
+1. Deletes the pod (if running)
+2. Deletes the PVC (and all data)
+3. Deletes the Service
+4. Deletes any SFTP credentials secrets
+5. Removes the record from database
+
+No orphaned resources should remain.

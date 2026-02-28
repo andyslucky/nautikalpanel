@@ -1,0 +1,105 @@
+---
+title: Dashboard Overview
+description: Understanding the Nautikal Panel dashboard.
+---
+
+The dashboard is the main interface for managing your game servers. This page explains all the elements you'll see.
+
+## Main Dashboard
+<a href="/Nautikal-Dashboard.png">
+![](/Nautikal-Dashboard.png)
+</a>
+
+### Header
+
+- **Nautikal Panel Logo**: Click to return to dashboard
+- **Add Server Button**: Create a new game server
+- **Dark Mode Toggle**: In Settings
+
+### Server Grid
+
+Servers are displayed as cards in a responsive grid layout.
+
+#### Real-Time Updates
+
+The dashboard uses WebSocket connections to receive real-time updates from Kubernetes. When pod status changes (e.g., from "Pending" to "Running"), the dashboard updates instantly without requiring a page refresh. This means you always see the current state of your servers.
+
+#### Server Card Elements
+
+Each server card shows:
+
+| Element | Description |
+|---------|-------------|
+| **Icon** | Game type icon (from template) |
+| **Server Name** | User-defined name |
+| **Game Type** | Type of game (e.g., Minecraft, Valheim) |
+| **Status Indicator** | Colored dot showing status |
+| **Address** | IP address and port(s) |
+| **Players** | Current/max players (if available) |
+
+### Status Indicators
+
+| Color | Status | Meaning |
+|-------|--------|---------|
+| 🟢 Green | Running | Server is online and accessible |
+| 🔴 Gray | Offline | Server is stopped |
+| 🟡 Yellow | Pending | Server is starting or stopping |
+
+### Action Buttons
+
+| Button | Available When | Action |
+|--------|---------------|--------|
+| **Start** | Offline | Start the game server pod |
+| **Stop** | Running | Stop the game server pod |
+| **SFTP Only** | Offline | Start SFTP-only mode |
+| **SFTP Credentials** | SFTP Running | View generated credentials |
+| **Logs** | Game Server Running | Open log viewer |
+| **Edit** | Offline | Modify server settings |
+| **Delete** | Any | Remove server permanently |
+
+## Sidebar Navigation
+
+| Item | Description |
+|------|-------------|
+| **Home** | Server dashboard |
+| **Settings** | User preferences (dark mode, refresh interval) |
+
+## Settings Page
+
+### Dark Mode
+
+Toggle between light and dark themes. Persisted in browser storage.
+
+### Refresh Interval
+
+The refresh interval is primarily used for periodic API calls to ensure data consistency, though most updates arrive in real-time via WebSocket.
+
+- Default: 30 seconds
+- Range: 5-300 seconds
+- Lower values provide more frequent consistency checks
+- Real-time updates are delivered via WebSocket regardless of this setting
+
+## Responsive Design
+
+The dashboard adapts to different screen sizes:
+
+- **Desktop**: Fixed sidebar, grid layout
+- **Mobile**: Collapsible hamburger menu, single column
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Esc` | Close any open modal |
+| `Tab` | Navigate between elements |
+
+## Real-Time Architecture
+
+The dashboard maintains a WebSocket connection to the `/api/v1/game-servers/watch` endpoint. This connection streams pod events from Kubernetes, allowing the UI to update instantly when:
+
+- Pods are created (server starting)
+- Pods are deleted (server stopping)
+- Pod status changes
+- Any other Kubernetes event occurs
+
+This architecture ensures you always have the most up-to-date information without manual refreshes.

@@ -1,0 +1,251 @@
+---
+title: Game Server Templates
+description: Create and manage game server template files.
+---
+
+Game server templates define the configurations for different game types.
+
+## Template Location
+
+Templates are YAML files stored in:
+
+```
+game-server-templates/
+├── minecraft-vanilla.yaml
+├── minecraft-paper.yaml  
+├── valheim.yaml
+└── terraria.yaml
+```
+
+Configure this directory:
+
+```toml
+[paths]
+game_server_templates = "game-server-templates"
+```
+
+## Template Structure
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft Vanilla"
+description: "Standard Minecraft Java server"
+game_type: "minecraft"
+icon_url: "https://example.com/minecraft-icon.png"
+
+pod_config:
+  image: "itzg/minecraft-server"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  env:
+    EULA: "TRUE"
+    VERSION: "latest"
+    TYPE: "VANILLA"
+  command: null
+  mounts: []
+
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+  service_type: "LoadBalancer"
+  ip_address: null
+
+pvc_config:
+  size: 10
+  size_unit: "Gi"
+  container_path: "/data"
+  storage_class: null
+
+default_max_users: 20
+```
+
+:::tip
+The `game-server-template.schema.json` file in the project root defines the complete structure. Add the schema comment to enable validation and autocomplete in your editor.
+:::
+
+## Field Reference
+
+### Required Fields
+
+| Field | Description |
+|-------|-------------|
+| `template_name` | Display name shown in UI |
+| `game_type` | Unique identifier for the game type |
+| `pod_config.image` | Docker image to run |
+| `service_config.ports` | List of ports to expose |
+| `pvc_config.size` | Storage size number |
+| `pvc_config.size_unit` | `Mi` or `Gi` |
+| `pvc_config.container_path` | Mount path in container |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Template description |
+| `icon_url` | URL for server icon |
+| `pod_config.resources` | CPU and memory limits |
+| `pod_config.env` | Environment variables |
+| `pod_config.command` | Container command override |
+| `pod_config.mounts` | Additional volume mounts |
+| `service_config.service_type` | K8s service type |
+| `service_config.ip_address` | Static IP for LoadBalancer |
+| `pvc_config.storage_class` | K8s storage class override |
+| `default_max_users` | Default max players |
+
+## Creating a New Template
+
+1. Create a YAML file in `game-server-templates/`
+2. Add the schema comment at the top:
+   ```yaml
+   # yaml-language-server: schema=./game-server-template.schema.json
+   ```
+3. Name it descriptively (e.g., `ark-survival.yaml`)
+4. Fill in required fields
+5. Template appears in UI after restart
+
+The schema comment enables validation and autocomplete in supported YAML editors.
+
+## Common Game Examples
+
+### Minecraft
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft"
+game_type: "minecraft"
+pod_config:
+  image: "itzg/minecraft-server"
+  env:
+    EULA: "TRUE"
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+pvc_config:
+  size: 10
+  size_unit: "Gi"
+  container_path: "/data"
+```
+
+### Valheim
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Valheim"
+game_type: "valheim"
+pod_config:
+  image: "lloesche/valheim-server"
+  env:
+    SERVER_NAME: "My Server"
+    SERVER_PORT: "2456"
+    WORLD_NAME: "My World"
+service_config:
+  ports:
+    - port: 2456
+      protocol: "UDP"
+    - port: 2457
+      protocol: "UDP"
+pvc_config:
+  size: 5
+  size_unit: "Gi"
+  container_path: "/config"
+```
+
+### CS:GO
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "CS:GO"
+game_type: "csgo"
+pod_config:
+  image: "cm2network/csgo"
+  env:
+    SRCDS_TOKEN: "your-token"
+    SRCDS_RCONPW: "rcon-password"
+service_config:
+  ports:
+    - port: 27015
+      protocol: "UDP"
+    - port: 27020
+      protocol: "TCP"
+pvc_config:
+  size: 20
+  size_unit: "Gi"
+  container_path: "/server"
+```
+
+## Environment Variables
+
+Game-specific settings through `pod_config.env`:
+
+```yaml
+pod_config:
+  env:
+    EULA: "TRUE"
+    VERSION: "1.20.4"
+    MOTD: "Welcome to my server!"
+    DIFFICULTY: "normal"
+```
+
+### Dynamic Environment Variables
+
+Environment variable values can use template variables and Jinja2 expressions for dynamic configuration:
+
+```yaml
+pod_config:
+  env:
+    SERVER_NAME: "{{server.name}}"
+    # Conditional values
+    VERSION: "{% if server.game_version %}{{server.game_version}}{% else %}LATEST{% endif %}"
+    # Mathematical expressions and transformations
+    MAX_MEMORY: "{{ server.pod_config.resources.limits.memory | replace(from='Gi',to='G') }}"
+```
+
+Available template variables:
+- `server.name` - Server name
+- `server.game_version` - Game version (if specified)
+- `server.max_players` - Max players
+- `server.pod_config.*` - Pod configuration values
+- `server.pvc_config.*` - PVC configuration values
+- `server.service_config.*` - Service configuration values
+
+:::tip
+Environment variable names and values depend on container image being used. Check the image documentation for available options.
+:::
+
+## Resource Planning
+
+Consider game requirements when setting resources:
+
+| Game | Recommended CPU | Recommended Memory |
+|------|-----------------|---------------------|
+| Minecraft | 1-2 cores | 2-4 GB |
+| Valheim | 2-4 cores | 4-8 GB |
+| ARK: Survival | 4-8 cores | 8-16 GB |
+| CS:GO | 2-4 cores | 4-8 GB |
+
+## Template Validation
+
+Templates are validated when loaded against the JSON Schema (`game-server-template.schema.json`):
+
+- Required fields must be present
+- Field types must match schema definitions
+- Enum values must be from allowed options
+- Patterns must match specified regular expressions
+- Game type must be unique
+- Image must be a valid reference
+
+For detailed information about the schema structure, validation rules, and IDE configuration, see the [JSON Schema](/templates/json-schema) documentation.
+
+:::tip
+Add the schema comment to your template files to enable real-time validation in your YAML editor:
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+```
+:::

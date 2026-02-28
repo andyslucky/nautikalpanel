@@ -1,0 +1,77 @@
+# Default values for nautikalpanel
+replicaCount: 1
+
+image:
+  repository: ghcr.io/andyslucky/nautikalpanel
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 9090
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: nautikalpanel.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+config:
+  server:
+    host: 0.0.0.0
+    port: 9090
+  kubernetes:
+    namespace: nautikal
+    createNamespace: true
+    defaultStorageClass: ""
+    initTemplate: "default/init.yaml.jinja"
+    podTemplate: "default/pod_template.yaml.jinja"
+  database:
+    path: "/data/db"
+    namespace: nautikal
+    name: nautikal
+  paths:
+    k8sTemplates: "/templates/k8s-templates"
+    gameServerTemplates: "/templates/game-server-templates"
+
+# Used for fetching game server templates from GitHub repositories.
+githubToken:
+  token: ""
+  existingSecret: ""
+  existingSecretKey: ""

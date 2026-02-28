@@ -1,0 +1,174 @@
+---
+title: Custom K8s Templates
+description: Create custom Kubernetes templates.
+---
+
+Create custom Jinja templates for advanced Kubernetes configurations.
+
+## Template Location
+
+Templates are stored in `k8s-templates/`:
+
+```
+k8s-templates/
+├── default/
+│   ├── _macros.yaml.jinja
+│   ├── init.yaml.jinja
+│   ├── pod_template.yaml.jinja
+│   ├── sftp_only.yaml.jinja
+│   ├── pvc.yaml.jinja
+│   └── service.yaml.jinja
+└── custom/
+    └── my-template.yaml.jinja
+```
+
+## Available Variables
+
+| Variable | Description |
+|----------|-------------|
+| `gameType` | Sanitized game type (lowercase, alphanumeric) |
+| `gameServerId` | Unique server identifier |
+| `server` | Full GameServer object |
+| `pvc_name` | Name of the PVC |
+| `sftp_username` | SFTP username |
+
+## The `server` Object
+
+Access server configuration:
+
+```jinja
+{{ server.name }}              # Server name
+{{ server.game_type }}         # Game type
+{{ server.max_players }}       # Max players
+{{ server.pod_config.image }}  # Container image
+```
+
+## Using Macros
+
+Import macros for consistent output:
+
+```jinja
+{% import "default/_macros.yaml.jinja" as macros -%}
+
+metadata:
+  labels:
+    {{ macros::standard_labels() | indent(prefix="    ") }}
+```
+
+### Available Macros
+
+| Macro | Output |
+|-------|--------|
+| `standard_labels()` | Managed-by and game-server-id labels |
+| `gameserver_container()` | Game server container spec |
+| `sftp_container()` | SFTP container spec |
+| `service_selector()` | Service selector labels |
+
+## Creating a Custom Pod Template
+
+```jinja
+{% import "default/_macros.yaml.jinja" as macros -%}
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: "custom-{{gameType | lower}}-"
+  labels:
+    {{ macros::standard_labels() | indent(prefix="    ") }}
+    nautikal.io/pod-type: "gameserver"
+spec:
+  containers:
+    {{ macros::gameserver_container() | indent(prefix="    ") }}
+    {{ macros::sftp_container() | indent(prefix="    ") }}
+```
+
+## Creating a Custom Init Template
+
+Init templates can create multiple resources:
+
+```jinja
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "{{pvc_name}}"
+  labels:
+    app.kubernetes.io/managed-by: "nautikal"
+    nautikal.io/game-server-id: "{{gameServerId}}"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: "{{server.pvc_config.storage_class}}"
+  resources:
+    requests:
+      storage: "{{server.pvc_config.size}}{{server.pvc_config.size_unit}}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "svc-{{gameServerId}}"
+  labels:
+    app.kubernetes.io/managed-by: "nautikal"
+    nautikal.io/game-server-id: "{{gameServerId}}"
+spec:
+  type: {{server.service_config.service_type}}
+  selector:
+    nautikal.io/game-server-id: "{{gameServerId}}"
+  ports:
+    {% for port in server.service_config.ports %}
+    - port: {{port.port}}
+      protocol: {{port.protocol}}
+      targetPort: {{port.port}}
+    {% endfor %}
+```
+
+## Adding Sidecars
+
+Add additional containers to your pod:
+
+```jinja
+spec:
+  containers:
+    - name: gameserver
+      image: "{{server.pod_config.image}}"
+    - name: backup
+      image: backup-tool:latest
+      volumeMounts:
+        - name: data
+          mountPath: /backup
+```
+
+## Adding Init Containers
+
+Run setup before the game starts:
+
+```jinja
+spec:
+  initContainers:
+    - name: setup
+      image: busybox
+      command: ["/bin/sh", "-c", "chown -R 1000:1000 /data"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  containers:
+    - name: gameserver
+      # ...
+```
+
+## Extra Templates Directory
+
+Add additional template directories via environment variable:
+
+```bash
+export NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR=/etc/nautikal/custom-templates
+```
+
+Templates in this directory override default templates with the same name.
+
+## Testing Templates
+
+Test a template manually:
+
+```bash
+# Render to see output
+cat k8s-templates/custom/my-template.yaml.jinja | jinja2 -D gameServerId=test123
+```

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nautikalpanel.fullname" . }}
+  labels:
+    {{- include "nautikalpanel.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nautikalpanel.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nautikalpanel.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "nautikalpanel.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: nautikalpanel
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: NAUTIKAL__SERVER__HOST
+          value: {{ .Values.config.server.host | quote }}
+        - name: NAUTIKAL__SERVER__PORT
+          value: {{ .Values.config.server.port | quote }}
+        - name: NAUTIKAL__KUBERNETES__NAMESPACE
+          value: {{ .Values.config.kubernetes.namespace | quote }}
+        - name: NAUTIKAL__KUBERNETES__CREATE_NAMESPACE
+          value: {{ .Values.config.kubernetes.createNamespace | quote }}
+        - name: NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS
+          value: {{ .Values.config.kubernetes.defaultStorageClass | quote }}
+        - name: NAUTIKAL__KUBERNETES__INIT_TEMPLATE
+          value: {{ .Values.config.kubernetes.initTemplate | quote }}
+        - name: NAUTIKAL__KUBERNETES__POD_TEMPLATE
+          value: {{ .Values.config.kubernetes.podTemplate | quote }}
+        - name: NAUTIKAL__DATABASE__PATH
+          value: {{ .Values.config.database.path | quote }}
+        - name: NAUTIKAL__DATABASE__NAMESPACE
+          value: {{ .Values.config.database.namespace | quote }}
+        - name: NAUTIKAL__DATABASE__NAME
+          value: {{ .Values.config.database.name | quote }}
+        - name: NAUTIKAL__PATHS__K8S_TEMPLATES
+          value: {{ .Values.config.paths.k8sTemplates | quote }}
+        - name: NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES
+          value: {{ .Values.config.paths.gameServerTemplates | quote }}
+        {{- if not (.Values.githubToken.token | empty) }}
+        - name: NAUTIKAL__GITHUB__TOKEN
+          value: {{ .Values.githubToken.token | quote }}
+        {{- else if not (.Values.githubToken.existingSecret | empty)}}
+        - name: NAUTIKAL__GITHUB__TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ default (include "nautikalpanel.fullname" .) .Values.githubToken.existingSecret }}
+              key: {{.Values.githubToken.existingSecretKey | default  "github-token"}}
+        {{- end }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: templates
+          mountPath: /templates
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+      volumes:
+      - name: data
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "nautikalpanel.fullname" . }}-data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: templates
+        configMap:
+          name: {{ include "nautikalpanel.fullname" . }}-templates
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

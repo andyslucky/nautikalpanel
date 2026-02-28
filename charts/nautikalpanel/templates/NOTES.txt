@@ -1,0 +1,32 @@
+Thank you for installing Nautikalpanel!
+
+Your release is named {{ .Release.Name }}.
+
+To get more information about the release, run:
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "nautikalpanel.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "nautikalpanel.fullname" . }} 8080:{{ .Values.service.port }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress has been configured. You can access Nautikalpanel at:
+
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+To get the ingress URL, run:
+
+  kubectl get ingress {{ include "nautikalpanel.fullname" . }} --namespace {{ .Release.Namespace }}
+{{- end }}
+
+To check the status of the deployment, run:
+
+  kubectl rollout status deployment/{{ include "nautikalpanel.fullname" . }} --namespace {{ .Release.Namespace }}
+
+For more information, visit: https://github.com/nautikalpanel/nautikalpanel

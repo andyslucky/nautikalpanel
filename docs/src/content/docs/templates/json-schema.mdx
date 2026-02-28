@@ -1,0 +1,220 @@
+---
+title: JSON Schema
+description: Understanding the game server template JSON Schema.
+---
+
+The `game-server-template.schema.json` file in the project root defines the structure and validation rules for game server templates. This schema enables IDE support with autocomplete, validation, and inline documentation.
+
+## Using the Schema
+
+### Enabling Schema in Your Templates
+
+Add the schema comment at the top of your template YAML files:
+
+```yaml
+# yaml-language-server: schema=https://raw.githubusercontent.com/andyslucky/nautikalpanel/refs/heads/main/game-server-template.schema.json
+template_name: "My Game Server"
+```
+
+This comment tells YAML language servers (like the one in VS Code) which schema to use for validation.
+
+### IDE Support
+
+With the schema comment enabled, your IDE will provide:
+
+- **Autocomplete** - Type-ahead suggestions for valid fields
+- **Hover documentation** - Field descriptions when you hover
+- **Real-time validation** - Error highlighting as you type
+- **Structure validation** - Ensure required fields are present
+
+#### VS Code
+
+Install the **YAML** extension by Red Hat. It automatically detects the schema comment.
+
+#### IntelliJ IDEA / CLion
+
+Install the **YAML** plugin and the schema comment will be recognized automatically.
+
+## Schema Structure
+
+The schema is organized into these main sections:
+
+### Root Properties
+
+| Property | Type | Required | Description |
+|----------|--------|-----------|-------------|
+| `template_name` | string | Yes | Display name shown in UI |
+| `description` | string | No | Template description shown in UI |
+| `game_type` | string | No | Unique game identifier (lowercase, no spaces) |
+| `icon_url` | string (URI) | No | URL for server icon displayed in UI |
+| `init_template` | string | No | Path to Jinja template for initial resources |
+| `pod_config` | object | Yes | Container and resource configuration |
+| `service_config` | object | Yes | Network and service exposure |
+| `pvc_config` | object | Yes | Persistent storage configuration |
+| `default_max_users` | integer | No | Default maximum number of players |
+| `user_id` | integer | No | User ID for permissions (default: 1000) |
+
+### Pod Configuration (`pod_config`)
+
+| Property | Type | Required | Description |
+|----------|--------|-----------|-------------|
+| `image` | string | Yes | Docker image to run |
+| `resources` | object | No | CPU and memory specifications |
+| `command` | array of strings | No | Override container startup command |
+| `env` | object | No | Environment variables (key-value pairs) |
+| `mounts` | array | No | Additional volume mounts |
+
+#### Resources (`resources`)
+
+| Property | Type | Description |
+|----------|--------|-------------|
+| `requests` | object | Minimum guaranteed resources |
+| `limits` | object | Maximum allowed resources |
+
+Both `requests` and `limits` contain:
+
+| Property | Type | Pattern | Description |
+|----------|--------|----------|-------------|
+| `cpu` | string | `^[0-9]+m?$|^[0-9]+(\\.[0-9]+)?$` | CPU in milli-cores (e.g., `500m`) or whole cores |
+| `memory` | string | `^[0-9]+(Mi|Gi|m|g)$` | Memory in Mi (megabytes) or Gi (gigabytes) |
+
+### Service Configuration (`service_config`)
+
+| Property | Type | Required | Description |
+|----------|--------|-----------|-------------|
+| `ports` | array | Yes | List of ports to expose (minimum 1) |
+| `ip_address` | string | No | Optional specific IP for LoadBalancer |
+| `service_type` | string | No | Kubernetes service type (default: `LoadBalancer`) |
+
+#### Ports (`ports`)
+
+Each port entry contains:
+
+| Property | Type | Constraints | Description |
+|----------|--------|--------------|-------------|
+| `port` | integer | 1-65535 | Port number to expose |
+| `protocol` | string | Enum | Must be `TCP`, `UDP`, or `Both` |
+
+#### Service Type
+
+Valid values for `service_type`:
+- `LoadBalancer` - Cloud LoadBalancer (recommended for production)
+- `NodePort` - Exposes on node's IP and static port
+- `ClusterIP` - Internal only, requires port-forward
+
+### PVC Configuration (`pvc_config`)
+
+| Property | Type | Required | Description |
+|----------|--------|-----------|-------------|
+| `storage_class` | string | No | Optional Kubernetes storage class override |
+| `container_path` | string | Yes | Mount path in the container |
+| `size` | integer | Yes | Storage size number (minimum: 1) |
+| `size_unit` | string | Yes | Storage unit (enum: `Mi` or `Gi`) |
+| `user_id` | integer | No | User ID for container filesystem (default: 1000) |
+
+## Validation Rules
+
+### Pattern Validation
+
+The schema enforces these patterns:
+
+- **CPU**: `500m` (0.5 cores), `2000m` (2 cores), `2` (2 whole cores)
+- **Memory**: `512Mi` (512 MB), `1Gi` (1 GB), `4Gi` (4 GB)
+- **Game Type**: `minecraft`, `valheim`, `ark-survival` (lowercase, alphanumeric, underscores, hyphens)
+
+### Enum Validation
+
+These fields accept only specific values:
+
+- **Service Type**: `LoadBalancer`, `NodePort`, `ClusterIP`
+- **Port Protocol**: `TCP`, `UDP`, `Both`
+- **Storage Unit**: `Mi`, `Gi`
+
+### Range Validation
+
+- **Port**: 1 to 65535
+- **Size**: Minimum 1 (any positive integer)
+
+## Example Valid Template
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft Paper"
+description: "High-performance Minecraft with plugins"
+game_type: "minecraft-paper"
+icon_url: "https://example.com/paper-icon.png"
+
+pod_config:
+  image: "itzg/minecraft-server"
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+  env:
+    EULA: "TRUE"
+    TYPE: "PAPER"
+    VERSION: "latest"
+
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+  service_type: "LoadBalancer"
+
+pvc_config:
+  size: 20
+  size_unit: "Gi"
+  container_path: "/data"
+  storage_class: "fast-ssd"
+
+default_max_users: 50
+user_id: 1000
+```
+
+## Common Validation Errors
+
+| Error | Cause | Fix |
+|-------|--------|-----|
+| `Missing required property` | Required field is missing | Add the missing field |
+| `Property has wrong type` | Field value doesn't match type | Check data type (string vs. integer, etc.) |
+| `Pattern does not match` | Value format is incorrect | Use correct format (e.g., `500m` for CPU, `1Gi` for memory) |
+| `Value not in enum` | Enum value is invalid | Use one of the allowed values |
+| `Value less than minimum` | Value is below allowed range | Increase value to meet minimum requirement |
+| `Value greater than maximum` | Value exceeds allowed range | Decrease value to meet maximum requirement |
+
+## Updating the Schema
+
+If you need to modify the schema (e.g., add new fields or change validation rules):
+
+1. Edit `game-server-template.schema.json`
+2. Update the JSON Schema structure
+3. Restart your YAML editor or reload the workspace
+
+## Troubleshooting
+
+### Schema Not Detected
+
+If your IDE doesn't detect the schema:
+
+1. Ensure the comment is at the **very top** of the file (line 1 or 2)
+2. Check that the path is correct relative to the template file
+3. Reload your IDE window
+4. Verify your YAML extension supports schema comments
+
+### Validation Errors Not Appearing
+
+If you're not seeing validation errors:
+
+1. Ensure the YAML extension is installed and enabled
+2. Check the extension's output panel for errors
+3. Try opening the schema file directly to verify it's valid JSON
+4. Restart your IDE
+
+## Next Steps
+
+- [Game Server Templates](/templates/game-server-templates) - Learn to create templates
+- [Template Repositories](/templates/template-repositories) - Manage template sources
+- [Custom K8s Templates](/advanced/custom-templates) - Advanced Kubernetes customization

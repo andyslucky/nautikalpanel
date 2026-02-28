@@ -20,6 +20,8 @@
 - [x] Add better sanitization for data sent to kubernetes
 - [x] Generate random password for sftp server
 ### Frontend
+### Bugs
+- [ ] Fix resource slider / editing.
 #### Functionality
 - [x] Update front end create server modal to display the remaining properties for the template and new game server request
     including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.
@@ -29,5 +31,5 @@
 - [x] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before
     first launch
 ### Shared
-- [ ] Add table in database for game template sources. it is essentially a list of URLs which can be used to fetch game server templates.
+- [x] Add table in database for game template sources. it is essentially a list of URLs which can be used to fetch game server templates.
     Add option under settings to manage Game Template Repositories

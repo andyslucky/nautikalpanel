@@ -1,0 +1,116 @@
+---
+title: Quick Start
+description: Get your first game server running in minutes.
+---
+
+This guide will walk you through creating and running your first game server with Nautikal Panel in just a few minutes.
+
+## Prerequisites
+
+- Nautikal Panel installed and running (see [Installation](/getting-started/installation) for production or [Development](/getting-started/development) for local development)
+- Access to the web interface (via port-forward or ingress)
+- Kubernetes cluster with default storage class
+
+## Step 1: Access the Dashboard
+
+If you're using port-forward:
+
+```bash
+kubectl port-forward svc/nautikalpanel 8080:80 -n nautikalpanel
+```
+
+Then navigate to `http://localhost:8080` in your browser
+
+If you've configured a LoadBalancer or Ingress, navigate to the configured external IP or hostname.
+2. You'll see the main dashboard with an empty server list
+
+The dashboard shows all your game servers with their status, connection information, and quick actions.
+
+![Dashboard](/images/dashboard-empty.png)
+
+## Step 2: Create a Server
+
+1. Click the **+ Add Server** button in the top right
+2. The "Create Server" dialog opens
+
+### General Settings
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| **Server Name** | `My Minecraft Server` | A friendly name for your server |
+| **Template** | Select from dropdown | Pre-configured game server template |
+| **Game Version** | `1.20.4` | Optional game version |
+| **Max Players** | `20` | Maximum concurrent players |
+
+### Pod Config (Advanced)
+
+The template pre-fills most settings, but you can customize:
+
+- **Container Image**: Docker image for the game server
+- **CPU/Memory**: Adjust resource limits using sliders
+- **Environment Variables**: Add game-specific configuration
+- **Command**: Custom startup command
+
+### Service Config
+
+- **Service Type**: LoadBalancer (recommended), NodePort, or ClusterIP
+- **Ports**: Game ports to expose (pre-filled from template)
+
+### Storage Config
+
+- **Storage Size**: How much disk space
+- **Container Path**: Where data is mounted in the container
+
+3. Click **Create**
+
+## Step 3: Start the Server
+
+Your new server appears in the dashboard with status "Offline".
+
+1. Click the **Start** button on the server card
+2. The status changes from "Offline" → "Pending" → "Running"
+3. Once running, the external IP address appears
+
+![Server Running](/images/server-running.png)
+
+## Step 4: Connect to Your Server
+
+The server card shows:
+- **IP Address**: The external IP to connect to
+- **Ports**: Game ports (e.g., 25565 for Minecraft)
+
+Use this information to connect with your game client.
+
+## Step 5: File Access (SFTP)
+
+To upload worlds, mods, or configurations:
+
+1. Click **SFTP Only** (stops game server, starts SFTP)
+2. Click **Credentials** to view generated username/password
+3. Connect with any SFTP client:
+   - Host: The displayed IP
+   - Port: 22
+   - Username/Password: Generated credentials
+
+:::warning
+SFTP credentials are generated each time and not stored. Copy them immediately.
+:::
+
+## Step 6: View Logs
+
+To troubleshoot or monitor:
+
+1. Click **Logs** on a running server
+2. Real-time logs stream in a modal window
+3. Logs update automatically via WebSocket
+
+## Step 7: Stop or Delete
+
+- **Stop**: Stops the pod, keeps configuration and data
+- **Delete**: Removes server and all associated resources
+
+## Next Steps
+
+- [Create custom game server templates](/templates/game-server-templates)
+- [Configure SFTP access](/user-guide/sftp-access)
+- [Configure server settings](/configuration/server)

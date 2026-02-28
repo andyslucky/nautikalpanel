@@ -1,0 +1,157 @@
+---
+title: Kubernetes Settings
+description: Configure Kubernetes integration.
+---
+
+Configure how Nautikal Panel interacts with Kubernetes via environment variables.
+
+## Environment Variables
+
+```bash
+export NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
+export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
+export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=standard
+export NAUTIKAL__KUBERNETES__INIT_TEMPLATE=default/init.yaml.jinja
+export NAUTIKAL__KUBERNETES__POD_TEMPLATE=default/pod_template.yaml.jinja
+```
+
+## Settings Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NAUTIKAL__KUBERNETES__NAMESPACE` | `nautikal` | K8s namespace for resources |
+| `NAUTIKAL__KUBERNETES__CREATE_NAMESPACE` | `true` | Auto-create namespace if missing |
+| `NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS` | cluster default | Storage class for PVCs |
+| `NAUTIKAL__KUBERNETES__INIT_TEMPLATE` | `default/init.yaml.jinja` | Template for init resources |
+| `NAUTIKAL__KUBERNETES__POD_TEMPLATE` | `default/pod_template.yaml.jinja` | Default pod template |
+
+## Namespace
+
+The Kubernetes namespace isolates all Nautikal resources:
+
+```bash
+# View resources
+kubectl get all -n nautikal
+
+# View PVCs
+kubectl get pvc -n nautikal
+```
+
+### Multi-Tenant Setup
+
+Run separate Nautikal instances with different namespaces:
+
+```bash
+# Instance A
+export NAUTIKAL__KUBERNETES__NAMESPACE=tenant-a
+
+# Instance B
+export NAUTIKAL__KUBERNETES__NAMESPACE=tenant-b
+```
+
+## Storage Class
+
+If your cluster has multiple storage classes, specify which to use:
+
+```bash
+# List available
+kubectl get storageclass
+
+export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=local-path
+```
+
+## Templates
+
+Override default templates for custom behavior:
+
+```bash
+export NAUTIKAL__KUBERNETES__INIT_TEMPLATE=custom/init.yaml.jinja
+export NAUTIKAL__KUBERNETES__POD_TEMPLATE=custom/pod.yaml.jinja
+```
+
+See [Custom Templates](/advanced/custom-templates) for details.
+
+## Kubernetes Deployment Example
+
+### Using Helm (Recommended)
+
+When using the Helm chart, configure these settings in `values.yaml`:
+
+```yaml
+config:
+  kubernetes:
+    namespace: "game-servers"
+    createNamespace: true
+    defaultStorageClass: "local-path"
+```
+
+### Manual Deployment
+
+For manual Kubernetes deployments without Helm:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nautikalpanel
+  namespace: nautikalpanel
+spec:
+  template:
+    spec:
+      containers:
+        - name: nautikalpanel
+          env:
+            - name: NAUTIKAL__KUBERNETES__NAMESPACE
+              value: "game-servers"
+            - name: NAUTIKAL__KUBERNETES__CREATE_NAMESPACE
+              value: "true"
+            - name: NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS
+              value: "local-path"
+```
+
+## RBAC Requirements
+
+The service account needs these permissions:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nautikal-panel
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "persistentvolumeclaims", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+```
+
+The `watch` permission is particularly important as it enables:
+- Real-time pod status updates via WebSocket watchers
+- Instant dashboard updates when servers start/stop
+- Live log streaming from running pods
+
+## Resource Naming
+
+Resources created by Nautikal Panel use `generateName` with a prefix:
+
+| Resource | Pattern |
+|----------|---------|
+| Pod (game server) | `gs-{game-type}-{random}` |
+| Pod (SFTP) | `sftp-{game-type}-{random}` |
+| Service | `gs-{game-type}-{random}` |
+| PVC | `gs-{game-type}-{random}` |
+
+## Labels
+
+All resources have standard labels:
+
+| Label | Value |
+|-------|-------|
+| `app.kubernetes.io/managed-by` | `nautikal` |
+| `nautikal.io/game-server-id` | `{server-id}` |
+| `nautikal.io/pod-type` | `gameserver` or `sftp-only` |

@@ -1,0 +1,156 @@
+---
+title: Introduction
+description: Learn what Nautikal Panel is and what it can do for you.
+---
+
+Nautikal Panel is a Kubernetes-native game server management platform designed with simplicity at its core. It transforms the complex process of provisioning and managing game servers into a streamlined, intuitive experience that gets you as close to "1-click" deployments as possible.
+
+## The Problem Nautikal Panel Solves
+
+Running game servers on Kubernetes offers incredible advantages—scalability, resilience, and cloud-native tooling—but it comes with significant overhead. You typically need to:
+
+- Write and maintain Kubernetes YAML manifests
+- Configure persistent volumes and storage classes
+- Set up networking with services and ingress
+- Manage secrets and credentials securely
+- Handle pod lifecycle and resource allocation
+- Monitor logs and troubleshoot issues
+
+Nautikal Panel abstracts all of this complexity away, letting you focus on what matters: your games and your community.
+
+## How Nautikal Panel Works
+
+Nautikal Panel sits between you and your Kubernetes cluster, handling all the orchestration details automatically. Here's what happens when you create a game server:
+
+1. **Select a template** — Choose from pre-configured game server templates (Minecraft, Valheim, ARK, and more) or create your own
+2. **Configure settings** — Adjust resources, storage, and network options through a simple web interface
+3. **Deploy** — Click "Create" and Nautikal Panel automatically:
+   - Creates Kubernetes resources (pods, services, persistent volumes, secrets)
+   - Configures storage and networking
+   - Generates secure credentials for file access
+   - Sets up log streaming and monitoring
+4. **Manage** — Start, stop, monitor, and access your servers with a single click
+
+That's it. No YAML, no kubectl commands, no infrastructure complexity.
+
+## The Simplicity Philosophy
+
+Nautikal Panel is built around these principles:
+
+### 1-Click Operations
+
+Every common action is a single click away:
+- **Start a server** — One click spins up a fully configured game server pod
+- **Stop a server** — One click cleanly shuts down the server while preserving data
+- **Access files** — One click starts SFTP mode and generates credentials
+- **View logs** — One click opens real-time log streaming
+- **Delete a server** — One click removes all associated resources
+
+### Template-Based Deployment
+
+Templates encapsulate all the knowledge needed to run a specific game:
+- Container images and versions
+- Resource requirements and limits
+- Network ports and protocols
+- Environment variables and game-specific settings
+- Storage paths and sizing
+
+Once a template exists, deploying a new server is essentially one click away.
+
+### Automatic Resource Management
+
+Nautikal Panel handles all Kubernetes lifecycle management:
+- Automatic persistent volume provisioning and attachment
+- Dynamic service creation with LoadBalancer support
+- Secure credential generation and secret management
+- Pod status monitoring.
+- Clean resource deletion and cleanup
+
+## Key Features
+
+### Template Repository System
+
+Organize and manage your game server templates through repositories:
+- **Local repositories** — Store templates in a local directory
+- **GitHub repositories** — Share and download templates directly from GitHub repositories
+
+Create once, deploy anywhere. Templates define everything about a game server, making it trivial to spin up new game servers.
+
+### One-Click Server Lifecycle
+
+From creation to deletion, every step is designed for speed and simplicity:
+
+- **Create** — Select a template, name your server, and click Create
+- **Start** — One click deploys the game server pod with all dependencies (including SFTP sidecar container)
+- **Stop** — One click shuts down the pod while preserving data and configuration
+- **SFTP Mode** — One click starts a lightweight SFTP-only pod for file management
+- **Delete** — One click removes all Kubernetes resources and data
+
+### Built-in File Management
+
+Every server includes secure SFTP access:
+- Automatic credential generation (no passwords to remember)
+- SFTP-only mode for lower resource usage when you just need to manage files / configuration before launch.
+- Direct access to persistent volumes
+- Works with any standard SFTP client
+
+### Real-Time Monitoring
+
+Stay informed about your servers without leaving the browser:
+- **Real-time status** — Dashboard updates automatically as pod status changes
+- **Live logs** — WebSocket-based log streaming shows server output in real-time
+- **Watch API** — WebSocket watchers push pod changes instantly to the UI
+- **Status indicators** — Visual indicators show running, pending, or offline states
+
+### Kubernetes Native
+
+Nautikal Panel leverages Kubernetes' full capabilities:
+- **Scalable** — Run as many servers as your cluster supports
+- **Resilient** — Pods automatically restart on failures
+- **Resource isolation** — CPU and memory limits prevent servers from affecting each other
+- **Portable** — Works on any Kubernetes cluster (local, cloud, or hybrid)
+- **Integration** — Use existing Kubernetes tools for monitoring, logging, and networking
+
+## Architecture
+
+Nautikal Panel consists of three core components:
+
+### Backend (Rust)
+
+The backend provides the REST API and handles all Kubernetes orchestration:
+- **Kubernetes client** — Manages pods, services, PVCs, and secrets
+- **Template engine** — Renders Kubernetes manifests from templates
+- **Database** — Stores game server configurations in SurrealDB
+- **WebSocket servers** — Provide real-time log streaming and status updates
+
+### Frontend
+
+A lightweight web interface built with Alpine.js:
+- **Dashboard** — Server overview with status indicators
+- **Server management** — Create, edit, start, stop, and delete servers
+- **Log viewer** — Real-time log streaming modal
+- **Settings** — User preferences and configuration
+
+### Kubernetes
+
+The execution backend where game servers actually run:
+- **Pods** — Game server containers with resource limits
+- **Services** — LoadBalancer services for external access
+- **Persistent Volume Claims** — Persistent storage for game data
+- **Secrets** — Secure storage for SFTP credentials
+
+## Use Cases
+
+Nautikal Panel is designed for anyone who needs to run game servers though its focus is on gamers who dont want to spend money on
+game server hosting. It is designed to work with flexibility in mind, and any gaming community can create templates for game servers
+they host or think others would like to host.
+
+## What's Next?
+
+Ready to get started? Choose your path:
+
+- [Installation guide](/getting-started/installation) — Deploy Nautikal Panel to your cluster using Helm (recommended)
+- [Development guide](/getting-started/development) — Build and run from source (development)
+- [Quick start](/getting-started/quick-start) — Deploy your first server in minutes
+- [Template system](/templates/game-server-templates) — Learn to create custom templates
+- [User guide](/user-guide/dashboard) — Explore the full feature set

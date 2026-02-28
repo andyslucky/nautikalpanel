@@ -1,0 +1,123 @@
+---
+title: Viewing Logs
+description: Real-time log streaming for game servers.
+---
+
+Nautikal Panel provides real-time log streaming for monitoring game server output.
+<a href="/Nautikal-Logs.png">
+![](/Nautikal-Logs.png)
+</a>
+## Opening the Log Viewer
+
+1. Ensure your game server is **Running**
+2. Click the **Logs** button on the server card
+3. The log viewer modal opens
+
+## Log Viewer Interface
+
+### Header
+
+- Shows server name
+- **Clear** button to empty current logs
+- **Close** button (X) to exit
+
+### Log Content
+
+- Scrolling list of log lines
+- New lines appear at the bottom
+- Auto-scrolls to show latest entries
+- Monospace font for readability
+
+### Footer
+
+- **Connected** / **Disconnected** status indicator
+- Line count display
+
+## Log Streaming
+
+Logs are streamed via WebSocket for true real-time viewing:
+- Real-time updates as they occur in the container
+- Follows the container's stdout/stderr streams
+- Up to 1000 lines retained in the viewer
+- Maintains connection even for long-running sessions
+
+### WebSocket Connection
+
+The log viewer connects to the `/api/v1/game-servers/{id}/logs` WebSocket endpoint. This connection:
+- Streams log lines as they're written to the container
+- Handles connection interruptions gracefully
+- Automatically follows the log stream (like `tail -f`)
+- Closes when the modal is closed or the pod stops
+
+### Connection Status
+
+| Status | Meaning |
+|--------|---------|
+| Connected | Actively receiving logs |
+| Disconnected | WebSocket closed (server stopped or network issue) |
+
+## Using Logs
+
+### Debugging Startup
+
+Watch logs when starting a server to:
+- Verify server starts correctly
+- Identify missing dependencies
+- Check for configuration errors
+
+### Monitoring Runtime
+
+During operation, logs show:
+- Player connections/disconnections
+- Server errors or warnings
+- Performance issues
+
+### Troubleshooting
+
+Common log patterns to watch for:
+
+```
+[ERROR] Failed to bind to port    # Port conflict
+[FATAL] Out of memory             # Increase resources
+[WARN] EULA not accepted          # Set EULA=TRUE
+```
+
+## Log Management
+
+### Clearing Logs
+
+Click **Clear** to remove displayed lines:
+- Only clears the viewer, not actual logs
+- Useful for focusing on new activity
+
+### Disconnecting
+
+Click the X or press Escape to close:
+- WebSocket connection is terminated
+- No logs are lost (still in container logs)
+
+## Accessing Raw Logs
+
+For full log history or debugging, use kubectl:
+
+```bash
+# Get all logs for a pod
+kubectl logs <pod-name> -n nautikal -c gameserver
+
+# Follow logs (similar to viewer)
+kubectl logs -f <pod-name> -n nautikal -c gameserver
+
+# Get previous container logs (if crashed)
+kubectl logs <pod-name> -n nautikal -c gameserver --previous
+```
+
+## Limitations
+
+- **No persistence**: Logs are not stored after pod deletion
+- **Limited buffer**: Viewer shows last 1000 lines
+- **Container only**: Cannot view init container logs in UI
+
+For production, consider:
+- Log aggregation (Loki, Elasticsearch)
+- Persistent log storage
+- Log rotation policies

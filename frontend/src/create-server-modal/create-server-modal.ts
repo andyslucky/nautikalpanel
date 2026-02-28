@@ -32,8 +32,12 @@ type CreateServerModalData = {
     syncMemory(form: any) : void,
     syncCpuEdit(form: any) : void,
     syncMemoryEdit(form: any) : void,
-};
-
+    showModal?: boolean,
+    $el?: HTMLElement,
+    minValue?: number,
+    maxValue?: number,
+    $dispatch?: (event: string, detail: any) => void,
+} & Record<string, any>;
 
 Alpine.data('createServerModal', (): CreateServerModalData => ({
     content: createServerModelContent,
@@ -224,11 +228,11 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
             });
             if (!resp.ok) {
                 let err = await resp.text();
-                this.$dispatch('notify', { variant: 'error', message: err || 'Failed to create server' });
+                this.$dispatch?.('notify', { variant: 'error', message: err || 'Failed to create server' });
             } else {
-                this.$dispatch('notify', { variant: 'success', message: 'Successfully created server ' + this.form.name });
+                this.$dispatch?.('notify', { variant: 'success', message: 'Successfully created server ' + this.form.name });
                 await store.fetchServers();
-                this.showModal = false;
+                if (this.showModal !== undefined) this.showModal = false;
             }
         } catch (e) {
             console.error(e);
@@ -239,34 +243,34 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
         if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
         if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
         if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        form.template.pod_config.resources.requests.cpu = this.minValue + "m";
-        form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
+        if (this.minValue !== undefined) form.template.pod_config.resources.requests.cpu = this.minValue + "m";
+        if (this.maxValue !== undefined) form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
     },
     syncMemory(form: any) {
         if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
         if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
         if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        form.template.pod_config.resources.requests.memory = this.minValue + "Mi";
-        form.template.pod_config.resources.limits.memory = this.maxValue + "Mi";
+        if (this.minValue !== undefined) form.template.pod_config.resources.requests.memory = this.minValue + "Mi";
+        if (this.maxValue !== undefined) form.template.pod_config.resources.limits.memory = this.maxValue + "Mi";
     },
     syncCpuEdit() {
-        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
         if (parentData?.editForm?.pod_config) {
             if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
             if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
             if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-            parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
+            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
+            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
         }
     },
     syncMemoryEdit() {
-        const parentData = (this.$el.closest('[x-data]') as any)?.__x?.$data;
+        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
         if (parentData?.editForm?.pod_config) {
             if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
             if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
             if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-            parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
+            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
+            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
         }
     },
     ...serverResourceSliderFunctions

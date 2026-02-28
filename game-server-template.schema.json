@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameServerTemplate",
+  "description": "Configuration template for a game server in Nautikal Panel",
+  "type": "object",
+  "required": [
+    "template_name",
+    "pod_config",
+    "service_config",
+    "pvc_config"
+  ],
+  "properties": {
+    "template_name": {
+      "type": "string",
+      "description": "Display name shown in the UI",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Template description shown in the UI"
+    },
+    "game_type": {
+      "type": "string",
+      "description": "Unique identifier for the game type (lowercase, no spaces)"
+    },
+    "icon_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL for the server icon displayed in the UI"
+    },
+    "init_template": {
+      "type": "string",
+      "description": "Path to Jinja template for initial resources (PVC, Service)"
+    },
+    "pod_config": {
+      "type": "object",
+      "description": "Container and resource configuration",
+      "required": ["image"],
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to run (e.g., 'itzg/minecraft-server:latest')"
+        },
+        "resources": {
+          "type": "object",
+          "description": "CPU and memory resource specifications",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "description": "Minimum guaranteed resources",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request (e.g., '500m' for 0.5 cores)",
+                  "pattern": "^[0-9]+m?$|^[0-9]+(\\.[0-9]+)?$"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request (e.g., '1Gi' for 1 gigabyte)",
+                  "pattern": "^[0-9]+(Mi|Gi|m|g)$"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "description": "Maximum allowed resources",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit (e.g., '2000m' for 2 cores)",
+                  "pattern": "^[0-9]+m?$|^[0-9]+(\\.[0-9]+)?$"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit (e.g., '4Gi' for 4 gigabytes)",
+                  "pattern": "^[0-9]+(Mi|Gi|m|g)$"
+                }
+              }
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "description": "Override container startup command",
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables passed to the container",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "mounts": {
+          "type": "array",
+          "description": "Additional volume mounts",
+          "items": {
+            "type": "object",
+            "required": ["volume_name", "container_path"],
+            "properties": {
+              "volume_name": {
+                "type": "string",
+                "description": "Name of the volume to mount"
+              },
+              "container_path": {
+                "type": "string",
+                "description": "Path where the volume is mounted in the container"
+              }
+            }
+          }
+        }
+      }
+    },
+    "service_config": {
+      "type": "object",
+      "description": "Network and service exposure configuration",
+      "required": ["ports"],
+      "properties": {
+        "ports": {
+          "type": "array",
+          "description": "List of ports to expose",
+          "minItems": 0,
+          "items": {
+            "type": "object",
+            "required": ["port", "protocol"],
+            "properties": {
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535,
+                "description": "Port number to expose"
+              },
+              "protocol": {
+                "type": "string",
+                "enum": ["TCP", "UDP", "Both"],
+                "description": "Network protocol"
+              }
+            }
+          }
+        },
+        "ip_address": {
+          "type": "string",
+          "description": "Optional specific IP for LoadBalancer"
+        },
+        "service_type": {
+          "type": "string",
+          "enum": ["LoadBalancer", "NodePort", "ClusterIP"],
+          "default": "LoadBalancer",
+          "description": "Kubernetes service type"
+        }
+      }
+    },
+    "pvc_config": {
+      "type": "object",
+      "description": "Persistent storage configuration",
+      "required": ["container_path", "size", "size_unit"],
+      "properties": {
+        "storage_class": {
+          "type": "string",
+          "description": "Optional Kubernetes storage class override"
+        },
+        "container_path": {
+          "type": "string",
+          "description": "Mount path in the container (e.g., '/data', '/server')",
+          "minLength": 1
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Storage size number"
+        },
+        "size_unit": {
+          "type": "string",
+          "enum": ["Mi", "Gi"],
+          "description": "Storage unit (Mi for megabytes, Gi for gigabytes)"
+        },
+        "user_id": {
+          "type": "integer",
+          "default": 1000,
+          "description": "User ID for the container filesystem"
+        }
+      }
+    },
+    "default_max_users": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Default maximum number of players"
+    },
+    "user_id": {
+      "type": "integer",
+      "default": 1000,
+      "description": "User ID for permissions"
+    }
+  }
+}

@@ -64,6 +64,40 @@ function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'd
     }));
 }
 
+type GameServerStore = {
+    servers: Server[];
+    gameServerTemplates: GameServerTemplate[];
+    watchSocket: WebSocket | null;
+    watchReconnectDelay: number;
+    watchReconnectTimer: number;
+    showLogViewer: boolean;
+    logViewerServer: any;
+    logLines: string[];
+    logConnected: boolean;
+    logSocket: WebSocket | null;
+    showSftpCredentials: boolean;
+    sftpCredentials: any;
+    sftpCredentialsServer: Server | null;
+    init(): Promise<void>;
+    fetchServers(): Promise<void>;
+    connectWatchSocket(): void;
+    disconnectWatchSocket(): void;
+    handleWatchEvent(event: { event_type: string; game_server_instance?: GameServerInstance }): void;
+    serverAddressLine(server: Server): string;
+    deleteServer(id: string): Promise<void>;
+    toggleStatus(server: Server): Promise<void>;
+    startServerInstance(server: Server): Promise<void>;
+    startSftpOnly(server: Server): Promise<void>;
+    fetchSftpCredentials(server: Server): Promise<void>;
+    closeSftpCredentials(): void;
+    stopServerInstance(server: Server): Promise<void>;
+    openLogs(server: Server): void;
+    closeLogs(): void;
+    clearLogs(): void;
+    connectLogWebSocket(gameServerId: string): void;
+    disconnectLogWebSocket(): void;
+};
+
 Alpine.store('gameServers', {
     // --- Server list state ---
     servers: [] as Server[],
@@ -135,7 +169,7 @@ Alpine.store('gameServers', {
 
         this.watchSocket.onmessage = (event: MessageEvent) => {
             try {
-                const data: GameServerInstance = JSON.parse(event.data);
+                const data: {event_type: string, game_server_instance : GameServerInstance} = JSON.parse(event.data);
                 this.handleWatchEvent(data);
             } catch (e) {
                 console.error('Failed to parse watch event:', e);
@@ -337,4 +371,4 @@ Alpine.store('gameServers', {
         }
         this.logConnected = false;
     }
-});
+} as GameServerStore);

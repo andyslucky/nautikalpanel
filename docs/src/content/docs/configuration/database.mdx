@@ -1,0 +1,119 @@
+---
+title: Database Settings
+description: Configure the database connection.
+---
+
+Configure SurrealDB settings for data persistence via environment variables.
+
+## Environment Variables
+
+```bash
+export NAUTIKAL__DATABASE__PATH=./db
+export NAUTIKAL__DATABASE__NAMESPACE=nautikal
+export NAUTIKAL__DATABASE__NAME=nautikal
+```
+
+## Settings Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NAUTIKAL__DATABASE__PATH` | `./db` | Directory for database files |
+| `NAUTIKAL__DATABASE__NAMESPACE` | `nautikal` | SurrealDB namespace |
+| `NAUTIKAL__DATABASE__NAME` | `nautikal` | Database name |
+
+## Persistence
+
+### Development
+
+The default `./db` directory works for development but is lost on restart.
+
+### Production (Helm)
+
+When using the Helm chart, persistence is configured automatically. Configure in `values.yaml`:
+
+```yaml
+persistence:
+  enabled: true
+  storageClass: standard
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+config:
+  database:
+    path: "/data/db"
+```
+
+### Production (Manual)
+
+If deploying manually without Helm, mount a persistent volume:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nautikal-db
+  namespace: nautikalpanel
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+## Kubernetes Deployment Example
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nautikal-panel
+spec:
+  template:
+    spec:
+      containers:
+        - name: nautikal-panel
+          env:
+            - name: NAUTIKAL__DATABASE__PATH
+              value: "/app/db"
+            - name: NAUTIKAL__DATABASE__NAMESPACE
+              value: "production"
+            - name: NAUTIKAL__DATABASE__NAME
+              value: "servers"
+          volumeMounts:
+            - name: db-storage
+              mountPath: /app/db
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: nautikal-db
+```
+
+## Data Stored
+
+| Data | Description |
+|------|-------------|
+| Game Servers | Server configurations and settings |
+| Template Repositories | Template repository configurations and URLs |
+| Users | (Future) User accounts |
+
+:::note
+Game server templates are read from the filesystem (local or GitHub repositories), not stored in the database. SFTP credentials are stored in Kubernetes secrets, not in the database.
+:::
+
+## Backup
+
+### Manual
+
+```bash
+# Copy database directory
+cp -r ./db ./db-backup-$(date +%Y%m%d)
+```
+
+### Kubernetes
+
+Use Velero for automated backups:
+
+```bash
+velero backup create nautikal-backup --include-namespaces nautikal
+```

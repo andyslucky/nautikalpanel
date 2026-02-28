@@ -1,4 +1,4 @@
-use config::{Config, Environment, File as ConfigFile};
+use config::{Config, Environment};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub kubernetes: KubernetesConfig,
     pub database: DatabaseConfig,
     pub paths: PathsConfig,
+    pub github: GithubConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -36,13 +37,13 @@ impl ServerConfig {
 pub struct KubernetesConfig {
     #[serde(default = "default_namespace")]
     pub namespace: String,
-    #[serde(default="default_create_namespace")]
+    #[serde(default = "default_create_namespace")]
     pub create_namespace: bool,
     pub default_storage_class: Option<String>,
-    #[serde(default="default_init_template")]
-    pub init_template : String,
-    #[serde(default="default_pod_template")]
-    pub pod_template : String,
+    #[serde(default = "default_init_template")]
+    pub init_template: String,
+    #[serde(default = "default_pod_template")]
+    pub pod_template: String,
 }
 
 fn default_namespace() -> String {
@@ -101,6 +102,12 @@ fn default_game_server_templates_dir() -> String {
     "game-server-templates".to_string()
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct GithubConfig {
+    #[serde(default)]
+    pub token: Option<String>,
+}
+
 impl AppConfig {
     pub fn load() -> Result<Self, config::ConfigError> {
         let config = Config::builder()
@@ -118,6 +125,7 @@ impl AppConfig {
                 "paths.game_server_templates",
                 default_game_server_templates_dir(),
             )?
+            .set_default("github.token", Option::<String>::None)?
             .add_source(
                 Environment::with_prefix("NAUTIKAL")
                     .separator("__")

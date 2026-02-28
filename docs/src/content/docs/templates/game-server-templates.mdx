@@ -1,0 +1,514 @@
+---
+title: Game Server Templates
+description: Define and create game server templates.
+---
+
+Game server templates define reusable configurations for different game types. Create templates for your favorite games and share them with the community.
+
+## What are Game Server Templates?
+
+Templates are YAML files that contain all the configuration needed to run a game server:
+
+- **Container image** - Which Docker image to use
+- **Resources** - CPU and memory requirements
+- **Ports** - Network ports to expose
+- **Storage** - Persistent disk configuration
+- **Environment** - Game-specific settings
+
+Templates are the key to Nautikal Panel's one-click deployment philosophy. Once you've defined a template for a game, deploying new servers is as simple as selecting the template and clicking "Create".
+
+## Template Repositories
+
+Nautikal Panel supports template repositories, allowing you to organize and manage your templates from multiple sources:
+
+### Repository Types
+
+- **Local repositories** - Store templates in a local directory
+- **GitHub repositories** - Fetch templates directly from GitHub repositories
+
+### Repository URL Formats
+
+**Local repositories:**
+```
+file:///path/to/templates
+file://./relative/path
+```
+
+**GitHub repositories:**
+```
+github://user/repo/path/to/templates
+github://org/repo
+```
+
+### Default Repository
+
+On first startup, Nautikal Panel automatically creates a default local repository pointing to your configured `game-server-templates/` directory.
+
+### Managing Repositories
+
+Nautikal Panel supports managing template repositories through the API:
+- Listing all configured repositories
+- Adding new repositories (local or GitHub)
+- Deleting repositories
+- Fetching templates from all repositories
+
+All templates from all repositories are aggregated and displayed together in the UI, making it easy to access all your game server configurations.
+
+## Template Location
+
+Templates are stored in the `game-server-templates/` directory:
+
+```
+game-server-templates/
+├── minecraft-vanilla.yaml
+├── minecraft-paper.yaml
+├── valheim.yaml
+└── terraria.yaml
+```
+
+Configure this directory via environment variable:
+
+```bash
+export NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES=game-server-templates
+```
+
+## JSON Schema Reference
+
+The `game-server-template.schema.json` file in the project root defines the complete structure and validation rules for game server templates.
+
+For detailed information about:
+- Schema structure and properties
+- Validation rules and patterns
+- IDE configuration instructions
+- Troubleshooting schema issues
+
+See the [JSON Schema](/templates/json-schema) documentation.
+## Creating a Template
+
+Create a new YAML file in your templates directory. Here's a minimal example:
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft"
+game_type: "minecraft"
+pod_config:
+  image: "itzg/minecraft-server"
+  env:
+    EULA: "TRUE"
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+pvc_config:
+  size: 10
+  size_unit: "Gi"
+  container_path: "/data"
+```
+
+Save this as `game-server-templates/minecraft.yaml` and restart Nautikal Panel. Your template will appear in the UI.
+
+### Schema Validation
+
+Nautikal Panel includes a JSON Schema file (`game-server-template.schema.json`) at the project root that defines the structure and validation rules for game server templates.
+
+To enable schema validation in your YAML editor:
+
+1. Add a schema comment at the top of your template file:
+   ```yaml
+   # yaml-language-server: schema=./game-server-template.schema.json
+   ```
+
+2. Configure your YAML editor to use the schema:
+   - **VS Code**: Install the "YAML" extension by Red Hat, which automatically detects the schema comment
+   - **IntelliJ IDEA / CLion**: Go to Settings → Languages & Frameworks → Schemas and DTDs → Add Schema
+
+The schema provides:
+- **IntelliSense** - Autocomplete for all valid fields
+- **Validation** - Real-time error checking
+- **Documentation** - Hover over fields for descriptions
+
+### Required Fields
+
+The following fields are required for all templates:
+
+| Field | Description |
+|-------|-------------|
+| `template_name` | Display name shown in UI |
+| `pod_config.image` | Docker image to run |
+| `service_config.ports` | List of ports to expose (at least one) |
+| `pvc_config.size` | Storage size number |
+| `pvc_config.size_unit` | `Mi` or `Gi` |
+| `pvc_config.container_path` | Mount path in the container |
+
+## Complete Template Structure
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft Vanilla"
+description: "Standard Minecraft Java server"
+game_type: "minecraft"
+icon_url: "https://example.com/minecraft-icon.png"
+
+pod_config:
+  image: "itzg/minecraft-server"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  env:
+    EULA: "TRUE"
+    VERSION: "latest"
+    TYPE: "VANILLA"
+  command: null
+  mounts: []
+
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+  service_type: "LoadBalancer"
+  ip_address: null
+
+pvc_config:
+  size: 10
+  size_unit: "Gi"
+  container_path: "/data"
+  storage_class: null
+
+default_max_users: 20
+```
+
+:::tip
+The `game-server-template.schema.json` file in the project root defines the complete structure. Add the schema comment to enable validation and autocomplete in your editor.
+:::
+
+## Field Reference
+
+### Required Fields
+
+| Field | Description |
+|-------|-------------|
+| `template_name` | Display name shown in UI |
+| `game_type` | Unique identifier for the game type (lowercase, no spaces) |
+| `pod_config.image` | Docker image to run |
+| `service_config.ports` | List of ports to expose |
+| `pvc_config.size` | Storage size number |
+| `pvc_config.size_unit` | `Mi` or `Gi` |
+| `pvc_config.container_path` | Mount path in container |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Template description shown in UI |
+| `icon_url` | URL for server icon displayed in UI |
+| `pod_config.resources` | CPU and memory requests/limits |
+| `pod_config.env` | Environment variables passed to container |
+| `pod_config.command` | Override container startup command |
+| `pod_config.mounts` | Additional volume mounts |
+| `service_config.service_type` | K8s service type (default: LoadBalancer) |
+| `service_config.ip_address` | Static IP for LoadBalancer |
+| `pvc_config.storage_class` | K8s storage class override |
+| `default_max_users` | Default max players |
+
+## Port Configuration
+
+Each port entry specifies:
+
+| Field | Description |
+|-------|-------------|
+| `port` | Port number to expose |
+| `protocol` | `TCP`, `UDP`, or `Both` |
+
+```yaml
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+    - port: 2456
+      protocol: "UDP"
+    - port: 27015
+      protocol: "Both"  # Exposes both TCP and UDP
+```
+
+## Resource Configuration
+
+Define CPU and memory to ensure stable performance:
+
+```yaml
+pod_config:
+  resources:
+    requests:      # Minimum guaranteed
+      cpu: "500m"
+      memory: "1Gi"
+    limits:        # Maximum allowed
+      cpu: "2000m"
+      memory: "4Gi"
+```
+
+## Environment Variables
+
+Game-specific settings are configured through `pod_config.env`:
+
+```yaml
+pod_config:
+  env:
+    EULA: "TRUE"
+    VERSION: "1.20.4"
+    MOTD: "Welcome to my server!"
+    DIFFICULTY: "normal"
+```
+
+:::tip
+Environment variable names and values depend on the container image. Check the image documentation for available options.
+:::
+
+### Dynamic Environment Variables
+
+Environment variable values can use template variables and Jinja2 expressions for dynamic configuration:
+
+```yaml
+pod_config:
+  env:
+    SERVER_NAME: "{{server.name}}"
+    # Conditional values
+    VERSION: "{% if server.game_version %}{{server.game_version}}{% else %}LATEST{% endif %}"
+    # Mathematical expressions and transformations
+    MAX_MEMORY: "{{ server.pod_config.resources.limits.memory | replace(from='Gi',to='G') }}"
+```
+
+Available template variables:
+- `server.name` - Server name
+- `server.game_version` - Game version (if specified)
+- `server.max_players` - Max players
+- `server.pod_config.*` - Pod configuration values
+- `server.pvc_config.*` - PVC configuration values
+- `server.service_config.*` - Service configuration values
+
+## Example Templates
+
+### Minecraft Paper
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Minecraft Paper"
+description: "High-performance Minecraft with plugins"
+game_type: "minecraft-paper"
+icon_url: "https://static.wikia.nocookie.net/minecraft_gamepedia/images/4/4c/Paper.png"
+pod_config:
+  image: "itzg/minecraft-server"
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+  env:
+    EULA: "TRUE"
+    TYPE: "PAPER"
+    VERSION: "latest"
+service_config:
+  ports:
+    - port: 25565
+      protocol: "TCP"
+pvc_config:
+  size: 20
+  size_unit: "Gi"
+  container_path: "/data"
+default_max_users: 50
+```
+
+### Valheim
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Valheim"
+description: "Valheim dedicated server"
+game_type: "valheim"
+pod_config:
+  image: "lloesche/valheim-server"
+  resources:
+    requests:
+      cpu: "2000m"
+      memory: "4Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+  env:
+    SERVER_NAME: "My Valheim Server"
+    SERVER_PORT: "2456"
+    WORLD_NAME: "Dedicated"
+    SERVER_PASS: "secret"
+service_config:
+  ports:
+    - port: 2456
+      protocol: "UDP"
+    - port: 2457
+      protocol: "UDP"
+pvc_config:
+  size: 10
+  size_unit: "Gi"
+  container_path: "/config"
+default_max_users: 10
+```
+
+### Terraria
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "Terraria"
+description: "Terraria tModLoader server"
+game_type: "terraria"
+pod_config:
+  image: "ryansheehan/terraria:tmodloader"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  env:
+    TERRARIA_OP_PASSWORD: "admin123"
+    TERRARIA_MAX_PLAYERS: "8"
+service_config:
+  ports:
+    - port: 7777
+      protocol: "TCP"
+pvc_config:
+  size: 5
+  size_unit: "Gi"
+  container_path: "/terraria"
+default_max_users: 8
+```
+
+### ARK: Survival Evolved
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "ARK: Survival Evolved"
+description: "ARK dedicated server"
+game_type: "ark"
+pod_config:
+  image: "atomitz/ark-survival-evolved"
+  resources:
+    requests:
+      cpu: "4000m"
+      memory: "8Gi"
+    limits:
+      cpu: "8000m"
+      memory: "16Gi"
+  env:
+    SESSION_NAME: "My ARK Server"
+    SERVER_PASSWORD: ""
+    ADMIN_PASSWORD: "admin123"
+service_config:
+  ports:
+    - port: 7777
+      protocol: "UDP"
+    - port: 7778
+      protocol: "UDP"
+    - port: 27015
+      protocol: "UDP"
+pvc_config:
+  size: 50
+  size_unit: "Gi"
+  container_path: "/ark"
+default_max_users: 70
+```
+
+### CS:GO
+
+```yaml
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: "CS:GO"
+description: "Counter-Strike: Global Offensive"
+game_type: "csgo"
+pod_config:
+  image: "cm2network/csgo"
+  resources:
+    requests:
+      cpu: "2000m"
+      memory: "4Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+  env:
+    SRCDS_TOKEN: "your-gslt-token"
+    SRCDS_RCONPW: "rcon-password"
+service_config:
+  ports:
+    - port: 27015
+      protocol: "UDP"
+    - port: 27020
+      protocol: "TCP"
+pvc_config:
+  size: 30
+  size_unit: "Gi"
+  container_path: "/server"
+default_max_users: 64
+```
+
+## Resource Recommendations
+
+| Game | CPU (min) | CPU (max) | Memory (min) | Memory (max) | Storage |
+|------|-----------|-----------|--------------|--------------|---------|
+| Minecraft | 500m | 2 cores | 1Gi | 4Gi | 10Gi |
+| Valheim | 2 cores | 4 cores | 4Gi | 8Gi | 10Gi |
+| ARK | 4 cores | 8 cores | 8Gi | 16Gi | 50Gi |
+| CS:GO | 2 cores | 4 cores | 4Gi | 8Gi | 30Gi |
+| Terraria | 500m | 2 cores | 1Gi | 4Gi | 5Gi |
+
+## Sharing Templates
+
+Templates can be shared with the community. In the future, Nautikal Panel will support pulling templates from configured repositories, making it easy to discover and use templates created by others.
+
+When sharing templates:
+- Use clear, descriptive `template_name` values
+- Include a helpful `description`
+- Set reasonable default resources
+- Document required environment variables in comments
+
+## Validation
+
+Templates are validated when loaded against the JSON Schema (`game-server-template.schema.json`):
+
+- Required fields must be present
+- Field types must match schema definitions
+- Enum values must be from allowed options
+- Patterns must match specified regular expressions
+- `game_type` must be unique across templates
+- `image` must be a valid Docker image reference
+- Port numbers must be valid (1-65535)
+
+### Schema Validation Rules
+
+The schema enforces the following validation rules:
+
+- **CPU patterns**: Must be in format like `500m` (milli-cores) or `2` (whole cores)
+- **Memory patterns**: Must be in format like `1Gi` (gigabytes) or `512Mi` (megabytes)
+- **Port ranges**: Must be between 1 and 65535
+- **Protocol values**: Must be one of `TCP`, `UDP`, or `Both`
+- **Service type**: Must be one of `LoadBalancer`, `NodePort`, or `ClusterIP`
+- **Storage unit**: Must be either `Mi` or `Gi`
+
+If a template fails validation, check the Nautikal Panel logs for error details.
+
+### Editor Validation
+
+To catch errors before deploying templates:
+
+1. Add the schema comment to your template:
+   ```yaml
+   # yaml-language-server: schema=./game-server-template.schema.json
+   ```
+
+2. Use a YAML editor with schema support:
+   - VS Code with YAML extension
+   - IntelliJ IDEA / CLion with YAML plugin
+
+Your editor will highlight validation errors as you type, making it easy to catch issues early.

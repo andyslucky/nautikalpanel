@@ -1,0 +1,105 @@
+---
+title: Server Configuration
+description: Configure Nautikal Panel server settings.
+---
+
+Configure the Nautikal Panel application server via environment variables.
+
+## Environment Variables
+
+```bash
+export NAUTIKAL__SERVER__HOST=0.0.0.0
+export NAUTIKAL__SERVER__PORT=3000
+```
+
+## Server Settings Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NAUTIKAL__SERVER__HOST` | `127.0.0.1` | IP address to bind |
+| `NAUTIKAL__SERVER__PORT` | `9090` | Port for web interface |
+
+## Bind Address Options
+
+| Host Value | Effect |
+|------------|--------|
+| `127.0.0.1` | Localhost only (development) |
+| `0.0.0.0` | All interfaces (production) |
+| `192.168.1.100` | Specific interface |
+
+## Port Considerations
+
+- **Development**: Default `9090` avoids conflicts
+- **Production**: Use `80` (HTTP) or `443` (HTTPS via reverse proxy)
+- **Container**: Internal port can differ from exposed port
+
+## Docker Example
+
+```bash
+docker run -d \
+  -e NAUTIKAL__SERVER__HOST=0.0.0.0 \
+  -e NAUTIKAL__SERVER__PORT=8080 \
+  -p 8080:8080 \
+  nautikalpanel:latest
+```
+
+## Kubernetes Deployment
+
+### Using Helm (Recommended)
+
+When using the Helm chart, configure these settings in `values.yaml`:
+
+```yaml
+config:
+  server:
+    host: "0.0.0.0"
+    port: 9090
+```
+
+### Manual Deployment
+
+For manual Kubernetes deployments without Helm:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nautikalpanel
+  namespace: nautikalpanel
+spec:
+  template:
+    spec:
+      containers:
+        - name: nautikalpanel
+          env:
+            - name: NAUTIKAL__SERVER__HOST
+              value: "0.0.0.0"
+            - name: NAUTIKAL__SERVER__PORT
+              value: "9090"
+```
+
+## Reverse Proxy Setup
+
+For HTTPS, use a reverse proxy like nginx:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name panel.example.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+
+:::note
+WebSocket support is required for log streaming.
+:::

@@ -1,0 +1,50 @@
+---
+title: Nautikal Panel Documentation
+template: splash
+hero:
+  title: Nautikal Panel
+  tagline: One-click game server deployment on Kubernetes
+  actions:
+    - label: Get Started
+      link: /getting-started/introduction
+      icon: right-arrow
+      text: 'Get Started'
+      variant: primary
+    - label: View on GitHub
+      link: https://github.com/andyslucky/nautikalpanel
+      icon: external
+      variant: minimal
+      text: 'View on GitHub'
+features:
+  - title: One-Click Deployment
+    details: Deploy game servers with a single click. No YAML, no kubectl, no infrastructure complexity. Select a template and go.
+    icon: ⚡
+  - title: Template Repository System
+    details: Organize and share game server templates through local or GitHub repositories. Create once, deploy anywhere.
+    icon: 📦
+  - title: Kubernetes Native
+    details: Built on Kubernetes for scalability, reliability, and cloud-native deployments. Leverage existing infrastructure.
+    icon: 🏗️
+  - title: Built-in SFTP & Logs
+    details: Secure file access with auto-generated credentials and real-time log streaming in your browser.
+    icon: 🔐
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+## Quick Links
+
+<CardGrid>
+  <LinkCard title="Installation" icon="🚀" href="/getting-started/installation" description="Set up Nautikal Panel on your Kubernetes cluster.">
+  </LinkCard>
+  <LinkCard title="Quick Start" icon="⚡" href="/getting-started/quick-start" description="Deploy your first game server in minutes.">
+  </LinkCard>
+  <LinkCard title="Development" icon="🔧" href="/getting-started/development" description="Build and run Nautikal Panel from source.">
+  </LinkCard>
+  <LinkCard title="JSON Schema" icon="📜" href="/templates/json-schema" description="Learn about the game server template schema.">
+  </LinkCard>
+  <LinkCard title="Templates" icon="📋" href="/templates/game-server-templates" description="Create custom game server templates.">
+  </LinkCard>
+  <LinkCard title="User Guide" icon="📖" href="/user-guide/dashboard" description="Learn how to create and manage game servers.">
+  </LinkCard>
+</CardGrid>

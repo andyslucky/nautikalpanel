@@ -8,9 +8,9 @@ type NotificationSender = {
 type Notification = {
     id: number;
     variant: 'info' | 'success' | 'warning' | 'danger' | 'message';
-    sender?: NotificationSender;
-    title?: string;
-    message?: string;
+    sender?: NotificationSender | null;
+    title?: string | null;
+    message?: string | null;
 };
 
 type NotificationComponentData = {

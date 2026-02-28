@@ -13,25 +13,32 @@ function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'd
     }));
 }
 
+type TemplateRepositoryStore = {
+    repositories: TemplateRepository[];
+    loading: boolean;
+    init(): Promise<void>;
+    fetchRepositories(): Promise<void>;
+    addRepository(repository: TemplateRepository): Promise<boolean>;
+    deleteRepository(id: string): Promise<boolean>;
+};
+
 Alpine.store('templateRepositories', {
     repositories: [] as TemplateRepository[],
     loading: false,
 
     async init() {
+        this.loading = true;
         await this.fetchRepositories();
+        this.loading = false;
     },
 
     async fetchRepositories() {
         try {
-            this.loading = true;
             const response = await fetch('/api/v1/template-repositories');
-            const data = await response.json();
-            this.repositories = data;
+            this.repositories = await response.json();
         } catch (error) {
             console.error('Failed to fetch template repositories:', error);
             showToast('Failed to fetch template repositories', 'error');
-        } finally {
-            this.loading = false;
         }
     },
 
