@@ -87,4 +87,4 @@ Alpine.store('templateRepositories', {
             this.loading = false;
         }
     }
-});
+} as TemplateRepositoryStore);
