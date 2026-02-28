@@ -73,6 +73,7 @@ async fn initialize_default_repository(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "dev-tools")]
     dotenvy::dotenv()?;
     tracing_subscriber::fmt::init();
 
