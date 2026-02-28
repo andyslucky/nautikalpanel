@@ -32,12 +32,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 # Build dependencies
 RUN cargo build --release && rm -rf src
 
-RUN rm -rf ./src
 # Copy actual source code
 COPY src/ ./src/
-COPY game-server-templates/ ./game-server-templates/
-COPY k8s-templates/ ./k8s-templates/
-COPY templates/ ./templates/
 
 # Build the actual binary
 RUN touch src/main.rs && cargo build --release
