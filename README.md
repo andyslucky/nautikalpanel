@@ -1,6 +1,6 @@
 # Nautikalpanel
 
-A game server orchestration platform for Kubernetes. Manage and deploy game servers with ease using a simple Web UI with real-time updates, and a flexible template system.
+A Kubernetes native game server management panel. Manage and deploy game servers with ease using a simple Web UI with real-time updates, and a flexible template system.
 
 ## Features
 
@@ -16,7 +16,7 @@ A game server orchestration platform for Kubernetes. Manage and deploy game serv
 
 ### Prerequisites
 
-- Kubernetes 1.19+
+- Kubernetes Cluster (Can use KinD for testing it out)
 - Helm 3.0+
 
 ### Quick Start with Helm
@@ -83,9 +83,6 @@ If you want to contribute to Nautikalpanel or run it from source:
 #### Backend
 
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
 # Clone and build
 git clone https://github.com/nautikalpanel/nautikalpanel.git
 cd nautikalpanel
@@ -109,49 +106,6 @@ cargo run
 cd frontend
 npm install
 npm run dev
-```
-
-## Usage
-
-### Creating a Game Server
-
-```bash
-# List available templates
-curl http://localhost:8080/api/v1/game-server-templates
-
-# Create a game server from a template
-curl -X POST http://localhost:8080/api/v1/game-servers \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template_name": "Generic",
-    "name": "My Server",
-    "user_id": 1000
-  }'
-
-# Start the game server
-curl -X POST http://localhost:8080/api/v1/game-servers/start \
-  -H "Content-Type: application/json" \
-  -d '{"id": "game_server_id"}'
-```
-
-### Adding Template Repositories
-
-```bash
-# Add a local repository
-curl -X POST http://localhost:8080/api/v1/template-repositories \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Templates",
-    "url": "file://./my-templates"
-  }'
-
-# Add a GitHub repository
-curl -X POST http://localhost:8080/api/v1/template-repositories \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Community Templates",
-    "url": "github://myorg/myrepo/path/to/templates"
-  }'
 ```
 
 ## Documentation
@@ -194,12 +148,12 @@ See [src/app_config.rs](./src/app_config.rs) for all configuration options.
 │  (Axum + Rust)  │
 └────────┬────────┘
          │
-    ┌────┴────┐
-    │         │
-┌───▼───┐ ┌──▼──────────┐
-│ DB    │ │ Kubernetes  │
-│ (Surreal) │ Executor   │
-└───────┘ └─────────────┘
+    ┌────┴──────┐
+    │           │
+┌───▼──────┐ ┌──▼──────────┐
+│ DB       │ │ Kubernetes  │
+│ (Surreal)│ | Executor    │
+└──────────┘ └─────────────┘
 ```
 
 ### Key Components
@@ -251,6 +205,6 @@ This project is licensed under the MIT License.
 
 ## Support
 
-- Report bugs: [GitHub Issues](https://github.com/nautikalpanel/nautikalpanel/issues)
-- Discussions: [GitHub Discussions](https://github.com/nautikalpanel/nautikalpanel/discussions)
-- Documentation: [https://docs.nautikalpanel.io](https://docs.nautikalpanel.io)
+- Report bugs: [GitHub Issues](https://github.com/andyslucky/nautikalpanel/issues)
+- Discussions: [GitHub Discussions](https://github.com/andyslucky/nautikalpanel/discussions)
+
