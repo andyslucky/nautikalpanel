@@ -19,13 +19,14 @@ RUN npm run build
 FROM rust:1.93-alpine3.23 AS backend-builder
 RUN apk update
 # Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev clang-dev
+RUN apk add --no-cache musl-dev clang-dev llvm-dev build-base pkgconfig openssl-dev
+ENV LIBCLANG_PATH=/usr/lib
+ENV RUSTFLAGS="-C target-feature=-crt-static"
 
 WORKDIR /app
 
 # Copy Cargo files
 COPY Cargo.toml Cargo.lock ./
-
 # Create a dummy src/main.rs to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
