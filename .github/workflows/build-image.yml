@@ -9,6 +9,8 @@ on:
       - "README.md"
       - "TODO.md"
       - "game-server-template.schema.json"
+      - ".github/**"
+      - "charts/**"
   workflow_dispatch:
 
 env:
