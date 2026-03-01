@@ -267,7 +267,7 @@ kubectl describe pvc nautikal-db -n nautikal
 
 ### Game Server Pod Issues
 
-If you encounter issues with game server pods, check pod status and logs using `kubectl get pods -n nautikal` and `kubectl logs <pod-name> -n nautikal`, verify service accessibility with `kubectl get svc nautikal-panel -n nautikal` and `kubectl describe svc nautikal-panel -n nautikal`, confirm RBAC permissions with `kubectl auth can-i create pods --as=system:serviceaccount:nautikal:nautikal-panel`, and inspect PVC status using `kubectl get pvc nautikal-db -n nautikal` and `kubectl describe pvc nautikal-db -n nautikal`.
+For troubleshooting game server pods, use the built-in dashboard features. The dashboard provides real-time status updates and indicators for running, pending, or offline states. View live logs through the Logs button on the server card, which streams container output in real-time via WebSocket. Use SFTP access to manage configuration files, upload mods, or check server data. These UI features provide most of the functionality needed for common troubleshooting scenarios without requiring kubectl commands.
 
 ## Next Steps
 
