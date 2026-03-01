@@ -1,0 +1,33 @@
+# yaml-language-server: schema=./game-server-template.schema.json
+template_name: Satisfactory
+game_type: Satisfactory
+description: Satisfactory is the ultimate "efficiency is love efficiency is life" game.
+icon_url: "https://cdn2.steamgriddb.com/icon_thumb/a12848aeac58ac57e95977f93fec17fd.png"
+user_id: 10042
+default_max_users: 8
+pod_config:
+  resources:
+    requests:
+      cpu: "1"
+      memory: "6Gi"
+    limits:
+      cpu: "2"
+      memory: "10Gi"
+  image: "wolveix/satisfactory-server:v1.9.10"
+  env:
+    MAXPLAYERS: "{{server.max_players}}"
+    PGID: "10042"
+    PUID: "10042"
+pvc_config:
+  container_path: "/config"
+  size: 500
+  size_unit: "Mi"
+  user_id: 10042
+service_config:
+  ports:
+    # Game
+    - port: 7777
+      protocol: Both
+    # Messaging
+    - port: 8888
+      protocol: TCP
