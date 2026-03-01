@@ -1,24 +1,5 @@
 
 export const serverResourceSliderFunctions = {
-    dualRangeSlider(getMin: () => number, getMax: () => number, minVal: number, maxVal: number) {
-        return {
-            min: minVal,
-            max: maxVal,
-            minValue: 0,
-            maxValue: 0,
-            init() {
-                this.minValue = getMin();
-                this.maxValue = getMax();
-            },
-            get minPercent() {
-                return ((this.minValue - this.min) / (this.max - this.min)) * 100;
-            },
-            get maxPercent() {
-                return ((this.maxValue - this.min) / (this.max - this.min)) * 100;
-            }
-        };
-    },
-
     parseCpu(value: string | undefined): number {
         if (!value) return 0;
         const str = String(value);

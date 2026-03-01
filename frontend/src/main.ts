@@ -5,12 +5,13 @@ import './stores/game-server-store.ts';
 import './stores/template-repository-store.ts';
 
 // Import and register all Alpine components
-import './settings-page/settings-page.ts';
+import './settings-page/settings-page';
 import './app';
-import './create-server-modal/create-server-modal.ts';
-import './notification-component/notification-component.ts';
-import './edit-server-modal/edit-server-modal.ts';
-import './logs-modal/logs-modal.ts';
+import './create-server-modal/create-server-modal';
+import './dural-range-slider/dual-range-slider';
+import './notification-component/notification-component';
+import './edit-server-modal/edit-server-modal';
+import './logs-modal/logs-modal';
 import focus from "@alpinejs/focus";
 //@ts-ignore
 window.Alpine = Alpine;

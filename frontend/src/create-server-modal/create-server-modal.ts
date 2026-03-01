@@ -1,7 +1,8 @@
-import Alpine from 'alpinejs';
+import Alpine, {type AlpineComponent} from 'alpinejs';
 import {serverResourceSliderFunctions} from "../resource-utils.ts";
 import createServerModelContent from "./create-server-modal.html?raw";
 import type {GameServerTemplateData} from "../types.ts";
+import type {GameServerStore} from "../stores/game-server-store.ts";
 
 
 type GameServerForm = {
@@ -27,19 +28,12 @@ type CreateServerModalData = {
     fetchGameServerTemplates(): Promise<void>,
     useTemplate(template: GameServerTemplateData): void,
     resetForm(): void,
-    createServer(): Promise<void>,
-    syncCpu(form: any): void,
-    syncMemory(form: any) : void,
-    syncCpuEdit(form: any) : void,
-    syncMemoryEdit(form: any) : void,
+    createServer(): void,
+    initResources(): void,
     showModal?: boolean,
-    $el?: HTMLElement,
-    minValue?: number,
-    maxValue?: number,
-    $dispatch?: (event: string, detail: any) => void,
 } & Record<string, any>;
 
-Alpine.data('createServerModal', (): CreateServerModalData => ({
+Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => ({
     content: createServerModelContent,
     selectedTab: 'general',
     form: {
@@ -185,7 +179,7 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
         this.form = this.formDefaultValue();
     },
 
-    async createServer() {
+    createServer() {
         const template = this.form.template;
         const newServerRequest = {
             name: this.form.name,
@@ -217,61 +211,51 @@ Alpine.data('createServerModal', (): CreateServerModalData => ({
                 }
             }
         };
-        const store = Alpine.store('gameServers') as any;
-        try {
-            const resp = await fetch("/api/v1/game-servers", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(newServerRequest)
-            });
+        // @ts-ignore
+        this.showToast('Successfully created server ' + this.form.name, 'success');
+        fetch("/api/v1/game-servers", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(newServerRequest)
+        }).then((resp) => {
             if (!resp.ok) {
-                let err = await resp.text();
-                this.$dispatch?.('notify', { variant: 'error', message: err || 'Failed to create server' });
+                // @ts-ignore
+                resp.text().then((err) => this.showToast(err || 'Failed to create server', "error"))
             } else {
-                this.$dispatch?.('notify', { variant: 'success', message: 'Successfully created server ' + this.form.name });
-                await store.fetchServers();
-                if (this.showModal !== undefined) this.showModal = false;
+                this.showModal = false;
+                // @ts-ignore
+                this.showToast("Successfully created server" + newServerRequest.name, "success")
+                (<GameServerStore>this.$store.gameServers).fetchServers();
             }
-        } catch (e) {
-            console.error(e);
-        }
+        })
     },
+    initResources() : void {
+        if (!this.form.template.pod_config.resources) this.form.template.pod_config.resources = {};
+        if (!this.form.template.pod_config.resources.requests) this.form.template.pod_config.resources.requests = {};
+        if (!this.form.template.pod_config.resources.limits) this.form.template.pod_config.resources.limits = {};
+    },
+    minCpuValueChanged(value : number) {
+        this.initResources();
+        // @ts-ignore
+        this.form.template.pod_config.resources.requests.cpu = `${value}m`;
+    },
+    maxCpuValueChanged(value : number) {
+        this.initResources();
+        // @ts-ignore
+        this.form.template.pod_config.resources.limits.cpu = `${value}m`;
+    },
+    minMemoryValueChanged(value : number) {
+        this.initResources();
+        // @ts-ignore
+        this.form.template.pod_config.resources.requests.memory = `${value}Mi`;
 
-    syncCpu(form: any) {
-        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        if (this.minValue !== undefined) form.template.pod_config.resources.requests.cpu = this.minValue + "m";
-        if (this.maxValue !== undefined) form.template.pod_config.resources.limits.cpu = this.maxValue + "m";
     },
-    syncMemory(form: any) {
-        if (!form.template.pod_config.resources) form.template.pod_config.resources = {};
-        if (!form.template.pod_config.resources.requests) form.template.pod_config.resources.requests = {};
-        if (!form.template.pod_config.resources.limits) form.template.pod_config.resources.limits = {};
-        if (this.minValue !== undefined) form.template.pod_config.resources.requests.memory = this.minValue + "Mi";
-        if (this.maxValue !== undefined) form.template.pod_config.resources.limits.memory = this.maxValue + "Mi";
-    },
-    syncCpuEdit() {
-        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
-        }
-    },
-    syncMemoryEdit() {
-        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
-        }
+    maxMemoryValueChanged(value : number) {
+        this.initResources();
+        // @ts-ignore
+        this.form.template.pod_config.resources.limits.memory = `${value}Mi`;
     },
     ...serverResourceSliderFunctions
 }));

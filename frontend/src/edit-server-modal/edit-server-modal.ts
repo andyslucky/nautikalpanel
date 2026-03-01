@@ -1,4 +1,4 @@
-import Alpine from 'alpinejs';
+import Alpine, {type AlpineComponent} from 'alpinejs';
 import type {Server} from '../stores/game-server-store';
 import {serverResourceSliderFunctions} from "../resource-utils.ts";
 import editServerModalContent from "./edit-server-modal.html?raw";
@@ -31,21 +31,16 @@ type EditServerModalData = {
     showEditModal: boolean,
     editTab: 'general' | 'podconfig' | 'misc',
     editForm: EditForm,
-    init() : void,
+    init(): void,
     editCommandInput: string,
-    openEditModal(server : Server) : void,
-    closeEditModal() : void,
-    updateEditEnvKey(event: Event, oldKey: string) : void,
-    saveEditServer() : Promise<void>,
-    syncCpuEdit() : void,
-    syncMemoryEdit() : void,
-    $el?: HTMLElement,
-    minValue?: number,
-    maxValue?: number,
-    $dispatch?: (event: string, detail: any) => void,
+    openEditModal(server: Server): void,
+    closeEditModal(): void,
+    updateEditEnvKey(event: Event, oldKey: string): void,
+    saveEditServer(): Promise<void>,
+    initResources() : void
 } & Record<string, any>;
 
-Alpine.data('editServerModal', () : EditServerModalData => ({
+Alpine.data('editServerModal', (): AlpineComponent<EditServerModalData> => ({
     content: editServerModalContent,
     showEditModal: false,
     editTab: 'general' as 'general' | 'podconfig' | 'misc',
@@ -68,6 +63,7 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
     },
     openEditModal(server: any) {
         this.editTab = 'general';
+        this.showEditModal = true;
         this.editForm = {
             id: server.id,
             name: server.name,
@@ -100,7 +96,6 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
         if (!this.editForm.pod_config.command) {
             this.editForm.pod_config.command = [];
         }
-        this.showEditModal = true;
     },
     closeEditModal() {
         this.showEditModal = false;
@@ -116,25 +111,31 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
             }
         }
     },
-    syncCpuEdit() {
-        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.cpu = this.minValue + "m";
-            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.cpu = this.maxValue + "m";
-        }
+    initResources() {
+        if (!this.editForm.pod_config.resources) this.editForm.pod_config.resources = {};
+        if (!this.editForm.pod_config.resources.requests) this.editForm.pod_config.resources.requests = {};
+        if (!this.editForm.pod_config.resources.limits) this.editForm.pod_config.resources.limits = {};
     },
-    syncMemoryEdit() {
-        const parentData = this.$el?.closest('[x-data]' as any)?.__x?.$data;
-        if (parentData?.editForm?.pod_config) {
-            if (!parentData.editForm.pod_config.resources) parentData.editForm.pod_config.resources = {};
-            if (!parentData.editForm.pod_config.resources.requests) parentData.editForm.pod_config.resources.requests = {};
-            if (!parentData.editForm.pod_config.resources.limits) parentData.editForm.pod_config.resources.limits = {};
-            if (this.minValue !== undefined) parentData.editForm.pod_config.resources.requests.memory = this.minValue + "Mi";
-            if (this.maxValue !== undefined) parentData.editForm.pod_config.resources.limits.memory = this.maxValue + "Mi";
-        }
+    minMemoryValueChanged(value: number) {
+        this.initResources();
+        // @ts-ignore
+        this.editForm.pod_config.resources.requests.memory = `${value}Mi`
+    },
+    maxMemoryValueChanged(value: number) {
+        this.initResources();
+        // @ts-ignore
+        this.editForm.pod_config.resources.limits.memory = `${value}Mi`
+    },
+    minCpuValueChanged(value: number) {
+        this.initResources();
+        // @ts-ignore
+        this.editForm.pod_config.resources.requests.cpu = `${value}m`
+    },
+    maxCpuValueChanged(value: number) {
+        this.initResources();
+        // @ts-ignore
+
+        this.editForm.pod_config.resources.limits.cpu = `${value}m`
     },
     async saveEditServer() {
         const updateData = {
@@ -169,15 +170,15 @@ Alpine.data('editServerModal', () : EditServerModalData => ({
             });
             if (!resp.ok) {
                 const err = await resp.text();
-                this.$dispatch?.('notify', { variant: 'error', message: err || 'Failed to update server' });
+                this.$dispatch?.('notify', {variant: 'error', message: err || 'Failed to update server'});
             } else {
-                this.$dispatch?.('notify', { variant: 'success', message: 'Successfully updated server' });
+                this.$dispatch?.('notify', {variant: 'success', message: 'Successfully updated server'});
                 this.closeEditModal();
                 await store.fetchServers();
             }
         } catch (e) {
             console.error(e);
-            this.$dispatch?.('notify', { variant: 'error', message: 'Failed to update server' });
+            this.$dispatch?.('notify', {variant: 'error', message: 'Failed to update server'});
         }
     },
     ...serverResourceSliderFunctions

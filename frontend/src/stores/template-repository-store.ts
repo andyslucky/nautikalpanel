@@ -13,12 +13,12 @@ function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'd
     }));
 }
 
-type TemplateRepositoryStore = {
+export type TemplateRepositoryStore = {
     repositories: TemplateRepository[];
     loading: boolean;
     init(): Promise<void>;
     fetchRepositories(): Promise<void>;
-    addRepository(repository: TemplateRepository): Promise<boolean>;
+    addRepository(repository: Pick<TemplateRepository, 'name' | 'url'>): Promise<boolean>;
     deleteRepository(id: string): Promise<boolean>;
 };
 
@@ -42,7 +42,7 @@ Alpine.store('templateRepositories', {
         }
     },
 
-    async addRepository(repository: TemplateRepository) {
+    async addRepository(repository: Pick<TemplateRepository, 'name' | 'url'>) {
         try {
             this.loading = true;
             const response = await fetch('/api/v1/template-repositories', {

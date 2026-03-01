@@ -39,6 +39,7 @@ Alpine.data("app", () => ({
     },
 
     showToast(message: string, variant: 'info' | 'success' | 'warning' | 'danger' = 'info') {
+        console.log("Showing toast", message, variant);
         this.$dispatch('notify', {
             variant,
             message

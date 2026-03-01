@@ -1,0 +1,14 @@
+<!--<div  x-data="dualRangeSlider()">-->
+<label class="form-label-sm mb-2 block" x-text="label"></label>
+<div class="range-slider">
+    <div class="range-slider-track"></div>
+    <div class="range-slider-fill" :style="'left:' + minPercent + '%; right:' + (100 - maxPercent) + '%'"></div>
+    <!--    <div class="range-slider-fill"></div>-->
+    <input id="minSlider" type="range" :min="min" :max="max" :step="step" x-model.number="minValue" @change="validateValues() ? minValueChanged?.(minValue) : (()=> {})">
+    <input id="maxSlider" type="range" :min="min" :max="max" :step="step" x-model.number="maxValue" @change="validateValues() ? maxValueChanged?.(maxValue) : (() =>{})">
+</div>
+<div class="range-slider-labels">
+    <span>Request: <strong x-text="formatValue(minValue)"></strong></span>
+    <span>Limit: <strong x-text="formatValue(maxValue)"></strong></span>
+</div>
+<!--</div>-->

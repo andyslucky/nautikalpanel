@@ -169,9 +169,11 @@
             <div class="space-y-2">
                 <label class="form-label-sm">Host</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="$store.gameServers.sftpCredentialsServer?.ip || 'Pending...'"></code>
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label"
+                          x-text="$store.gameServers.sftpCredentialsServer?.ip || 'Pending...'"></code>
                     <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentialsServer?.ip || ''); showToast('Copied host!', 'success')"
-                            class="btn-secondary text-xs">Copy</button>
+                            class="btn-secondary text-xs">Copy
+                    </button>
                 </div>
             </div>
             <div class="space-y-2">
@@ -183,17 +185,21 @@
             <div class="space-y-2">
                 <label class="form-label-sm">Username</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label" x-text="$store.gameServers.sftpCredentials?.username || ''"></code>
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm text-label"
+                          x-text="$store.gameServers.sftpCredentials?.username || ''"></code>
                     <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentials?.username || ''); showToast('Copied username!', 'success')"
-                            class="btn-secondary text-xs">Copy</button>
+                            class="btn-secondary text-xs">Copy
+                    </button>
                 </div>
             </div>
             <div class="space-y-2">
                 <label class="form-label-sm">Password</label>
                 <div class="flex items-center gap-2">
-                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-label" x-text="$store.gameServers.sftpCredentials?.password || ''"></code>
+                    <code class="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-label"
+                          x-text="$store.gameServers.sftpCredentials?.password || ''"></code>
                     <button @click="navigator.clipboard.writeText($store.gameServers.sftpCredentials?.password || ''); showToast('Copied password!', 'success')"
-                            class="btn-secondary text-xs">Copy</button>
+                            class="btn-secondary text-xs">Copy
+                    </button>
                 </div>
             </div>
         </div>

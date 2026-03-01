@@ -61,39 +61,30 @@
                         <input type="text" x-model="editForm.pod_config.image" placeholder="itzg/minecraft-server" required class="form-input">
                     </div>
                     <div class="space-y-4">
-                        <div  x-data="dualRangeSlider(
-                                () => parseCpu(editForm.pod_config?.resources?.requests?.cpu),
-                                () => parseCpu(editForm.pod_config?.resources?.limits?.cpu),
-                                0, 8000
-                            )" x-init="init()" data-resource="cpu">
-                            <label class="form-label-sm mb-2 block">CPU (Cores)</label>
-                            <div class="range-slider">
-                                <div class="range-slider-track"></div>
-                                <div class="range-slider-fill" :style="'left:' + minPercent + '%; right:' + (100 - maxPercent) + '%'"></div>
-                                <input type="range" :min="min" :max="max" step="50" x-model.number="minValue" @change="syncCpuEdit()">
-                                <input type="range" :min="min" :max="max" step="50" x-model.number="maxValue" @change="syncCpuEdit()">
-                            </div>
-                            <div class="range-slider-labels">
-                                <span>Request: <strong x-text="formatCpuString(minValue)"></strong></span>
-                                <span>Limit: <strong x-text="formatCpuString(maxValue)"></strong></span>
-                            </div>
+                        <div x-data="dualRangeSlider({
+                            label: 'CPU (Cores)',
+                            min: 0,
+                            max: 8000,
+                            step: 50,
+                            minValue: parseCpu(editForm.pod_config?.resources?.requests?.cpu),
+                            maxValue: parseCpu(editForm.pod_config?.resources?.limits?.cpu),
+                            minValueChanged: minCpuValueChanged,
+                            maxValueChanged: maxCpuValueChanged,
+                            formatValue: formatCpuString
+                        })" x-html="content">
+
                         </div>
-                        <div x-data="dualRangeSlider(
-                                () => parseMemory(editForm.pod_config?.resources?.requests?.memory),
-                                () => parseMemory(editForm.pod_config?.resources?.limits?.memory),
-                                0, 16384
-                            )" x-init="init()" data-resource="memory">
-                            <label class="form-label-sm mb-2 block">Memory</label>
-                            <div class="range-slider">
-                                <div class="range-slider-track"></div>
-                                <div class="range-slider-fill" :style="'left:' + minPercent + '%; right:' + (100 - maxPercent) + '%'"></div>
-                                <input type="range" :min="min" :max="max" step="32" x-model.number="minValue" @change="syncMemoryEdit()">
-                                <input type="range" :min="min" :max="max" step="32" x-model.number="maxValue" @change="syncMemoryEdit()">
-                            </div>
-                            <div class="range-slider-labels">
-                                <span>Request: <strong x-text="formatMemoryString(minValue)"></strong></span>
-                                <span>Limit: <strong x-text="formatMemoryString(maxValue)"></strong></span>
-                            </div>
+                        <div x-data="dualRangeSlider({
+                            label: 'Memory',
+                            min: 0,
+                            max: 16384,
+                            step: 32,
+                            minValue: parseMemory(editForm.pod_config?.resources?.requests?.memory),
+                            maxValue: parseMemory(editForm.pod_config?.resources?.limits?.memory),
+                            maxValueChanged: maxMemoryValueChanged,
+                            minValueChanged: minMemoryValueChanged,
+                            formatValue: formatMemoryString
+                        })" x-html="content">
                         </div>
                     </div>
                     <div>

@@ -38,6 +38,7 @@ Alpine.data('notificationComponent', (): NotificationComponentData => ({
         title?: string | null,
         message?: string | null
     }) {
+        console.log("Adding notification ", variant, message);
         const id = Date.now();
         const notification: Notification = {id, variant, sender, title, message};
 

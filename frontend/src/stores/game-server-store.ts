@@ -64,7 +64,7 @@ function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'd
     }));
 }
 
-type GameServerStore = {
+export type GameServerStore = {
     servers: Server[];
     gameServerTemplates: GameServerTemplate[];
     watchSocket: WebSocket | null;

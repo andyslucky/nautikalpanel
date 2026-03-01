@@ -1,25 +1,15 @@
-import Alpine from "alpinejs";
+import Alpine, {type AlpineComponent} from "alpinejs";
 import settingsContent from "./settings-page.html?raw";
-
-type AlpineStore = {
-    gameServers: any;
-    templateRepositories: any;
-}
-
-type AlpineMagics = {
-    $store?: AlpineStore;
-    $dispatch?: (event: string, detail: any) => void;
-}
-
+import type {TemplateRepositoryStore} from "../stores/template-repository-store.ts";
 type SettingsPageData = {
     content: string;
     settings: { darkMode: boolean };
     toggleDarkMode(): void;
     addRepository(): void;
     deleteRepository(id: string): void;
-} & AlpineMagics
+}
 
-Alpine.data("settings", (): SettingsPageData => ({
+Alpine.data("settings", (): AlpineComponent<SettingsPageData> => ({
     content: settingsContent,
     settings: {
         darkMode: false,
@@ -43,7 +33,7 @@ Alpine.data("settings", (): SettingsPageData => ({
             return;
         }
 
-        this.$store?.templateRepositories.addRepository({ name, url }).then((success: boolean) => {
+        (<TemplateRepositoryStore>this.$store.templateRepositories).addRepository({ name, url }).then((success: boolean) => {
             if (success) {
                 nameInput.value = '';
                 urlInput.value = '';
@@ -53,7 +43,7 @@ Alpine.data("settings", (): SettingsPageData => ({
     deleteRepository(id: string) {
         console.log("Deleting repository ...", id);
         if (confirm('Are you sure you want to delete this repository?')) {
-            this.$store?.templateRepositories.deleteRepository(id);
+            (<TemplateRepositoryStore>this.$store.templateRepositories).deleteRepository(id);
         }
     },
 }));
