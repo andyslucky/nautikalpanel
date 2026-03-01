@@ -187,14 +187,7 @@ config:
 
 ## RBAC
 
-The chart automatically creates a `ClusterRole` and `ClusterRoleBinding` with the following permissions:
-
-- `get`, `list`, `create` on `namespaces`
-- `get`, `list`, `watch`, `create`, `update`, `patch`, `delete` on `pods`, `services`, `persistentvolumeclaims`, `secrets`
-- `get` on `pods/log`
-- `get`, `list`, `watch` on `events`
-
-These permissions are required for Nautikalpanel to manage game server resources.
+The chart automatically creates a `ClusterRole` and `ClusterRoleBinding` with permissions to get, list, and create namespaces; get, list, watch, create, update, patch, and delete pods, services, persistent volume claims, and secrets; get pods/log; and get, list, and watch events. These permissions are required for Nautikal Panel to manage game server resources.
 
 ## Verifying Installation
 
@@ -219,38 +212,19 @@ After deploying Nautikalpanel:
 
 ### Pod Not Starting
 
-Check pod status and logs:
-
-```bash
-kubectl get pods -n nautikalpanel
-kubectl logs -f deployment/nautikalpanel -n nautikalpanel
-```
+Check pod status and logs using `kubectl get pods -n nautikalpanel` and `kubectl logs -f deployment/nautikalpanel -n nautikalpanel`.
 
 ### Service Not Accessible
 
-Check service status and events:
-
-```bash
-kubectl get svc nautikalpanel -n nautikalpanel
-kubectl describe svc nautikalpanel -n nautikalpanel
-```
+Check service status and events using `kubectl get svc nautikalpanel -n nautikalpanel` and `kubectl describe svc nautikalpanel -n nautikalpanel`.
 
 ### Permission Errors
 
-Verify the service account has correct RBAC permissions:
-
-```bash
-kubectl auth can-i create pods --as=system:serviceaccount:nautikalpanel:nautikalpanel
-```
+Verify the service account has correct RBAC permissions with `kubectl auth can-i create pods --as=system:serviceaccount:nautikalpanel:nautikalpanel`.
 
 ### Storage Issues
 
-Check PersistentVolumeClaim status:
-
-```bash
-kubectl get pvc -n nautikalpanel
-kubectl describe pvc -n nautikalpanel
-```
+Check PersistentVolumeClaim status using `kubectl get pvc -n nautikalpanel` and `kubectl describe pvc -n nautikalpanel`.
 
 ## Troubleshooting
 

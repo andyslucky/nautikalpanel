@@ -18,44 +18,31 @@ Basic server identification and settings.
 
 ### Server Name
 
-- A friendly name to identify this server
-- Shown in the dashboard and logs
-- Can be changed later via Edit
+A friendly name to identify this server, shown in the dashboard and logs, which can be changed later via Edit.
 
 ### Template Selection
 
-Select from available templates in the dropdown:
-- Templates define default configuration for a game type
-- Template selection populates all other fields
-- You can modify any field after selection
+Select from available templates in the dropdown. Templates define default configuration for a game type and populate all other fields, which you can modify after selection.
 
 ### Game Version
 
-- Optional field for tracking
-- Not used by Nautikal Panel directly
-- Useful for documentation
+Optional field for tracking that is not used by Nautikal Panel directly but is useful for documentation.
 
 ### Max Players
 
-- Optional player limit
-- Some games use this for configuration
-- Informational only for others
+Optional player limit that some games use for configuration and is informational for others.
 
 ### Game Type
 
-- Read-only (derived from template)
-- Used for Kubernetes resource naming
+Read-only field derived from the template, used for Kubernetes resource naming.
 
 ### Icon URL
 
-- Optional URL for server icon
-- Displayed in dashboard
-- Can be any accessible image URL
+Optional URL for a server icon displayed in the dashboard, which can be any accessible image URL.
 
 ### Description
 
-- Optional server description
-- For your reference only
+Optional server description for your reference.
 
 ## Pod Config Tab
 
@@ -63,53 +50,23 @@ Container and resource configuration.
 
 ### Container Image
 
-The Docker image to run. Examples:
-- `itzg/minecraft-server` for Minecraft
-- `lloesche/valheim-server` for Valheim
-- Any valid Docker image reference
+The Docker image to run, such as `itzg/minecraft-server` for Minecraft, `lloesche/valheim-server` for Valheim, or any valid Docker image reference.
 
 ### CPU Resources
 
-Dual sliders for CPU allocation:
-
-- **Request**: Guaranteed CPU (millicores)
-- **Limit**: Maximum CPU allowed
-
-Example values:
-- `250m` = 0.25 cores
-- `1000m` = 1 core
-- `2000m` = 2 cores
+Dual sliders for CPU allocation control the guaranteed CPU (request) in millicores and the maximum CPU allowed (limit), with example values including `250m` for 0.25 cores, `1000m` for 1 core, and `2000m` for 2 cores.
 
 ### Memory Resources
 
-Dual sliders for memory:
-
-- **Request**: Guaranteed memory
-- **Limit**: Maximum memory allowed
-
-Example values:
-- `256Mi` = 256 megabytes
-- `1Gi` = 1 gigabyte
-- `4Gi` = 4 gigabytes
+Dual sliders for memory control the guaranteed memory (request) and maximum memory allowed (limit), with example values including `256Mi` for 256 megabytes, `1Gi` for 1 gigabyte, and `4Gi` for 4 gigabytes.
 
 ### Command
 
-Custom command to run in the container:
-- Enter comma-separated values
-- Example: `java, -Xms1G, -Xmx4G, -jar, server.jar`
-- Leave empty for image default
+Custom command to run in the container. Enter comma-separated values like `java, -Xms1G, -Xmx4G, -jar, server.jar`, or leave empty to use the image default.
 
 ### Environment Variables
 
-Key-value pairs passed to the container:
-
-| Key | Value |
-|-----|-------|
-| `EULA` | `TRUE` |
-| `VERSION` | `1.20.4` |
-| `DIFFICULTY` | `normal` |
-
-Click **Add Env Var +** to add new entries.
+Key-value pairs passed to the container, such as `EULA` set to `TRUE`, `VERSION` set to `1.20.4`, or `DIFFICULTY` set to `normal`. Click **Add Env Var +** to add new entries.
 
 ## Storage Config Tab
 
@@ -117,28 +74,19 @@ Persistent storage configuration.
 
 ### Storage Size
 
-Amount of disk space allocated:
-- Number + unit (Mi or Gi)
-- Cannot be changed after creation
-- Choose based on game requirements
+Amount of disk space allocated as a number with unit (Mi or Gi). This cannot be changed after creation, so choose based on game requirements.
 
 ### Size Unit
 
-- **Mi**: Megabytes
-- **Gi**: Gigabytes
+Storage size unit, either Mi for megabytes or Gi for gigabytes.
 
 ### Container Path
 
-Where storage is mounted in the container:
-- Common paths: `/data`, `/server`, `/world`
-- Must match what the game expects
-- Template provides sensible default
+Where storage is mounted in the container. Common paths include `/data`, `/server`, and `/world`, which must match what the game expects. The template provides a sensible default.
 
 ### Storage Class
 
-Optional Kubernetes storage class:
-- Leave empty for cluster default
-- Specify for special storage needs (SSD, NFS, etc.)
+Optional Kubernetes storage class. Leave empty for the cluster default, or specify for special storage needs like SSD or NFS.
 
 ## Service Config Tab
 
@@ -146,28 +94,15 @@ Network and service exposure.
 
 ### Service Type
 
-| Type | Use Case |
-|------|----------|
-| **LoadBalancer** | Cloud environments with external LB |
-| **NodePort** | Bare metal, exposes on node IP |
-| **ClusterIP** | Internal only, requires port-forward |
+Choose LoadBalancer for cloud environments with external load balancers, NodePort for bare metal to expose on node IP, or ClusterIP for internal-only access requiring port-forward.
 
 ### IP Address
 
-Optional specific IP for LoadBalancer:
-- Leave empty for automatic assignment
-- Specify for static IP requirements
+Optional specific IP for LoadBalancer. Leave empty for automatic assignment, or specify for static IP requirements.
 
 ### Ports
 
-Ports to expose:
-
-| Field | Description |
-|-------|-------------|
-| **Port** | External port number |
-| **Protocol** | TCP or UDP |
-
-Click **Add Port +** for multiple ports.
+Ports to expose, including the external port number and protocol (TCP or UDP). Click **Add Port +** for multiple ports.
 
 ## Misc Tab
 
@@ -179,17 +114,11 @@ These options are for advanced users. Incorrect values can cause failures.
 
 ### Init Template
 
-Path to Jinja template for initial resources:
-- Creates PVC and Service
-- Default: `default/init.yaml.jinja`
-- Override for custom resource creation
+Path to Jinja template for initial resources, which creates the PVC and Service. The default is `default/init.yaml.jinja`, which you can override for custom resource creation.
 
 ### Pod Template
 
-Path to Jinja template for the pod:
-- Creates the game server pod
-- Default: `default/pod_template.yaml.jinja`
-- Override for custom pod configuration
+Path to Jinja template for the pod, which creates the game server pod. The default is `default/pod_template.yaml.jinja`, which you can override for custom pod configuration.
 
 ## Creating the Server
 
@@ -210,18 +139,8 @@ Servers can only be edited when offline:
 
 ### Editable Fields
 
-- Server name
-- Game version
-- Max players
-- Icon URL
-- Description
-- Pod configuration (image, resources, env, command)
-- Pod template path
+Server name, game version, max players, icon URL, description, pod configuration (image, resources, env, command), and pod template path can all be modified.
 
 ### Non-Editable Fields
 
-These are set at creation and cannot be changed:
-- Game type
-- Storage configuration
-- Service configuration
-- Init template
+Game type, storage configuration, service configuration, and init template are set at creation and cannot be changed.

@@ -21,7 +21,8 @@
 - [x] Generate random password for sftp server
 ### Frontend
 ### Bugs
-- [ ] Fix resource slider / editing.
+- [x] Fix resource slider / editing.
+- [ ] Fix toasts from create modal not showing up.
 #### Functionality
 - [x] Update front end create server modal to display the remaining properties for the template and new game server request
     including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.

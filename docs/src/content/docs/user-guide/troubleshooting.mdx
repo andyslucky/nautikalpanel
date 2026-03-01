@@ -1,0 +1,152 @@
+---
+title: Troubleshooting
+description: Common issues and how to resolve them.
+---
+
+This guide covers common issues you may encounter when using Nautikal Panel and how to resolve them.
+
+## Game Server Pod Issues
+
+### Using Dashboard Features
+
+For troubleshooting game server pods, use the built-in dashboard features. The dashboard provides real-time status updates and indicators for running, pending, or offline states. View live logs through the Logs button on the server card, which streams container output in real-time via WebSocket. Use SFTP access to manage configuration files, upload mods, or check server data. These UI features provide most of the functionality needed for common troubleshooting scenarios without requiring kubectl commands.
+
+### Common Problems
+
+#### Server Won't Start
+
+If a server status remains in "Pending" or transitions back to "Offline":
+
+1. Check the Logs button to see error messages from the container
+2. Review the configuration in the Edit dialog, especially:
+   - Container image is correct and accessible
+   - Environment variables are properly formatted
+   - Command field (if used) has correct syntax
+3. Verify resources are adequate for the game type
+
+#### Server Crashes Immediately
+
+If a server starts but quickly crashes:
+
+1. View logs through the Logs button to identify the crash reason
+2. Common causes include:
+   - Missing required environment variables (e.g., EULA not accepted)
+   - Insufficient memory or CPU allocated
+   - Invalid configuration in the game server
+   - Port conflicts with other services
+3. Use SFTP to review configuration files if needed
+
+#### Connection Refused
+
+If you cannot connect to a running server:
+
+1. Verify the status shows "Running" (green indicator)
+2. Check the IP address and port are correct
+3. If using firewall or security groups, ensure ports are allowed
+4. Check logs for any bind errors or port conflicts
+
+#### Performance Issues
+
+If a server is lagging or slow:
+
+1. View logs for error messages about resource exhaustion
+2. Consider increasing CPU or memory limits in the server configuration
+3. Use SFTP to remove unnecessary files or old worlds
+
+### Advanced Troubleshooting with kubectl
+
+For advanced troubleshooting, you can use kubectl commands directly. This requires access to your Kubernetes cluster.
+
+#### Check Pod Status
+
+```bash
+kubectl get pods -n nautikal
+```
+
+#### View Logs
+
+```bash
+kubectl logs <pod-name> -n nautikal
+```
+
+#### Describe Pod for Events
+
+```bash
+kubectl describe pod <pod-name> -n nautikal
+```
+
+## SFTP Issues
+
+### Connection Refused
+
+If you cannot connect to SFTP:
+
+1. Ensure SFTP mode is active (status shows "Running")
+2. Verify you're using the correct IP address
+3. Check credentials are current - click Credentials button to regenerate if needed
+4. Confirm firewall allows port 22
+
+### Authentication Failed
+
+If SFTP authentication fails:
+
+1. Click the Credentials button to view current credentials
+2. Credentials regenerate each time SFTP starts - you may be using old ones
+3. Copy username and password carefully
+
+### Slow File Transfers
+
+If SFTP transfers are slow:
+
+1. Check network connection speed
+2. Large files may take time depending on your internet
+3. Consider compressing files before upload for faster transfer
+
+## Dashboard Issues
+
+### Status Not Updating
+
+If dashboard status doesn't reflect current state:
+
+1. Refresh the page
+2. Check browser console for WebSocket errors
+3. Verify Nautikal Panel is running and accessible
+
+### Cannot Create or Edit Server
+
+If create or edit operations fail:
+
+1. Check you're using a valid template
+2. Verify required fields are filled correctly
+3. Check browser console for error messages
+4. Review Nautikal Panel logs if accessible
+
+## Storage Issues
+
+### Out of Space
+
+If a server cannot save data due to storage limits:
+
+1. Use SFTP to remove old worlds, logs, or unnecessary files
+2. Consider recreating the server with larger storage size
+3. Delete old servers that are no longer needed
+
+### Data Loss Prevention
+
+To prevent data loss:
+
+1. Use SFTP to backup important files regularly
+2. Export configuration settings before making changes
+3. Delete servers only when certain you no longer need the data
+
+## Getting Help
+
+If you're unable to resolve an issue:
+
+1. Check the [GitHub Issues](https://github.com/andyslucky/nautikalpanel/issues) for similar problems
+2. Review the [documentation](/) for more information
+3. Create a new GitHub issue with:
+   - Server template being used
+   - Error messages from logs
+   - Steps to reproduce the problem
+   - Your Nautikal Panel version

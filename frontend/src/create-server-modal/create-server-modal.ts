@@ -212,7 +212,6 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
             }
         };
         // @ts-ignore
-        this.showToast('Successfully created server ' + this.form.name, 'success');
         fetch("/api/v1/game-servers", {
             method: "POST",
             headers: {
@@ -227,8 +226,12 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
                 this.showModal = false;
                 // @ts-ignore
                 this.showToast("Successfully created server" + newServerRequest.name, "success")
-                (<GameServerStore>this.$store.gameServers).fetchServers();
+
             }
+        }).then(() => {
+            (<GameServerStore>this.$store.gameServers).fetchServers().then(() => {
+                console.log("Fetched game servers");
+            })
         })
     },
     initResources() : void {

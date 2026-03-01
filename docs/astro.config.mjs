@@ -28,6 +28,7 @@ export default defineConfig({
                         {label: 'Managing Servers', slug: 'user-guide/managing-servers'},
                         {label: 'SFTP Access', slug: 'user-guide/sftp-access'},
                         {label: 'Viewing Logs', slug: 'user-guide/viewing-logs'},
+                        {label: 'Troubleshooting', slug: 'user-guide/troubleshooting'}
                     ],
                 },
                 {

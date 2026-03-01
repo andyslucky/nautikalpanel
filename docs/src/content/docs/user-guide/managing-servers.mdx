@@ -53,10 +53,7 @@ For file management without running the game:
 
 ### Why Use SFTP Only?
 
-- Lower resource usage
-- Upload worlds/mods before first start
-- Backup or restore data
-- Game server doesn't need to be running
+Use SFTP Only mode for lower resource usage, to upload worlds or mods before the first start, to backup or restore data, or when the game server doesn't need to be running.
 
 ## Editing Server Settings
 
@@ -71,22 +68,7 @@ Servers can only be edited when offline.
 
 ### What Can Be Changed
 
-| Setting | Editable |
-|---------|----------|
-| Server Name | ✅ |
-| Game Version | ✅ |
-| Max Players | ✅ |
-| Icon URL | ✅ |
-| Description | ✅ |
-| Container Image | ✅ |
-| Resources (CPU/Memory) | ✅ |
-| Environment Variables | ✅ |
-| Command | ✅ |
-| Pod Template | ✅ |
-| Game Type | ❌ |
-| Storage Size | ❌ |
-| Service Type | ❌ |
-| Ports | ❌ |
+Server name, game version, max players, icon URL, description, container image, resources (CPU/memory), environment variables, command, and pod template can all be edited. Game type, storage size, service type, and ports cannot be changed.
 
 ### Why Some Fields Are Not Editable
 
@@ -116,40 +98,20 @@ Deletion is permanent and removes:
 
 ### Dashboard Status
 
-The colored status dot indicates:
-- 🟢 **Running**: Pod is active, server should be accessible
-- ⚫ **Offline**: No pod running
-- 🟡 **Pending**: Pod is being created/terminated
+The colored status dot indicates running (green) when the pod is active and server should be accessible, offline (black) when no pod is running, and pending (yellow) when the pod is being created or terminated.
 
 ### Detailed Status
 
-Hover over or check the pod status for more details:
-- `Pending`: Waiting for resources
-- `Running`: Active container
-- `Failed`: Container exited with error
-- `Unknown`: API communication issue
+Hover over or check the pod status for more details, including pending when waiting for resources, running for an active container, failed when the container exited with an error, and unknown for API communication issues.
 
 ## Refresh Behavior
 
-The dashboard automatically refreshes at the configured interval:
-- Default: 30 seconds
-- Configurable in Settings
-- Updates status for all servers
+The dashboard automatically refreshes at the configured interval (default: 30 seconds, configurable in Settings) to update status for all servers.
 
 ## Bulk Operations
 
-Currently, operations must be performed on individual servers. Future versions may include:
-- Bulk start/stop
-- Bulk delete
-- Filtering and search
+Currently, operations must be performed on individual servers. Future versions may include bulk start/stop, bulk delete, and filtering and search capabilities.
 
 ## Resource Cleanup
 
-When a server is deleted, Nautikal Panel:
-1. Deletes the pod (if running)
-2. Deletes the PVC (and all data)
-3. Deletes the Service
-4. Deletes any SFTP credentials secrets
-5. Removes the record from database
-
-No orphaned resources should remain.
+When a server is deleted, Nautikal Panel deletes the pod if running, deletes the PVC and all data, deletes the Service, deletes any SFTP credentials secrets, and removes the record from the database. No orphaned resources should remain.
