@@ -1,9 +1,11 @@
 # Nautikalpanel
+**Notice**: _This project is still a work in progress. I used AI to generate most of the UI and documentation. I have not had the chance to review it all thoroughly, but on the very surface it seems functional (except for some noted bugs I am going to fix).
+I am planning to test a real deployment of the helm chart soon. Please wait until the first release before attempting any deployments on your own cluster._
 
 A Kubernetes native game server management panel. Manage and deploy game servers with ease using a simple Web UI with real-time updates, and a flexible template system.
-
+Check out the [Nautikalpanel Docs](https://andyslucky.github.io/nautikalpanel/) for comprehensive documentation on how
+to get started and get gaming :). I tried to design most of the experience to require as few clicks as possible. 
 ## Features
-
 - **Kubernetes-native**: Deploy and manage game servers using Kubernetes as the execution backend
 - **REST API**: Full CRUD operations for game servers, templates, and repositories
 - **Real-time updates**: WebSocket support for log streaming and pod monitoring
@@ -13,68 +15,13 @@ A Kubernetes native game server management panel. Manage and deploy game servers
 - **Persistent storage**: Configurable PVC support for game server data
 
 ## Installation
-
 ### Prerequisites
-
 - Kubernetes Cluster (Can use KinD for testing it out)
 - Helm 3.0+
 
 ### Quick Start with Helm
 
-The recommended way to install Nautikalpanel is using Helm:
-
-```bash
-# Add the Helm repository (when available)
-# helm repo add nautikalpanel https://charts.nautikalpanel.io
-# helm repo update
-
-# Install from local chart directory
-helm install nautikalpanel ./charts/nautikalpanel --namespace nautikalpanel --create-namespace
-```
-
-After installation, access the Nautikalpanel UI:
-
-```bash
-# Port-forward to access the UI
-kubectl port-forward -n nautikalpanel svc/nautikalpanel-nautikalpanel 8080:80
-
-# Open http://localhost:8080 in your browser
-```
-
-### Configuration
-
-Customize your installation by creating a `values.yaml` file:
-
-```yaml
-replicaCount: 2
-
-persistence:
-  storageClass: fast-ssd
-  size: 20Gi
-
-ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: nautikalpanel.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - hosts:
-        - nautikalpanel.example.com
-      secretName: nautikalpanel-tls
-
-config:
-  kubernetes:
-    defaultStorageClass: fast-ssd
-```
-
-Install with custom values:
-
-```bash
-helm install nautikalpanel ./charts/nautikalpanel -f values.yaml --namespace nautikalpanel --create-namespace
-```
+The recommended way to install Nautikalpanel is using the Helm chart located in [charts/nautikalpanel](./charts/nautikalpanel).
 
 ### Development Setup
 
@@ -107,14 +54,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-## Documentation
-
-For comprehensive documentation, see:
-
-- [Helm Chart Documentation](./charts/nautikalpanel/README.md) - Detailed Helm chart configuration and usage
-- [API Documentation](#) - Full API reference
-- [Template Guide](#) - Creating custom game server templates
 
 ## Configuration
 
