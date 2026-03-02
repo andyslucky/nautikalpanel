@@ -14,6 +14,9 @@ Alpine.data("settings", (): AlpineComponent<SettingsPageData> => ({
     settings: {
         darkMode: false,
     },
+    init() {
+        this.settings.darkMode = localStorage.getItem("darkMode") === "true"
+    },
     toggleDarkMode() {
         localStorage.setItem('darkMode', this.settings.darkMode.toString());
         document.documentElement.classList.toggle('dark');
