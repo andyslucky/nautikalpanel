@@ -10,22 +10,68 @@ use kube::api::{
     ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams, PostParams,
 };
 use kube::runtime::reflector::Lookup;
-use kube::runtime::{watcher, WatchStreamExt};
+use kube::runtime::utils::EventDecode;
+use kube::runtime::watcher::Event;
+use kube::runtime::{WatchStreamExt, watcher};
 use kube::{Api, Client, ResourceExt};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::{Deref, Index};
-use kube::runtime::utils::EventDecode;
-use kube::runtime::watcher::Event;
+use std::str::FromStr;
 use tera::{Context, Filter, Tera};
 use tracing::{error, info};
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PodMetric {
+    pub game_server_id: Option<String>,
+    pub cpu_usage_millicores: f64,
+    pub memory_usage_bytes: u64,
+}
+
+impl From<(Pod, Option<&(f64, u64)>)> for PodMetric {
+    fn from(value: (Pod, Option<&(f64, u64)>)) -> Self {
+        let game_server_id = value.0
+            .metadata
+            .labels
+            .as_ref()
+            .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned());
+        Self {
+            game_server_id, cpu_usage_millicores: value.1.map(|o| o.0).unwrap_or(0.0),
+            memory_usage_bytes: value.1.map(|o| o.1).unwrap_or(0)
+        }
+    }
+}
 
 struct EvaluateTeraFn {
     tera: Tera,
     context: Context,
 }
+
+#[derive(Deserialize)]
+struct PrometheusDataPointMetric {
+    pod : String,
+    container: Option<String>
+}
+#[derive(Deserialize)]
+struct PrometheusDataPoint {
+    metric : PrometheusDataPointMetric,
+    value : Vec<Value>
+}
+
+#[derive(Deserialize)]
+struct PrometheusDataPayload {
+    result : Vec<PrometheusDataPoint>
+}
+
+#[derive(Deserialize)]
+struct PrometheusQueryResponse {
+    status : String,
+    data : PrometheusDataPayload
+}
+
 
 impl Filter for EvaluateTeraFn {
     fn filter(&self, value: &Value, _args: &HashMap<String, Value>) -> tera::Result<Value> {
@@ -92,7 +138,7 @@ impl KubernetesExecutor {
     pub async fn create_namespace_if_required(&self) -> Result<(), Box<dyn Error>> {
         let namespaces: Api<Namespace> = Api::all(self.client.clone());
         let new_namespace = Namespace {
-            metadata: kube::api::ObjectMeta {
+            metadata: ObjectMeta {
                 name: Some(self.namespace.clone()),
                 ..Default::default()
             },
@@ -117,7 +163,7 @@ impl KubernetesExecutor {
     fn create_template_context(
         &self,
         game_server: &GameServer,
-    ) -> Result<tera::Context, Box<dyn Error>> {
+    ) -> Result<Context, Box<dyn Error>> {
         let id = game_server
             .id
             .as_ref()
@@ -132,7 +178,7 @@ impl KubernetesExecutor {
         if game_type.len() > 40 {
             game_type = game_type.index(..40).to_string()
         }
-        let mut context = tera::Context::new();
+        let mut context = Context::new();
         context.insert("gameType", game_type.as_str());
         context.insert("gameServerId", &id);
         context.insert("server", game_server);
@@ -168,12 +214,12 @@ impl KubernetesExecutor {
             .as_ref()
             .filter(|t| !t.is_empty())
             .unwrap_or(&self.config.kubernetes.pod_template);
-       match tera.render(pod_template.as_str(), &context) {
-           Ok(yaml) => Ok(yaml),
-           Err(e) => {
-              error!("Failed rendering pod {:?}", e);
-              Err(e.into())
-           }
+        match tera.render(pod_template.as_str(), &context) {
+            Ok(yaml) => Ok(yaml),
+            Err(e) => {
+                error!("Failed rendering pod {:?}", e);
+                Err(e.into())
+            }
         }
     }
 
@@ -531,9 +577,82 @@ impl KubernetesExecutor {
             .lines())
     }
 
-    pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>>{
+    pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        return watcher::watcher(pods, watcher::Config::default().labels("app.kubernetes.io/managed-by=nautikal"));
+        return watcher::watcher(
+            pods,
+            watcher::Config::default().labels("app.kubernetes.io/managed-by=nautikal"),
+        );
+    }
+    pub async fn fetch_pod_metrics(
+        &self,
+        game_server_id: Option<&str>,
+    ) -> Result<Vec<PodMetric>, Box<dyn Error + Send + Sync>> {
+        let prometheus_url = &self.config.prometheus.url;
+
+        let cpu_query = format!(
+            "sum(rate(container_cpu_usage_seconds_total{{namespace=\"{}\", pod=~\".*\", container=\"gameserver\"}}[5m])) by (pod)",
+            self.namespace
+        );
+
+        let memory_query = format!(
+            "sum(max by (pod, container)(container_memory_working_set_bytes{{namespace=\"{}\", pod=~\".*\", container=\"gameserver\"}})) by (pod, container)",
+            self.namespace
+        );
+
+        let cpu_url = format!(
+            "{}/api/v1/query?query={}",
+            prometheus_url,
+            urlencoding::encode(&cpu_query)
+        );
+
+        let memory_url = format!(
+            "{}/api/v1/query?query={}",
+            prometheus_url,
+            urlencoding::encode(&memory_query)
+        );
+
+        let http_client = reqwest::Client::new();
+
+        let cpu_response = http_client.get(&cpu_url).send().await?;
+        let memory_response = http_client.get(&memory_url).send().await?;
+        let cpu_data: PrometheusQueryResponse = cpu_response.json().await?;
+        let memory_data: PrometheusQueryResponse = memory_response.json().await?;
+
+        let mut metrics_map: HashMap<String, (f64, u64)> = HashMap::new();
+        for data in cpu_data.data.result {
+            let pod_name = data.metric.pod;
+            let value = data.value.get(1);
+            let entry = metrics_map
+                .entry(pod_name)
+                .or_insert((0.0, 0));
+            if let Some(Value::String(str_val)) = value {
+                // convert to millicores
+                entry.0 = f64::from_str(str_val)? * 1000.0;
+            } else if let Some(Value::Number(n)) = value {
+                entry.0 = n.as_f64().unwrap_or(0.0) * 1000.0;
+            }
+        }
+
+        for data in memory_data.data.result.into_iter().filter(|r| r.metric.container == Some("gameserver".to_string())) {
+            let pod_name = data.metric.pod;
+            let value = data.value.get(1);
+            let entry = metrics_map
+                .entry(pod_name)
+                .or_insert((0.0, 0));
+            if let Some(Value::String(str_val)) = value {
+                entry.1 = u64::from_str(str_val)?;
+            } else if let Some(Value::Number(n)) = value {
+                entry.1 = n.as_u64().unwrap_or(0);
+            }
+        }
+
+        let pods = self.list_pods(game_server_id).await?;
+        let metrics = pods.into_iter().map(|p| {
+            let metrics = metrics_map.get(&p.name().unwrap().to_string());
+            PodMetric::from((p, metrics))
+        }).collect();
+        Ok(metrics)
     }
 }
 
@@ -594,7 +713,7 @@ mod tests {
     async fn test_render_init_yaml() -> Result<(), Box<dyn Error>> {
         let config = AppConfig::load()?;
         let executor = KubernetesExecutor::new(
-            kube::Client::try_default().await?,
+            Client::try_default().await?,
             "nautikal".to_string(),
             config,
         )
@@ -609,7 +728,7 @@ mod tests {
     async fn test_render_pod_template_yaml() -> Result<(), Box<dyn Error>> {
         let config = AppConfig::load()?;
         let executor = KubernetesExecutor::new(
-            kube::Client::try_default().await?,
+            Client::try_default().await?,
             "nautikal".to_string(),
             config,
         )

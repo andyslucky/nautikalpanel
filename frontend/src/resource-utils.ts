@@ -1,5 +1,9 @@
 
 export const serverResourceSliderFunctions = {
+    /**
+     * Parses CPU to milliCores
+     * @param value
+     */
     parseCpu(value: string | undefined): number {
         if (!value) return 0;
         const str = String(value);
@@ -11,11 +15,15 @@ export const serverResourceSliderFunctions = {
 
     formatCpuString(millicores: number): string {
         if (millicores >= 1000 && millicores % 1000 === 0) {
-            return (millicores / 1000).toString();
+            return Math.round((millicores / 1000)).toString();
         }
-        return millicores + 'm';
+        return Math.round(millicores) + 'm';
     },
 
+    /**
+     * Parses memory to Mi
+     * @param value
+     */
     parseMemory(value: string | undefined): number {
         if (!value) return 0;
         const str = String(value);

@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub paths: PathsConfig,
     pub github: GithubConfig,
+    pub prometheus: PrometheusConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -108,6 +109,22 @@ pub struct GithubConfig {
     pub token: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct PrometheusConfig {
+    #[serde(default = "default_prometheus_url")]
+    pub url: String,
+    #[serde(default = "default_prometheus_poll_rate")]
+    pub poll_rate_seconds : u64
+}
+
+fn default_prometheus_url() -> String {
+    "http://kube-prometheus-stack-prometheus.prometheus.svc.cluster.local:9090".to_string()
+}
+
+fn default_prometheus_poll_rate() -> u64 {
+    10
+}
+
 impl AppConfig {
     pub fn load() -> Result<Self, config::ConfigError> {
         let config = Config::builder()
@@ -126,6 +143,8 @@ impl AppConfig {
                 default_game_server_templates_dir(),
             )?
             .set_default("github.token", Option::<String>::None)?
+            .set_default("prometheus.url", default_prometheus_url())?
+            .set_default("prometheus.poll_rate_seconds", default_prometheus_poll_rate())?
             .add_source(
                 Environment::with_prefix("NAUTIKAL")
                     .separator("__")

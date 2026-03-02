@@ -1,4 +1,5 @@
 import Alpine from "alpinejs";
+import {serverResourceSliderFunctions} from "./resource-utils.ts";
 
 // Re-export types from the store for backward compatibility
 export type { Server, GameServerInstance } from "./stores/game-server-store";
@@ -45,4 +46,5 @@ Alpine.data("app", () => ({
             message
         });
     },
+    ...serverResourceSliderFunctions
 }));

@@ -4,10 +4,9 @@ use crate::game_servers::{
     NewGameServerRequest, SftpCredentials, TemplateRepository, UpdateGameServerRequest,
 };
 use crate::services::game_server_store::GameServerStore;
-use crate::services::kubernetes_executor::KubernetesExecutor;
+use crate::services::kubernetes_executor::{KubernetesExecutor, PodMetric};
 use crate::services::template_repository_manager::TemplateRepositoryManager;
 use crate::services::template_repository_store::TemplateRepositoryStore;
-use anyhow::anyhow;
 use axum::extract::Query;
 use axum::routing::delete;
 use axum::{
@@ -25,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_stream::StreamExt as _;
+use tracing::error;
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -144,7 +144,6 @@ pub fn create_router(
             get(get_sftp_credentials),
         )
         .route("/api/v1/game-servers/watch", get(watch_handler))
-        // .route("/api/v1/game-servers/instances/:id", post(stop_instance))
         .with_state(state)
 }
 
@@ -525,56 +524,83 @@ async fn get_sftp_credentials(
 /// Stream real-time updates about pod and service changes from Kubernetes.
 /// On connect, sends a full snapshot, then streams incremental updates.
 async fn watch_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_watch_socket(socket, state.executor.clone()))
+    ws.on_upgrade(move |socket| handle_watch_socket(socket, state.executor.clone(), state.config.clone()))
+}
+
+#[derive(Serialize, Clone)]
+pub enum GameServerEventType {
+    PodLifeCycle(String),
+    Metrics(Vec<PodMetric>),
 }
 
 #[derive(Serialize)]
-struct GameServerInstanceEvent {
-    pub event_type: String,
+pub struct GameServerEvent {
+    pub event_type: GameServerEventType,
     pub game_server_instance: Option<GameServerInstance>,
 }
 
-async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<KubernetesExecutor>) {
+async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<KubernetesExecutor>, config : AppConfig) {
     use futures_util::{SinkExt, StreamExt};
 
     let (mut ws_tx, mut ws_rx) = socket.split();
 
     let mut close_received = false;
     let mut pod_stream = kubernetes_executor.stream_pod_changes().boxed();
+    let mut metrics_interval = tokio::time::interval(tokio::time::Duration::from_secs(config.prometheus.poll_rate_seconds));
     use kube::runtime::watcher::Event;
+
     loop {
         tokio::select! {
-            // Forward broadcast events to the WebSocket client
+            // Forward broadcast events to WebSocket client
             event = futures_util::StreamExt::next(&mut pod_stream) => {
                 let message = match event {
                     Some(Ok(Event::Apply(pod))) => {
-                        Some(GameServerInstanceEvent {
-                            event_type: "Applied".to_string(),
-                            game_server_instance: Some(GameServerInstance::from(pod))
+                        Some(GameServerEvent {
+                            event_type: GameServerEventType::PodLifeCycle("Applied".to_string()),
+                            game_server_instance: Some(GameServerInstance::from(pod)),
                         })
                     },
                     Some(Ok(Event::Delete(pod))) => {
-                        Some(GameServerInstanceEvent {
-                            event_type: "Deleted".to_string(),
-                            game_server_instance: Some(GameServerInstance::from(pod))
+                        Some(GameServerEvent {
+                            event_type: GameServerEventType::PodLifeCycle("Deleted".to_string()),
+                            game_server_instance: Some(GameServerInstance::from(pod)),
                         })
                     },
                     Some(Ok(Event::InitApply(pod))) => {
-                        Some(GameServerInstanceEvent {
-                            event_type: "Running".to_string(),
-                            game_server_instance: Some(GameServerInstance::from(pod))
+                        Some(GameServerEvent {
+                            event_type: GameServerEventType::PodLifeCycle("Running".to_string()),
+                            game_server_instance: Some(GameServerInstance::from(pod)),
                         })
                     },
                     Some(Ok(_)) => {
-                        Some(GameServerInstanceEvent {
-                            event_type: "Unknown".to_string(),
-                            game_server_instance: None
+                        Some(GameServerEvent {
+                            event_type: GameServerEventType::PodLifeCycle("Unknown".to_string()),
+                            game_server_instance: None,
                         })
                     }
                     _ => None
                 };
-                if let Ok(game_server_instance) = serde_json::to_string(&message) && message.is_some() {
-                    if ws_tx.send(Message::Text(game_server_instance.into())).await.is_err() { break; }
+                if let Ok(game_server_event) = serde_json::to_string(&message) && message.is_some() {
+                    if ws_tx.send(Message::Text(game_server_event.into())).await.is_err() { break; }
+                }
+            }
+            // Send metrics updates periodically
+            _ = metrics_interval.tick() => {
+                match kubernetes_executor.fetch_pod_metrics(None).await {
+                    Ok(metrics) => {
+                        let metrics_event = GameServerEvent {
+                            event_type: GameServerEventType::Metrics(metrics),
+                            game_server_instance: None
+                        };
+                        if let Ok(message) = serde_json::to_string(&metrics_event) {
+                            if ws_tx.send(Message::Text(message.into())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to fetch pod metrics: {}", e);
+                    }
                 }
             }
             // Handle incoming WebSocket messages (ping/pong/close)

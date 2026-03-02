@@ -291,4 +291,20 @@
     .range-slider-labels {
         @apply flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1;
     }
+
+    .resource-info {
+        @apply bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2;
+    }
+
+    .resource-item {
+        @apply flex flex-col gap-1;
+    }
+
+    .resource-label {
+        @apply font-medium text-gray-500 dark:text-gray-400;
+    }
+
+    .resource-value {
+        @apply font-mono text-gray-700 dark:text-gray-300;
+    }
 }

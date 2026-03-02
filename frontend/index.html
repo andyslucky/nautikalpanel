@@ -91,6 +91,48 @@
                         <p class="server-info">
                             👥 <span x-text="server.players"></span> players
                         </p>
+                        <div class="resource-info mb-3 text-xs text-muted" x-show="server.status === 'Running'">
+                            <div class="space-y-2">
+                                <div class="resource-item">
+                                    <div class="flex justify-between mb-1">
+                                        <div class="resource-label">CPU</div>
+                                        <div class="resource-value">
+                                            <span x-text="formatCpuString(server.cpu_usage_millicores) + ' / ' + server.cpu_limit "></span>
+                                        </div>
+                                    </div>
+                                    <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                        <div
+                                                class="h-full rounded-full transition-all duration-500"
+                                                :class="$store.gameServers.getCpuUsageColor($store.gameServers.calculateCpuUsagePercentage(server))"
+                                                :style="{ width: $store.gameServers.calculateCpuUsagePercentage(server) + '%' }"
+                                                x-show="server.status === 'Running'">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="resource-item">
+                                    <div class="flex justify-between mb-1">
+                                        <div class="resource-label">Memory</div>
+                                        <div class="resource-value">
+                                            <span x-text="formatMemoryString(server.memory_usage_bytes / 1048576.0) + ' / ' + formatMemoryString(parseMemory(server.memory_limit))"></span>
+                                        </div>
+                                    </div>
+                                    <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                        <div
+                                                class="h-full rounded-full transition-all duration-500"
+                                                :class="$store.gameServers.getMemoryUsageColor($store.gameServers.calculateMemoryUsagePercentage(server))"
+                                                :style="{ width: $store.gameServers.calculateMemoryUsagePercentage(server) + '%' }"
+                                                x-show="server.status === 'Running'">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="resource-item">
+                                    <div class="flex justify-between mb-1">
+                                        <div class="resource-label">Storage</div>
+                                        <div class="resource-value" x-text="$store.gameServers.formatStorage(server.storage_size, server.storage_unit)"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex gap-2">
                             <button type="button" @click="$store.gameServers.toggleStatus(server)"
                                     class="btn-action"

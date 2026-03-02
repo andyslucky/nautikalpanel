@@ -9,6 +9,7 @@ export type Server = {
     game_server: any;
     image: string;
     storage_size: number;
+    storage_unit: string;
     network_identity: any;
     ip: string;
     ports: any[];
@@ -17,6 +18,12 @@ export type Server = {
     status: string;
     instance_type: string | null;
     instance_id: string | null;
+    cpu_request?: string;
+    cpu_limit?: string;
+    memory_request?: string;
+    memory_limit?: string;
+    cpu_usage_millicores?: number;
+    memory_usage_bytes?: number;
 };
 
 export type GameServerInstance = {
@@ -25,6 +32,11 @@ export type GameServerInstance = {
     nautikal_pod_type: string;
     pod_status?: string;
 };
+
+type GameServerEvent = {
+    event_type : { PodLifeCycle: string} | { Metrics: {game_server_id? : string, cpu_usage_millicores: number, memory_usage_bytes: number}[]},
+    game_server_instance? : GameServerInstance
+}
 
 type GameServerTemplate = {
     template_name: string;
@@ -82,8 +94,15 @@ export type GameServerStore = {
     fetchServers(): Promise<void>;
     connectWatchSocket(): void;
     disconnectWatchSocket(): void;
-    handleWatchEvent(event: { event_type: string; game_server_instance?: GameServerInstance }): void;
+    handleWatchEvent(event: GameServerEvent): void;
     serverAddressLine(server: Server): string;
+    formatStorage(size: number, unit: string): string;
+    parseCpuToMillicores(value: string | undefined): number;
+    parseMemoryToBytes(value: string | undefined): number;
+    calculateCpuUsagePercentage(server: Server): number;
+    calculateMemoryUsagePercentage(server: Server): number;
+    getCpuUsageColor(percentage: number): string;
+    getMemoryUsageColor(percentage: number): string;
     deleteServer(id: string): Promise<void>;
     toggleStatus(server: Server): Promise<void>;
     startServerInstance(server: Server): Promise<void>;
@@ -139,7 +158,8 @@ Alpine.store('gameServers', {
                 game_version: s.game_server.game_version,
                 game_server: s.game_server,
                 image: s.game_server.pod_config?.image || '',
-                storage_size: s.game_server.pvc_config?.size_mib || 0,
+                storage_size: s.game_server.pvc_config?.size || 0,
+                storage_unit: s.game_server.pvc_config?.size_unit || 'Gi',
                 network_identity: s.network_identity,
                 ip: s.network_identity?.ip_address || '',
                 ports: s.network_identity?.ports || [],
@@ -147,7 +167,13 @@ Alpine.store('gameServers', {
                 max_players: s.game_server.max_players,
                 status: s.instance ? s.instance.pod_status : 'Offline',
                 instance_type: s.instance?.nautikal_pod_type || null,
-                instance_id: s.instance?.id || null
+                instance_id: s.instance?.id || null,
+                cpu_request: s.game_server.pod_config?.resources?.requests?.cpu,
+                cpu_limit: s.game_server.pod_config?.resources?.limits?.cpu,
+                memory_request: s.game_server.pod_config?.resources?.requests?.memory,
+                memory_limit: s.game_server.pod_config?.resources?.limits?.memory,
+                cpu_usage_millicores: 0,
+                memory_usage_bytes: 0
             }));
         } catch (error) {
             console.error('Failed to fetch servers:', error);
@@ -169,7 +195,7 @@ Alpine.store('gameServers', {
 
         this.watchSocket.onmessage = (event: MessageEvent) => {
             try {
-                const data: {event_type: string, game_server_instance : GameServerInstance} = JSON.parse(event.data);
+                const data: GameServerEvent = JSON.parse(event.data);
                 this.handleWatchEvent(data);
             } catch (e) {
                 console.error('Failed to parse watch event:', e);
@@ -201,20 +227,34 @@ Alpine.store('gameServers', {
         }
     },
 
-    handleWatchEvent(event: { event_type: string; game_server_instance?: GameServerInstance }) {
+    handleWatchEvent(event: GameServerEvent) {
         console.log('Received game server update', event);
-        if (event.game_server_instance == null) return;
+        
+        if ("Metrics" in event.event_type) {
+            event.event_type.Metrics.forEach((metric: any) => {
+                const server: Server | undefined = this.servers.find(
+                    (s: Server): boolean => s.id === metric.game_server_id
+                );
+                if (server) {
+                    server.cpu_usage_millicores = metric.cpu_usage_millicores;
+                    server.memory_usage_bytes = metric.memory_usage_bytes;
+                }
+            });
+            return;
+        }
+        
+        if ("PodLifeCycle" in event.event_type && event.game_server_instance == null) return;
         const server: Server | undefined = this.servers.find(
             (s: Server): boolean => s.id === event.game_server_instance!.game_server_id
         );
         if (!server) return;
         let status = '';
-        if (event.event_type == 'Deleted') {
+        if (event.event_type.PodLifeCycle == 'Deleted') {
             status = 'Offline';
         } else if (event.game_server_instance != null) {
             status = event.game_server_instance.pod_status!;
         } else {
-            status = event.event_type;
+            status = event.event_type.PodLifeCycle;
         }
         server.status = status;
         if (event.game_server_instance) {
@@ -226,6 +266,70 @@ Alpine.store('gameServers', {
     serverAddressLine(server: Server): string {
         const ports = server.ports.map((p: any) => `${p.port}/${p.protocol}`).join(',');
         return server.ip + ':' + ports;
+    },
+
+    formatStorage(size: number, unit: string): string {
+        return `${size}${unit}`;
+    },
+
+    parseCpuToMillicores(value: string | undefined): number {
+        if (!value) return 0;
+        const str = String(value).trim();
+        if (str.endsWith('m')) {
+            return parseInt(str.slice(0, -1)) || 0;
+        }
+        return Math.round((parseFloat(str) || 0) * 1000);
+    },
+
+    parseMemoryToBytes(value: string | undefined): number {
+        if (!value) return 0;
+        const str = String(value).trim();
+        const num = parseFloat(str) || 0;
+        if (str.endsWith('Gi')) {
+            return Math.round(num * 1024 * 1024 * 1024);
+        }
+        if (str.endsWith('Mi')) {
+            return Math.round(num * 1024 * 1024);
+        }
+        if (str.endsWith('Gi')) {
+            return Math.round(num * 1024 * 1024);
+        }
+        if (str.endsWith('Ki')) {
+            return Math.round(num * 1024);
+        }
+        return Math.round(num);
+    },
+
+    calculateCpuUsagePercentage(server: Server): number {
+        if (!server.cpu_usage_millicores || server.cpu_usage_millicores === 0) {
+            return 0;
+        }
+        console.log("Calculating cpu usage for ", server)
+        const limit = this.parseCpuToMillicores(server.cpu_limit);
+        console.log("Limit is ", limit)
+        if (limit === 0) return 0;
+        return Math.round((server.cpu_usage_millicores / limit) * 100);
+    },
+
+    calculateMemoryUsagePercentage(server: Server): number {
+        if (!server.memory_usage_bytes || server.memory_usage_bytes === 0) {
+            return 0;
+        }
+        const limit = this.parseMemoryToBytes(server.memory_limit || server.memory_request);
+        if (limit === 0) return 0;
+        return Math.round((server.memory_usage_bytes / limit) * 100);
+    },
+
+    getCpuUsageColor(percentage: number): string {
+        if (percentage >= 90) return 'bg-red-500';
+        if (percentage >= 70) return 'bg-yellow-500';
+        return 'bg-green-500';
+    },
+
+    getMemoryUsageColor(percentage: number): string {
+        if (percentage >= 90) return 'bg-red-500';
+        if (percentage >= 70) return 'bg-yellow-500';
+        return 'bg-green-500';
     },
 
     // --- Server actions ---
