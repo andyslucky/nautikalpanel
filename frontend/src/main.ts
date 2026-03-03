@@ -12,6 +12,7 @@ import './dural-range-slider/dual-range-slider';
 import './notification-component/notification-component';
 import './edit-server-modal/edit-server-modal';
 import './logs-modal/logs-modal';
+import './server-drawer/server-drawer';
 import focus from "@alpinejs/focus";
 //@ts-ignore
 window.Alpine = Alpine;

@@ -90,6 +90,8 @@ export type GameServerStore = {
     showSftpCredentials: boolean;
     sftpCredentials: any;
     sftpCredentialsServer: Server | null;
+    drawerOpen: boolean;
+    drawerServer: Server | null;
     init(): Promise<void>;
     fetchServers(): Promise<void>;
     connectWatchSocket(): void;
@@ -97,10 +99,12 @@ export type GameServerStore = {
     handleWatchEvent(event: GameServerEvent): void;
     serverAddressLine(server: Server): string;
     formatStorage(size: number, unit: string): string;
+    formatCpuUsage(server: Server | null): string;
+    formatMemoryUsage(server: Server | null): string;
     parseCpuToMillicores(value: string | undefined): number;
     parseMemoryToBytes(value: string | undefined): number;
-    calculateCpuUsagePercentage(server: Server): number;
-    calculateMemoryUsagePercentage(server: Server): number;
+    calculateCpuUsagePercentage(server: Server | null): number;
+    calculateMemoryUsagePercentage(server: Server | null): number;
     getCpuUsageColor(percentage: number): string;
     getMemoryUsageColor(percentage: number): string;
     deleteServer(id: string): Promise<void>;
@@ -115,6 +119,9 @@ export type GameServerStore = {
     clearLogs(): void;
     connectLogWebSocket(gameServerId: string): void;
     disconnectLogWebSocket(): void;
+    openDrawer(server: Server): void;
+    closeDrawer(): void;
+    popOutLogs(): void;
 };
 
 Alpine.store('gameServers', {
@@ -138,6 +145,10 @@ Alpine.store('gameServers', {
     showSftpCredentials: false,
     sftpCredentials: {} as any,
     sftpCredentialsServer: null as Server | null,
+
+    // --- Drawer state ---
+    drawerOpen: false,
+    drawerServer: null as Server | null,
 
     // --- Initialization ---
     async init() {
@@ -300,19 +311,17 @@ Alpine.store('gameServers', {
         return Math.round(num);
     },
 
-    calculateCpuUsagePercentage(server: Server): number {
-        if (!server.cpu_usage_millicores || server.cpu_usage_millicores === 0) {
+    calculateCpuUsagePercentage(server: Server | null): number {
+        if (!server || !server.cpu_usage_millicores || server.cpu_usage_millicores === 0) {
             return 0;
         }
-        console.log("Calculating cpu usage for ", server)
         const limit = this.parseCpuToMillicores(server.cpu_limit);
-        console.log("Limit is ", limit)
         if (limit === 0) return 0;
         return Math.round((server.cpu_usage_millicores / limit) * 100);
     },
 
-    calculateMemoryUsagePercentage(server: Server): number {
-        if (!server.memory_usage_bytes || server.memory_usage_bytes === 0) {
+    calculateMemoryUsagePercentage(server: Server | null): number {
+        if (!server || !server.memory_usage_bytes || server.memory_usage_bytes === 0) {
             return 0;
         }
         const limit = this.parseMemoryToBytes(server.memory_limit || server.memory_request);
@@ -330,6 +339,24 @@ Alpine.store('gameServers', {
         if (percentage >= 90) return 'bg-red-500';
         if (percentage >= 70) return 'bg-yellow-500';
         return 'bg-green-500';
+    },
+
+    formatCpuUsage(server: Server | null): string {
+        if (!server) return '0m / 0';
+        const usage = Math.round(server.cpu_usage_millicores || 0);
+        const usageStr = usage > 0 ? `${usage}m` : '0m';
+        const limitStr = server.cpu_limit || '0';
+        return `${usageStr} / ${limitStr}`;
+    },
+
+    formatMemoryUsage(server: Server | null): string {
+        if (!server) return '0 MiB / 0';
+        const usageBytes = server.memory_usage_bytes || 0;
+        const usageMiB = (usageBytes / 1048576).toFixed(0);
+        const limitStr = server.memory_limit || server.memory_request || '0';
+        const limitMiB = this.parseMemoryToBytes(limitStr) / 1048576;
+        const limitFormatted = limitMiB >= 1024 ? `${(limitMiB / 1024).toFixed(1)} GiB` : `${limitMiB.toFixed(0)} MiB`;
+        return `${usageMiB} MiB / ${limitFormatted}`;
     },
 
     // --- Server actions ---
@@ -453,9 +480,14 @@ Alpine.store('gameServers', {
             }
             // Scroll the log container if it exists in the DOM
             requestAnimationFrame(() => {
-                const container = document.querySelector('[x-ref="logContainer"]') as HTMLElement;
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
+                // Prefer drawer container if drawer is open, otherwise use modal/log viewer container
+                const drawerContainer = document.getElementById('drawer-log-container');
+                const modalContainer = document.querySelector('[x-ref="logContainer"]') as HTMLElement;
+                
+                if (this.drawerOpen && drawerContainer) {
+                    drawerContainer.scrollTop = drawerContainer.scrollHeight;
+                } else if (modalContainer) {
+                    modalContainer.scrollTop = modalContainer.scrollHeight;
                 }
             });
         };
@@ -474,5 +506,30 @@ Alpine.store('gameServers', {
             this.logSocket = null;
         }
         this.logConnected = false;
+    },
+
+    openDrawer(server: Server) {
+        this.drawerServer = server;
+        this.drawerOpen = true;
+        this.logLines = [];
+        if (server.status === 'Running' && server.instance_type === 'gameserver') {
+            this.connectLogWebSocket(server.id);
+        }
+    },
+
+    closeDrawer() {
+        this.drawerOpen = false;
+        this.disconnectLogWebSocket();
+        this.drawerServer = null;
+        this.logLines = [];
+    },
+
+    popOutLogs() {
+        if (this.drawerServer) {
+            this.logViewerServer = this.drawerServer;
+            this.showLogViewer = true;
+            this.drawerOpen = false;
+            this.drawerServer = null;
+        }
     }
 } as GameServerStore);

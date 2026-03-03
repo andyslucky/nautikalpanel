@@ -91,49 +91,7 @@
                         <p class="server-info">
                             👥 <span x-text="server.players"></span> players
                         </p>
-                        <div class="resource-info mb-3 text-xs text-muted" x-show="server.status === 'Running'">
-                            <div class="space-y-2">
-                                <div class="resource-item">
-                                    <div class="flex justify-between mb-1">
-                                        <div class="resource-label">CPU</div>
-                                        <div class="resource-value">
-                                            <span x-text="formatCpuString(server.cpu_usage_millicores) + ' / ' + server.cpu_limit "></span>
-                                        </div>
-                                    </div>
-                                    <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                        <div
-                                                class="h-full rounded-full transition-all duration-500"
-                                                :class="$store.gameServers.getCpuUsageColor($store.gameServers.calculateCpuUsagePercentage(server))"
-                                                :style="{ width: $store.gameServers.calculateCpuUsagePercentage(server) + '%' }"
-                                                x-show="server.status === 'Running'">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="resource-item">
-                                    <div class="flex justify-between mb-1">
-                                        <div class="resource-label">Memory</div>
-                                        <div class="resource-value">
-                                            <span x-text="formatMemoryString(server.memory_usage_bytes / 1048576.0) + ' / ' + formatMemoryString(parseMemory(server.memory_limit))"></span>
-                                        </div>
-                                    </div>
-                                    <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                        <div
-                                                class="h-full rounded-full transition-all duration-500"
-                                                :class="$store.gameServers.getMemoryUsageColor($store.gameServers.calculateMemoryUsagePercentage(server))"
-                                                :style="{ width: $store.gameServers.calculateMemoryUsagePercentage(server) + '%' }"
-                                                x-show="server.status === 'Running'">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="resource-item">
-                                    <div class="flex justify-between mb-1">
-                                        <div class="resource-label">Storage</div>
-                                        <div class="resource-value" x-text="$store.gameServers.formatStorage(server.storage_size, server.storage_unit)"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 flex-wrap">
                             <button type="button" @click="$store.gameServers.toggleStatus(server)"
                                     class="btn-action"
                                     :disabled="!['Offline','Running'].includes(server.status)"
@@ -144,24 +102,17 @@
                                     <path opacity="0.25"
                                           d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"/>
                                     <path
-                                            d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"/>
+                                          d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"/>
                                 </svg>
                                 <span x-text="server.status === 'Offline' ? 'Start' : (server.status === 'Running' ? 'Stop' : 'Wait')"></span>
                             </button>
-                            <button type="button" @click="$store.gameServers.startSftpOnly(server)"
-                                    x-show="server.status === 'Offline'"
-                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
-                                SFTP Only
-                            </button>
-                            <button @click="$store.gameServers.fetchSftpCredentials(server)"
-                                    x-show="server.status === 'Running'"
-                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
-                                SFTP Credentials
-                            </button>
-                            <button @click="$store.gameServers.openLogs(server)"
-                                    x-show="server.status === 'Running' && server.instance_type === 'gameserver'"
-                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
-                                Logs
+                            <button @click="$store.gameServers.openDrawer(server)"
+                                    class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="View details">
+                                <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Details
                             </button>
                             <button @click="deleteServer(server.id)" class="btn-danger">
                                 Delete
@@ -262,6 +213,9 @@
 
 <!-- Edit Server Modal - uses main app's state -->
 <div x-data="editServerModal()" x-html="content" @edit.window="openEditModal($event.detail.server)"></div>
+
+<!-- Server Details Drawer -->
+<div x-data="serverDrawer()" x-html="content"></div>
 </body>
 
 </html>
