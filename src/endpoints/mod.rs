@@ -1,5 +1,5 @@
 use crate::app_config::AppConfig;
-use crate::game_servers::{
+use crate::models::{
     GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
     NewGameServerRequest, SftpCredentials, TemplateRepository, UpdateGameServerRequest,
 };

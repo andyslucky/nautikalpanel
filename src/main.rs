@@ -1,10 +1,10 @@
 mod app_config;
 mod endpoints;
-mod game_servers;
+mod models;
 mod services;
 
 use crate::app_config::AppConfig;
-use crate::game_servers::TemplateRepository;
+use crate::models::TemplateRepository;
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use crate::services::template_repository_manager::TemplateRepositoryManager;
@@ -56,13 +56,19 @@ async fn initialize_default_repository(
     let is_empty = store.is_empty().await?;
     if is_empty {
         info!("Initializing default template repository at {}", local_templates_path);
-        let default_repo = TemplateRepository {
+        let local_repo = TemplateRepository {
             id: None,
             name: "Local Templates".to_string(),
             url: format!("file://./{}", local_templates_path.to_string()),
         };
-        store.create_repository(default_repo).await?;
-        info!("Default template repository initialized successfully");
+        let nautikal_repo = TemplateRepository {
+            id: None,
+            name: "Nautikal Community Repo".to_string(),
+            url: "github:///andyslucky/nautikal-game-servers/templates".to_string()
+        };
+        store.create_repository(local_repo).await?;
+        store.create_repository(nautikal_repo).await?;
+        info!("Default template repositories initialized successfully");
     } else {
         info!("Template repositories already exist, skipping initialization");
     }

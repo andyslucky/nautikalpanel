@@ -1,0 +1,104 @@
+---
+title: Server Drawer
+description: Detailed server information and controls in the side drawer.
+---
+
+<a href="/nautikalpanel/Side-Drawer.png">
+![](/nautikalpanel/Side-Drawer.png)
+</a>
+
+The server drawer provides quick access to detailed server information, resource usage, and logs without navigating away from the dashboard.
+
+## Opening the Drawer
+
+Click the **Details** button on any server card to open the drawer. The drawer slides in from the right side of the screen.
+
+## Drawer Sections
+
+### Server Header
+
+The top of the drawer displays:
+- **Server Icon** - Visual identifier from the template
+- **Server Name** - The name you assigned
+- **Game Type** - Type of game server
+
+### Description
+
+If the server has a description configured, it appears below the header. This is useful for noting important information about the server configuration or purpose.
+
+### Connection
+
+Shows the network connection details:
+- **Address** - IP address and port(s) for connecting to the server
+
+This information is also visible on the server card for quick reference.
+
+### Quick Actions
+
+Control buttons for the server:
+
+| Button | Available When | Action |
+|--------|---------------|--------|
+| **Start** | Offline | Start the game server pod |
+| **Stop** | Running | Stop the game server pod |
+| **SFTP Only** | Offline | Start SFTP-only mode for file access |
+| **SFTP Credentials** | Running | View generated SFTP credentials |
+
+When clicking **SFTP Credentials**, the drawer closes and the SFTP credentials modal opens to display the connection details.
+
+### Resource Usage
+
+Real-time resource monitoring with visual progress bars:
+
+| Metric | Description |
+|--------|-------------|
+| **CPU** | Current CPU usage in millicores vs limit |
+| **Memory** | Current memory usage vs limit |
+| **Storage** | Allocated storage size |
+
+Progress bars are color-coded:
+- **Green** - Normal usage (0-69%)
+- **Yellow** - High usage (70-89%)
+- **Red** - Critical usage (90%+)
+
+Resource metrics are updated in real-time via WebSocket.
+
+### Logs
+
+When the server is running as a game server (not SFTP-only), the logs section appears at the bottom of the drawer.
+
+#### Log Controls
+
+| Control | Function |
+|---------|----------|
+| **Connected/Disconnected** | WebSocket connection status |
+| **Clear** | Remove all displayed log lines |
+| **Pop-out** | Open logs in a full modal window |
+
+#### Pop-out Feature
+
+Click the pop-out button to open the logs in a larger modal window. This is useful when:
+- You need to see more log lines at once
+- You want to view logs while examining other servers
+- You prefer the full-screen log viewing experience
+
+The log viewer maintains the same connection, so you won't miss any logs when switching between drawer and modal views.
+
+## Responsive Behavior
+
+### Desktop
+
+The drawer appears as a side panel covering approximately one-third of the screen width on the right side. The main dashboard remains visible but is dimmed behind a backdrop.
+
+### Mobile
+
+On smaller screens, the drawer expands to full width, providing maximum space for viewing logs and server details.
+
+## Closing the Drawer
+
+There are several ways to close the drawer:
+- Click the **X** button in the header
+- Click outside the drawer on the backdrop
+- Press the **Escape** key
+
+When the drawer closes, any active log WebSocket connection is disconnected to free up resources.

@@ -1,5 +1,5 @@
 use crate::app_config::AppConfig;
-use crate::game_servers::GameServerTemplate;
+use crate::models::GameServerTemplate;
 use crate::services::template_repository_store::TemplateRepositoryStore;
 use anyhow::anyhow;
 use reqwest::header::{ACCEPT, AUTHORIZATION, USER_AGENT};
@@ -52,7 +52,7 @@ impl TemplateRepositoryManager {
 
     async fn fetch_templates_from_repository(
         &self,
-        repo: &crate::game_servers::TemplateRepository,
+        repo: &crate::models::TemplateRepository,
     ) -> Result<Vec<GameServerTemplate>, Box<dyn Error>> {
         let url = Url::parse(&repo.url)?;
         if "github" == url.scheme() {

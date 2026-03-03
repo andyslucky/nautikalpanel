@@ -4,7 +4,7 @@ use std::sync::Arc;
 use surrealdb::engine::local::Db;
 
 use crate::app_config::DatabaseConfig;
-use crate::game_servers::{GameServer, UpdateGameServerRequest};
+use crate::models::{GameServer, UpdateGameServerRequest};
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use surrealdb::Surreal;
 

@@ -1,25 +1,25 @@
-<div x-show="$store.gameServers.showLogViewer" x-cloak class="modal-backdrop" @click.self="$store.gameServers.closeLogs()">
+<div x-show="show" x-cloak class="modal-backdrop" @click.self="close()">
     <div class="modal-content">
         <div class="modal-header">
             <h3 class="heading-tertiary">
-                Logs: <span x-text="$store.gameServers.logViewerServer?.name || ''"></span>
+                Logs: <span x-text="server?.name || ''"></span>
             </h3>
             <div class="flex items-center gap-2">
-                <button @click="$store.gameServers.clearLogs()" class="btn-secondary">Clear</button>
-                <button @click="$store.gameServers.closeLogs()" class="close-btn">
+                <button @click="clear()" class="btn-secondary">Clear</button>
+                <button @click="close()" class="close-btn">
                     <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
         </div>
-        <div class="log-viewer" x-ref="logContainer">
-            <pre class="log-content"><template x-for="(line, index) in $store.gameServers.logLines" :key="index"><div x-text="line"></div></template></pre>
+        <div class="log-viewer" id="modal-log-container">
+            <pre class="log-content"><template x-for="(line, index) in $store.logViewer.lines" :key="index"><div x-text="line"></div></template></pre>
         </div>
         <div class="modal-footer">
-            <span x-show="$store.gameServers.logConnected" class="text-success">Connected</span>
-            <span x-show="!$store.gameServers.logConnected && $store.gameServers.showLogViewer" class="text-warn">Disconnected</span>
-            <span x-text="$store.gameServers.logLines.length + ' lines'"></span>
+            <span x-show="$store.logViewer.connected" class="text-success">Connected</span>
+            <span x-show="!$store.logViewer.connected && show" class="text-warn">Disconnected</span>
+            <span x-text="$store.logViewer.lines.length + ' lines'"></span>
         </div>
     </div>
 </div>

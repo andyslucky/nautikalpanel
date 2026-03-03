@@ -3,6 +3,7 @@ import Alpine from 'alpinejs';
 // Import stores first so they're registered before components
 import './stores/game-server-store.ts';
 import './stores/template-repository-store.ts';
+import './stores/log-viewer-store.ts';
 
 // Import and register all Alpine components
 import './settings-page/settings-page';
@@ -12,6 +13,7 @@ import './dural-range-slider/dual-range-slider';
 import './notification-component/notification-component';
 import './edit-server-modal/edit-server-modal';
 import './logs-modal/logs-modal';
+import './sftp-credentials-modal/sftp-credentials-modal';
 import './server-drawer/server-drawer';
 import focus from "@alpinejs/focus";
 //@ts-ignore

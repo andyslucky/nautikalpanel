@@ -1,5 +1,5 @@
 use crate::app_config::DatabaseConfig;
-use crate::game_servers::TemplateRepository;
+use crate::models::TemplateRepository;
 use surrealdb::engine::local::Db;
 use surrealdb::Surreal;
 use anyhow::anyhow;

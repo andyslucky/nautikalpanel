@@ -4,6 +4,7 @@ export type Server = {
     id: string;
     icon_url: string;
     name: string;
+    description: string;
     game: string;
     game_version: string;
     game_server: any;
@@ -82,16 +83,6 @@ export type GameServerStore = {
     watchSocket: WebSocket | null;
     watchReconnectDelay: number;
     watchReconnectTimer: number;
-    showLogViewer: boolean;
-    logViewerServer: any;
-    logLines: string[];
-    logConnected: boolean;
-    logSocket: WebSocket | null;
-    showSftpCredentials: boolean;
-    sftpCredentials: any;
-    sftpCredentialsServer: Server | null;
-    drawerOpen: boolean;
-    drawerServer: Server | null;
     init(): Promise<void>;
     fetchServers(): Promise<void>;
     connectWatchSocket(): void;
@@ -112,51 +103,21 @@ export type GameServerStore = {
     startServerInstance(server: Server): Promise<void>;
     startSftpOnly(server: Server): Promise<void>;
     fetchSftpCredentials(server: Server): Promise<void>;
-    closeSftpCredentials(): void;
     stopServerInstance(server: Server): Promise<void>;
-    openLogs(server: Server): void;
-    closeLogs(): void;
-    clearLogs(): void;
-    connectLogWebSocket(gameServerId: string): void;
-    disconnectLogWebSocket(): void;
-    openDrawer(server: Server): void;
-    closeDrawer(): void;
-    popOutLogs(): void;
 };
 
 Alpine.store('gameServers', {
-    // --- Server list state ---
     servers: [] as Server[],
     gameServerTemplates: [] as GameServerTemplate[],
-
-    // --- Watch WebSocket state ---
     watchSocket: null as WebSocket | null,
     watchReconnectDelay: 1000,
     watchReconnectTimer: -1 as number,
 
-    // --- Log viewer state ---
-    showLogViewer: false,
-    logViewerServer: {} as any,
-    logLines: [] as string[],
-    logConnected: false,
-    logSocket: null as WebSocket | null,
-
-    // --- SFTP credentials state ---
-    showSftpCredentials: false,
-    sftpCredentials: {} as any,
-    sftpCredentialsServer: null as Server | null,
-
-    // --- Drawer state ---
-    drawerOpen: false,
-    drawerServer: null as Server | null,
-
-    // --- Initialization ---
     async init() {
         await this.fetchServers();
         this.connectWatchSocket();
     },
 
-    // --- Server fetch ---
     async fetchServers() {
         try {
             const response = await fetch('/api/v1/game-servers');
@@ -165,6 +126,7 @@ Alpine.store('gameServers', {
                 id: s.game_server_id,
                 icon_url: s.game_server.icon_url,
                 name: s.game_server.name,
+                description: s.game_server.description || '',
                 game: s.game_server.game_type,
                 game_version: s.game_server.game_version,
                 game_server: s.game_server,
@@ -192,7 +154,6 @@ Alpine.store('gameServers', {
         }
     },
 
-    // --- Watch WebSocket ---
     connectWatchSocket() {
         this.disconnectWatchSocket();
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -273,7 +234,6 @@ Alpine.store('gameServers', {
         }
     },
 
-    // --- Server helpers ---
     serverAddressLine(server: Server): string {
         const ports = server.ports.map((p: any) => `${p.port}/${p.protocol}`).join(',');
         return server.ip + ':' + ports;
@@ -300,9 +260,6 @@ Alpine.store('gameServers', {
             return Math.round(num * 1024 * 1024 * 1024);
         }
         if (str.endsWith('Mi')) {
-            return Math.round(num * 1024 * 1024);
-        }
-        if (str.endsWith('Gi')) {
             return Math.round(num * 1024 * 1024);
         }
         if (str.endsWith('Ki')) {
@@ -359,7 +316,6 @@ Alpine.store('gameServers', {
         return `${usageMiB} MiB / ${limitFormatted}`;
     },
 
-    // --- Server actions ---
     async deleteServer(id: string) {
         const result = await fetch(`/api/v1/game-servers?game_server_id=${encodeURIComponent(id)}`, {
             method: 'DELETE'
@@ -415,22 +371,16 @@ Alpine.store('gameServers', {
         try {
             const resp = await fetch(`/api/v1/game-servers/${server.id}/sftp-credentials`);
             if (resp.ok) {
-                this.sftpCredentials = await resp.json();
-                this.sftpCredentialsServer = server;
-                this.showSftpCredentials = true;
+                return await resp.json();
             } else {
                 showToast('No SFTP credentials found. Start SFTP first.', 'error');
+                return null;
             }
         } catch (e) {
             console.error(e);
             showToast('Failed to fetch SFTP credentials', 'error');
+            return null;
         }
-    },
-
-    closeSftpCredentials() {
-        this.showSftpCredentials = false;
-        this.sftpCredentials = null;
-        this.sftpCredentialsServer = null;
     },
 
     async stopServerInstance(server: Server) {
@@ -443,93 +393,6 @@ Alpine.store('gameServers', {
             showToast((await resp.text()) || 'Failed to stop server', 'error');
         } else {
             showToast(`Stopping server ${server.name}`, 'info');
-        }
-    },
-
-    // --- Log viewer ---
-    openLogs(server: Server) {
-        this.logViewerServer = server;
-        this.logLines = [];
-        this.showLogViewer = true;
-        this.connectLogWebSocket(server.id);
-    },
-
-    closeLogs() {
-        this.showLogViewer = false;
-        this.logLines = [];
-        this.disconnectLogWebSocket();
-    },
-
-    clearLogs() {
-        this.logLines = [];
-    },
-
-    connectLogWebSocket(gameServerId: string) {
-        this.disconnectLogWebSocket();
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/v1/game-servers/${gameServerId}/logs`;
-        this.logSocket = new WebSocket(wsUrl);
-        this.logConnected = false;
-        this.logSocket.onopen = () => {
-            this.logConnected = true;
-        };
-        this.logSocket.onmessage = (event: MessageEvent) => {
-            this.logLines.push(event.data);
-            if (this.logLines.length > 1000) {
-                this.logLines = this.logLines.slice(-1000);
-            }
-            // Scroll the log container if it exists in the DOM
-            requestAnimationFrame(() => {
-                // Prefer drawer container if drawer is open, otherwise use modal/log viewer container
-                const drawerContainer = document.getElementById('drawer-log-container');
-                const modalContainer = document.querySelector('[x-ref="logContainer"]') as HTMLElement;
-                
-                if (this.drawerOpen && drawerContainer) {
-                    drawerContainer.scrollTop = drawerContainer.scrollHeight;
-                } else if (modalContainer) {
-                    modalContainer.scrollTop = modalContainer.scrollHeight;
-                }
-            });
-        };
-        this.logSocket.onclose = () => {
-            this.logConnected = false;
-        };
-        this.logSocket.onerror = (error: Event) => {
-            console.error('WebSocket error:', error);
-            this.logConnected = false;
-        };
-    },
-
-    disconnectLogWebSocket() {
-        if (this.logSocket) {
-            this.logSocket.close();
-            this.logSocket = null;
-        }
-        this.logConnected = false;
-    },
-
-    openDrawer(server: Server) {
-        this.drawerServer = server;
-        this.drawerOpen = true;
-        this.logLines = [];
-        if (server.status === 'Running' && server.instance_type === 'gameserver') {
-            this.connectLogWebSocket(server.id);
-        }
-    },
-
-    closeDrawer() {
-        this.drawerOpen = false;
-        this.disconnectLogWebSocket();
-        this.drawerServer = null;
-        this.logLines = [];
-    },
-
-    popOutLogs() {
-        if (this.drawerServer) {
-            this.logViewerServer = this.drawerServer;
-            this.showLogViewer = true;
-            this.drawerOpen = false;
-            this.drawerServer = null;
         }
     }
 } as GameServerStore);

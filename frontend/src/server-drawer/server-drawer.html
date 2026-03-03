@@ -1,7 +1,7 @@
-<div x-show="$store.gameServers.drawerOpen" 
+<div x-show="open" 
      x-cloak 
      class="drawer-backdrop" 
-     @click.self="$store.gameServers.closeDrawer()"
+     @click.self="closeDrawer()"
      x-transition:enter="transition ease-out duration-300"
      x-transition:enter-start="opacity-0"
      x-transition:enter-end="opacity-100"
@@ -18,15 +18,15 @@
          x-transition:leave-end="translate-x-full">
         <div class="drawer-header">
             <div class="flex items-center gap-3">
-                <img :src="$store.gameServers.drawerServer?.icon_url" 
+                <img :src="server?.icon_url" 
                      width="48px" height="48px" 
                      class="rounded-lg"/>
                 <div>
-                    <h3 class="heading-tertiary" x-text="$store.gameServers.drawerServer?.name || ''"></h3>
-                    <p class="text-sm text-muted" x-text="$store.gameServers.drawerServer?.game || ''"></p>
+                    <h3 class="heading-tertiary" x-text="server?.name || ''"></h3>
+                    <p class="text-sm text-muted" x-text="server?.game || ''"></p>
                 </div>
             </div>
-            <button @click="$store.gameServers.closeDrawer()" class="close-btn">
+            <button @click="closeDrawer()" class="close-btn">
                 <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
@@ -34,22 +34,36 @@
         </div>
         
         <div class="drawer-body">
+            <div class="drawer-section" x-show="server?.description">
+                <p class="text-sm text-gray-600 dark:text-gray-400" x-text="server?.description"></p>
+            </div>
+
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Connection</h4>
+                <div class="resource-info">
+                    <div class="flex justify-between items-center py-1">
+                        <span class="resource-label">Address</span>
+                        <code class="text-sm resource-value" x-text="$store.gameServers.serverAddressLine(server)"></code>
+                    </div>
+                </div>
+            </div>
+
             <div class="drawer-section">
                 <h4 class="drawer-section-title">Quick Actions</h4>
                 <div class="flex gap-2 flex-wrap">
-                    <button type="button" @click="$store.gameServers.toggleStatus($store.gameServers.drawerServer)"
+                    <button type="button" @click="$store.gameServers.toggleStatus(server)"
                             class="btn-action"
-                            :disabled="!['Offline','Running'].includes($store.gameServers.drawerServer?.status)"
-                            :class="$store.gameServers.drawerServer?.status === 'Offline' ? 'bg-success' : ($store.gameServers.drawerServer?.status === 'Running' ? 'bg-danger' : 'bg-warn')">
-                        <span x-text="$store.gameServers.drawerServer?.status === 'Offline' ? 'Start' : ($store.gameServers.drawerServer?.status === 'Running' ? 'Stop' : 'Wait')"></span>
+                            :disabled="!['Offline','Running'].includes(server?.status)"
+                            :class="server?.status === 'Offline' ? 'bg-success' : (server?.status === 'Running' ? 'bg-danger' : 'bg-warn')">
+                        <span x-text="server?.status === 'Offline' ? 'Start' : (server?.status === 'Running' ? 'Stop' : 'Wait')"></span>
                     </button>
-                    <button type="button" @click="$store.gameServers.startSftpOnly($store.gameServers.drawerServer)"
-                            x-show="$store.gameServers.drawerServer?.status === 'Offline'"
+                    <button type="button" @click="$store.gameServers.startSftpOnly(server)"
+                            x-show="server?.status === 'Offline'"
                             class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                         SFTP Only
                     </button>
-                    <button @click="$store.gameServers.fetchSftpCredentials($store.gameServers.drawerServer); $store.gameServers.closeDrawer()"
-                            x-show="$store.gameServers.drawerServer?.status === 'Running'"
+                    <button @click="fetchSftpCredentials()"
+                            x-show="server?.status === 'Running'"
                             class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                         SFTP Credentials
                     </button>
@@ -63,13 +77,13 @@
                         <div class="flex justify-between mb-1">
                             <span class="resource-label">CPU</span>
                             <span class="resource-value">
-                                <span x-text="$store.gameServers.formatCpuUsage($store.gameServers.drawerServer)"></span>
+                                <span x-text="$store.gameServers.formatCpuUsage(server)"></span>
                             </span>
                         </div>
                         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div class="h-full rounded-full transition-all duration-500"
-                                 :class="$store.gameServers.getCpuUsageColor($store.gameServers.calculateCpuUsagePercentage($store.gameServers.drawerServer))"
-                                 :style="{ width: $store.gameServers.calculateCpuUsagePercentage($store.gameServers.drawerServer) + '%' }">
+                                 :class="$store.gameServers.getCpuUsageColor($store.gameServers.calculateCpuUsagePercentage(server))"
+                                 :style="{ width: $store.gameServers.calculateCpuUsagePercentage(server) + '%' }">
                             </div>
                         </div>
                     </div>
@@ -77,13 +91,13 @@
                         <div class="flex justify-between mb-1">
                             <span class="resource-label">Memory</span>
                             <span class="resource-value">
-                                <span x-text="$store.gameServers.formatMemoryUsage($store.gameServers.drawerServer)"></span>
+                                <span x-text="$store.gameServers.formatMemoryUsage(server)"></span>
                             </span>
                         </div>
                         <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div class="h-full rounded-full transition-all duration-500"
-                                 :class="$store.gameServers.getMemoryUsageColor($store.gameServers.calculateMemoryUsagePercentage($store.gameServers.drawerServer))"
-                                 :style="{ width: $store.gameServers.calculateMemoryUsagePercentage($store.gameServers.drawerServer) + '%' }">
+                                 :class="$store.gameServers.getMemoryUsageColor($store.gameServers.calculateMemoryUsagePercentage(server))"
+                                 :style="{ width: $store.gameServers.calculateMemoryUsagePercentage(server) + '%' }">
                             </div>
                         </div>
                     </div>
@@ -91,21 +105,21 @@
                         <div class="flex justify-between mb-1">
                             <span class="resource-label">Storage</span>
                             <span class="resource-value" 
-                                  x-text="$store.gameServers.formatStorage($store.gameServers.drawerServer?.storage_size || 0, $store.gameServers.drawerServer?.storage_unit || 'Gi')"></span>
+                                  x-text="$store.gameServers.formatStorage(server?.storage_size || 0, server?.storage_unit || 'Gi')"></span>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="drawer-section flex-1 min-h-0 flex flex-col" 
-                 x-show="$store.gameServers.drawerServer?.status === 'Running' && $store.gameServers.drawerServer?.instance_type === 'gameserver'">
+                 x-show="server?.status === 'Running' && server?.instance_type === 'gameserver'">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="drawer-section-title">Logs</h4>
                     <div class="flex items-center gap-2">
-                        <span x-show="$store.gameServers.logConnected" class="text-xs text-success">Connected</span>
-                        <span x-show="!$store.gameServers.logConnected && $store.gameServers.drawerOpen" class="text-xs text-warn">Disconnected</span>
-                        <button @click="$store.gameServers.clearLogs()" class="btn-secondary text-xs">Clear</button>
-                        <button @click="$store.gameServers.popOutLogs()" class="btn-secondary text-xs" title="Open logs in modal">
+                        <span x-show="$store.logViewer.connected" class="text-xs text-success">Connected</span>
+                        <span x-show="!$store.logViewer.connected && open" class="text-xs text-warn">Disconnected</span>
+                        <button @click="$store.logViewer.clear()" class="btn-secondary text-xs">Clear</button>
+                        <button @click="popOutLogs()" class="btn-secondary text-xs" title="Open logs in modal">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                             </svg>
@@ -113,13 +127,13 @@
                     </div>
                 </div>
                 <div class="log-viewer flex-1" x-ref="logContainer" id="drawer-log-container">
-                    <pre class="log-content"><template x-for="(line, index) in $store.gameServers.logLines" :key="index"><div x-text="line"></div></template></pre>
-                    <div x-show="$store.gameServers.logLines.length === 0" class="text-gray-500 text-sm">
+                    <pre class="log-content"><template x-for="(line, index) in $store.logViewer.lines" :key="index"><div x-text="line"></div></template></pre>
+                    <div x-show="$store.logViewer.lines.length === 0" class="text-gray-500 text-sm">
                         No logs yet. Server must be running to show logs.
                     </div>
                 </div>
                 <div class="text-xs text-gray-500 mt-1">
-                    <span x-text="$store.gameServers.logLines.length + ' lines'"></span>
+                    <span x-text="$store.logViewer.lines.length + ' lines'"></span>
                 </div>
             </div>
         </div>

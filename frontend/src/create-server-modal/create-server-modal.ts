@@ -5,6 +5,13 @@ import type {GameServerTemplateData} from "../types.ts";
 import type {GameServerStore} from "../stores/game-server-store.ts";
 
 
+
+function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'danger' | 'error' = 'info') {
+    window.dispatchEvent(new CustomEvent('notify', {
+        detail: { variant, message }
+    }));
+}
+
 type GameServerForm = {
     name: string,
     game_version: string,
@@ -221,11 +228,11 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
         }).then((resp) => {
             if (!resp.ok) {
                 // @ts-ignore
-                resp.text().then((err) => this.showToast(err || 'Failed to create server', "error"))
+                resp.text().then((err) => showToast(err || 'Failed to create server', "error"))
             } else {
                 this.showModal = false;
                 // @ts-ignore
-                this.showToast("Successfully created server" + newServerRequest.name, "success")
+                showToast("Successfully created server" + newServerRequest.name, "success")
 
             }
         }).then(() => {

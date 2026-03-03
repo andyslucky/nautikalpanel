@@ -1,5 +1,5 @@
 use crate::app_config::AppConfig;
-use crate::game_servers::{GameServer, GameServerInstance, SftpCredentials};
+use crate::models::{GameServer, GameServerInstance, SftpCredentials};
 use anyhow::anyhow;
 use futures_util::io::Lines;
 use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream, StreamExt, TryStreamExt};
@@ -659,7 +659,7 @@ impl KubernetesExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game_servers::{PodConfig, PvcConfig, ResourceQuantities, Resources, ServiceConfig};
+    use crate::models::{PodConfig, PvcConfig, ResourceQuantities, Resources, ServiceConfig};
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use std::str::FromStr;
     use surrealdb::RecordId;
