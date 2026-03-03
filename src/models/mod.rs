@@ -22,10 +22,6 @@ pub struct ResourceQuantities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory: Option<String>,
 }
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ImageRepoCredentials {
-    // TODO worry about this later
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VolumeMount {
