@@ -71,11 +71,7 @@ type GameServerTemplate = {
     };
 };
 
-function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'danger' | 'error' = 'info') {
-    window.dispatchEvent(new CustomEvent('notify', {
-        detail: { variant, message }
-    }));
-}
+import {showToast} from "../utils/toast.ts";
 
 export type GameServerStore = {
     servers: Server[];

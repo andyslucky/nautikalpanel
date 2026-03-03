@@ -22,7 +22,7 @@
 ### Frontend
 ### Bugs
 - [x] Fix resource slider / editing.
-- [ ] Fix toasts from create modal not showing up.
+- [x] Fix toasts from create modal not showing up.
 #### Functionality
 - [x] Update front end create server modal to display the remaining properties for the template and new game server request
     including resources and more. Maybe use separate tabs for the various settings since there is quite a lot.
@@ -31,6 +31,7 @@
 - [x] Add image to server tiles based on the `icon_url` property
 - [x] Add a button on server tile to allow starting in SFTP only mode. This allows setup and file copies to be done before
     first launch
+- [ ] Implement server commands (may not be supported for every server, and implementation may vary)
 ### Shared
 - [x] Add table in database for game template sources. it is essentially a list of URLs which can be used to fetch game server templates.
     Add option under settings to manage Game Template Repositories

@@ -3,14 +3,7 @@ import {serverResourceSliderFunctions} from "../resource-utils.ts";
 import createServerModelContent from "./create-server-modal.html?raw";
 import type {GameServerTemplateData} from "../types.ts";
 import type {GameServerStore} from "../stores/game-server-store.ts";
-
-
-
-function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'danger' | 'error' = 'info') {
-    window.dispatchEvent(new CustomEvent('notify', {
-        detail: { variant, message }
-    }));
-}
+import {showToast} from "../utils/toast.ts";
 
 type GameServerForm = {
     name: string,

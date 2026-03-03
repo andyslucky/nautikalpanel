@@ -43,7 +43,7 @@
                 <div class="resource-info">
                     <div class="flex justify-between items-center py-1">
                         <span class="resource-label">Address</span>
-                        <code class="text-sm resource-value" x-text="$store.gameServers.serverAddressLine(server)"></code>
+                        <code class="text-sm resource-value" x-text="server != null ? $store.gameServers.serverAddressLine(server) : ''"></code>
                     </div>
                 </div>
             </div>

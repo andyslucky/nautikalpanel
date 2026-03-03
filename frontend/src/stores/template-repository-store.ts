@@ -1,4 +1,5 @@
 import Alpine from 'alpinejs';
+import {showToast} from "../utils/toast.ts";
 
 export type TemplateRepository = {
     // Need to clean this up. SurrealDB record ids contain the table name + the record identifier. We just care about the record identifier
@@ -6,12 +7,6 @@ export type TemplateRepository = {
     name: string;
     url: string;
 };
-
-function showToast(message: string, variant: 'info' | 'success' | 'warning' | 'danger' | 'error' = 'info') {
-    window.dispatchEvent(new CustomEvent('notify', {
-        detail: { variant, message }
-    }));
-}
 
 export type TemplateRepositoryStore = {
     repositories: TemplateRepository[];
