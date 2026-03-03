@@ -48,18 +48,18 @@ The schema is organized into these main sections:
 | `game_type` | string | No | Unique game identifier (lowercase, no spaces) |
 | `icon_url` | string (URI) | No | URL for server icon displayed in UI |
 | `init_template` | string | No | Path to Jinja template for initial resources |
-| `pod_config` | object | Yes | Container and resource configuration |
-| `service_config` | object | Yes | Network and service exposure |
-| `pvc_config` | object | Yes | Persistent storage configuration |
+| `pod_config` | [PodConfig](#pod-configuration-pod_config) | Yes | Container and resource configuration |
+| `service_config` | [SvcConfig](#service-configuration-svc_config) | Yes | Network and service exposure |
+| `pvc_config` | [PvcConfig](#pvc-configuration-pvc_config) | Yes | Persistent storage configuration |
 | `default_max_users` | integer | No | Default maximum number of players |
-| `user_id` | integer | No | User ID for permissions (default: 1000) |
+| `user_id` | integer | No | User ID for permissions to data stored in persistent volume. Used by sftp container and gameserver container for consistent file permissions. (default: 1000) |
 
 ### Pod Configuration (`pod_config`)
 
 | Property | Type | Required | Description |
 |----------|--------|-----------|-------------|
 | `image` | string | Yes | Docker image to run |
-| `resources` | object | No | CPU and memory specifications |
+| `resources` | [Resources](#resources-resources) | No | CPU and memory specifications |
 | `command` | array of strings | No | Override container startup command |
 | `env` | object | No | Environment variables (key-value pairs) |
 | `mounts` | array | No | Additional volume mounts |
@@ -75,14 +75,14 @@ Both `requests` and `limits` contain:
 
 | Property | Type | Pattern | Description |
 |----------|--------|----------|-------------|
-| `cpu` | string | `^[0-9]+m?$|^[0-9]+(\\.[0-9]+)?$` | CPU in milli-cores (e.g., `500m`) or whole cores |
-| `memory` | string | `^[0-9]+(Mi|Gi|m|g)$` | Memory in Mi (megabytes) or Gi (gigabytes) |
+| `cpu` | string | `^[0-9]+m?$` | CPU in milli-cores (e.g., `500m`) or whole cores |
+| `memory` | string | `^[0-9]+(Mi\|Gi)$` | Memory in Mi (megabytes) or Gi (gigabytes) |
 
 ### Service Configuration (`service_config`)
 
 | Property | Type | Required | Description |
 |----------|--------|-----------|-------------|
-| `ports` | array | Yes | List of ports to expose (minimum 1) |
+| `ports` | [Port[]](#ports-ports) | Yes | List of ports to expose (minimum 1) |
 | `ip_address` | string | No | Optional specific IP for LoadBalancer |
 | `service_type` | string | No | Kubernetes service type (default: `LoadBalancer`) |
 
@@ -110,30 +110,6 @@ Valid values for `service_type`:
 | `container_path` | string | Yes | Mount path in the container |
 | `size` | integer | Yes | Storage size number (minimum: 1) |
 | `size_unit` | string | Yes | Storage unit (enum: `Mi` or `Gi`) |
-| `user_id` | integer | No | User ID for container filesystem (default: 1000) |
-
-## Validation Rules
-
-### Pattern Validation
-
-The schema enforces these patterns:
-
-- **CPU**: `500m` (0.5 cores), `2000m` (2 cores), `2` (2 whole cores)
-- **Memory**: `512Mi` (512 MB), `1Gi` (1 GB), `4Gi` (4 GB)
-- **Game Type**: `minecraft`, `valheim`, `ark-survival` (lowercase, alphanumeric, underscores, hyphens)
-
-### Enum Validation
-
-These fields accept only specific values:
-
-- **Service Type**: `LoadBalancer`, `NodePort`, `ClusterIP`
-- **Port Protocol**: `TCP`, `UDP`, `Both`
-- **Storage Unit**: `Mi`, `Gi`
-
-### Range Validation
-
-- **Port**: 1 to 65535
-- **Size**: Minimum 1 (any positive integer)
 
 ## Example Valid Template
 

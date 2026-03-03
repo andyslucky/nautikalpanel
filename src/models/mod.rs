@@ -161,8 +161,6 @@ pub struct PvcConfig {
     pub container_path: String,
     pub size: u32,
     pub size_unit: String,
-    #[serde(default = "default_user_id")]
-    pub user_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

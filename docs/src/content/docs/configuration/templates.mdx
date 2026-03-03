@@ -22,22 +22,8 @@ export NAUTIKAL__PATHS__K8S_TEMPLATES=k8s-templates
 export NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR=/opt/custom-templates
 ```
 
-## Game Server Templates
 
-Game server templates define how to run different games. You can create your own templates or use community templates.
 
-Nautikal Panel supports **template repositories**, allowing you to organize templates from multiple sources:
-
-- **Local repositories** - Templates in filesystem directories
-- **GitHub repositories** - Templates fetched directly from GitHub repositories (requires GitHub token)
-
-A default local repository is automatically created on first startup, pointing to your configured `game-server-templates/` directory.
-
-To use GitHub repositories, configure a GitHub token via:
-
-```bash
-export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-```
 
 See [Game Server Templates](/templates/game-server-templates) for a complete guide to creating and organizing templates, or [Template Repositories](/templates/template-repositories) for managing multiple template sources including GitHub integration.
 

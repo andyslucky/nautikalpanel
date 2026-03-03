@@ -3,7 +3,6 @@ type PvcConfig = {
     size_unit: string;
     container_path?: string;
     storage_class?: string;
-    user_id?: number;
 };
 type SvcConfig = {
     ports: Array<{ port: string; protocol: string }>;

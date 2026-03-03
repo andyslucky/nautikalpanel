@@ -111,7 +111,6 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
                     size_unit: 'Gi',
                     container_path: '',
                     storage_class: '',
-                    user_id: 1000
                 }
             },
         }
@@ -169,9 +168,6 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
         }
         if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
             this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
-        }
-        if (!this.form.template.pvc_config.user_id) {
-            this.form.template.pvc_config.user_id = 1000;
         }
     },
     resetForm() {

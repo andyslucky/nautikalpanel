@@ -704,7 +704,6 @@ mod tests {
                 container_path: "/data".to_string(),
                 size: 2,
                 size_unit: "Gi".to_string(),
-                user_id: 1000,
             },
             user_id: 1000,
         }
