@@ -2,7 +2,6 @@ use crate::app_config::DatabaseConfig;
 use crate::models::TemplateRepository;
 use surrealdb::engine::local::Db;
 use surrealdb::Surreal;
-use anyhow::anyhow;
 
 #[derive(Clone)]
 pub struct TemplateRepositoryStore {
@@ -36,6 +35,7 @@ impl TemplateRepositoryStore {
         Ok(self.db.select("template_repositories").await?)
     }
 
+    #[allow(dead_code)]
     pub async fn get_repository_by_id(
         &self,
         repository_id: &str,

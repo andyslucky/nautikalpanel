@@ -9,17 +9,13 @@ use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
 use crate::services::template_repository_manager::TemplateRepositoryManager;
 use crate::services::template_repository_store::TemplateRepositoryStore;
-use k8s_openapi::api::core::v1::Namespace;
-use kube::api::PostParams;
-use kube::{Api, Client};
+use kube::Client;
 use std::error::Error;
 use std::sync::Arc;
-use axum::http::Uri;
 use surrealdb::engine::local::{Db, RocksDb};
 use surrealdb::Surreal;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
-use url::Url;
 
 async fn create_executor(
     config: &AppConfig,

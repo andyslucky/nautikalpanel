@@ -1,28 +1,26 @@
 use crate::app_config::AppConfig;
 use crate::models::{GameServer, GameServerInstance, SftpCredentials};
-use anyhow::anyhow;
+use crate::services::k8s_resource_renderer::K8sResourceRenderer;
 use futures_util::io::Lines;
-use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream, StreamExt, TryStreamExt};
-use k8s_openapi::ByteString;
+use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream};
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Secret, Service};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::api::{
     ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams, PostParams,
 };
 use kube::runtime::reflector::Lookup;
-use kube::runtime::utils::EventDecode;
 use kube::runtime::watcher::Event;
-use kube::runtime::{WatchStreamExt, watcher};
+use kube::runtime::{watcher};
 use kube::{Api, Client, ResourceExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::error::Error;
-use std::ops::{Deref, Index};
+use std::ops::Deref;
 use std::str::FromStr;
-use tera::{Context, Filter, Tera};
-use tracing::{error, info};
+use anyhow::anyhow;
+use tracing::info;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PodMetric {
@@ -45,11 +43,6 @@ impl From<(Pod, Option<&(f64, u64)>)> for PodMetric {
     }
 }
 
-struct EvaluateTeraFn {
-    tera: Tera,
-    context: Context,
-}
-
 #[derive(Deserialize)]
 struct PrometheusDataPointMetric {
     pod : String,
@@ -68,40 +61,15 @@ struct PrometheusDataPayload {
 
 #[derive(Deserialize)]
 struct PrometheusQueryResponse {
+    #[allow(dead_code)]
     status : String,
     data : PrometheusDataPayload
-}
-
-
-impl Filter for EvaluateTeraFn {
-    fn filter(&self, value: &Value, _args: &HashMap<String, Value>) -> tera::Result<Value> {
-        if !value.is_string() {
-            Err(tera::Error::msg(
-                "evaluateTera may only be called on strings",
-            ))
-        } else {
-            let string_val = value.as_str().unwrap();
-            let mut tera = self.tera.clone();
-            tera.add_raw_template("eval_temp", string_val)?;
-            match tera.render("eval_temp", &self.context) {
-                Ok(rendered_text) => Ok(Value::String(rendered_text)),
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(e)
-                }
-            }
-        }
-    }
-
-    fn is_safe(&self) -> bool {
-        false
-    }
 }
 
 pub struct KubernetesExecutor {
     client: Client,
     namespace: String,
-    tera: Tera,
+    renderer: K8sResourceRenderer,
     config: AppConfig,
 }
 
@@ -111,26 +79,11 @@ impl KubernetesExecutor {
         namespace: String,
         config: AppConfig,
     ) -> Result<KubernetesExecutor, Box<dyn Error>> {
-        let mut tera = Tera::new(&format!("{}/**/*", config.paths.k8s_templates))?;
-        if let Some(extra_dir) = &config.paths.extra_k8s_templates_dir {
-            let extra_glob = format!("{}/**/*", extra_dir);
-            match Tera::new(&extra_glob) {
-                Ok(extra_tera) => {
-                    tera.extend(&extra_tera)?;
-                    info!("Loaded extra templates from: {}", extra_dir);
-                }
-                Err(e) => {
-                    error!(
-                        "Warning: Failed to load extra templates from {}: {}",
-                        extra_dir, e
-                    );
-                }
-            }
-        }
+        let renderer = K8sResourceRenderer::new(config.clone())?;
         Ok(KubernetesExecutor {
             client,
             namespace,
-            tera,
+            renderer,
             config,
         })
     }
@@ -158,122 +111,6 @@ impl KubernetesExecutor {
             }
         };
         Ok(())
-    }
-
-    fn create_template_context(
-        &self,
-        game_server: &GameServer,
-    ) -> Result<Context, Box<dyn Error>> {
-        let id = game_server
-            .id
-            .as_ref()
-            .expect("Record Id must be set")
-            .key()
-            .to_string();
-        let re = regex::Regex::new("[^a-zA-Z0-9]")?;
-        let raw_game_type = game_server.game_type.trim();
-        let mut game_type = re
-            .replace(raw_game_type.to_lowercase().as_str(), "-")
-            .to_string();
-        if game_type.len() > 40 {
-            game_type = game_type.index(..40).to_string()
-        }
-        let mut context = Context::new();
-        context.insert("gameType", game_type.as_str());
-        context.insert("gameServerId", &id);
-        context.insert("server", game_server);
-        Ok(context)
-    }
-
-    fn render_pod(
-        &self,
-        game_server: &GameServer,
-        persistent_volume_claim: Option<&PersistentVolumeClaim>,
-        sftp_secret: &Secret,
-    ) -> Result<String, Box<dyn Error>> {
-        let mut context = self.create_template_context(game_server)?;
-        context.insert(
-            "sftpSecretName",
-            &sftp_secret
-                .name()
-                .ok_or_else(|| anyhow!("SFTP Secret name not available"))?,
-        );
-        if let Some(pvc) = persistent_volume_claim {
-            context.insert("pvc_name", &pvc.name())
-        }
-        let mut tera = self.tera.clone();
-        tera.register_filter(
-            "evaluateTera",
-            EvaluateTeraFn {
-                tera: tera.clone(),
-                context: context.clone(),
-            },
-        );
-        let pod_template = game_server
-            .pod_template
-            .as_ref()
-            .filter(|t| !t.is_empty())
-            .unwrap_or(&self.config.kubernetes.pod_template);
-        match tera.render(pod_template.as_str(), &context) {
-            Ok(yaml) => Ok(yaml),
-            Err(e) => {
-                error!("Failed rendering pod {:?}", e);
-                Err(e.into())
-            }
-        }
-    }
-
-    fn render_init_yaml(&self, game_server: &GameServer) -> Result<String, Box<dyn Error>> {
-        let mut context = self.create_template_context(game_server)?;
-        context.insert("ports", &game_server.service_config.ports);
-        if let Some(storage_class_name) = game_server.pvc_config.storage_class.as_ref()
-            && storage_class_name.len() > 0
-        {
-            context.insert("storageClassName", storage_class_name);
-        } else if let Some(default_storage_class) = &self.config.kubernetes.default_storage_class {
-            context.insert("storageClassName", default_storage_class);
-        }
-        context.insert(
-            "storage",
-            &format!(
-                "{}{}",
-                game_server.pvc_config.size, game_server.pvc_config.size_unit
-            ),
-        );
-        let mut tera = self.tera.clone();
-        tera.register_filter(
-            "evaluateTera",
-            EvaluateTeraFn {
-                tera: tera.clone(),
-                context: context.clone(),
-            },
-        );
-
-        let init_template = game_server
-            .init_template
-            .as_ref()
-            .filter(|t| !t.is_empty())
-            .unwrap_or(&self.config.kubernetes.init_template);
-        Ok(tera.render(init_template, &context)?)
-    }
-
-    fn render_sftp_pod(
-        &self,
-        game_server: &GameServer,
-        persistent_volume_claim: Option<&PersistentVolumeClaim>,
-        secret: &Secret,
-    ) -> Result<String, Box<dyn Error>> {
-        let mut context = self.create_template_context(game_server)?;
-        if let Some(pvc) = persistent_volume_claim {
-            context.insert("pvc_name", &pvc.name())
-        }
-        context.insert(
-            "sftpSecretName",
-            &secret
-                .name()
-                .ok_or_else(|| anyhow!("SFTP Secret name not available"))?,
-        );
-        Ok(self.tera.render("default/sftp_only.yaml.jinja", &context)?)
     }
 
     pub async fn list_services(
@@ -330,7 +167,7 @@ impl KubernetesExecutor {
     }
 
     pub async fn init_game_server(&self, game_server: &GameServer) -> Result<(), Box<dyn Error>> {
-        let init_yaml = self.render_init_yaml(game_server)?;
+        let init_yaml = self.renderer.render_init_yaml(game_server)?;
         tracing::debug!(
             "Init YAML for game server name: {}; game server id: {:?}",
             game_server.name,
@@ -364,7 +201,9 @@ impl KubernetesExecutor {
             .await?;
         let pvcs = self.list_pvcs(game_server.id_string()).await?;
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let pod_yaml = self.render_pod(game_server, pvcs.first(), &secret)?;
+        let pvc_name = pvcs.first().map(|p| p.name()).flatten();
+        let secret_name = secret.name_any();
+        let pod_yaml = self.renderer.render_pod(game_server, pvc_name.as_deref(), &secret_name)?;
         tracing::debug!(
             "Yaml for pod (game server name: {}; game server id: {:?} )",
             game_server.name,
@@ -386,7 +225,9 @@ impl KubernetesExecutor {
             .await?;
         let pvcs = self.list_pvcs(game_server.id_string()).await?;
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let pod_yaml = self.render_sftp_pod(game_server, pvcs.first(), &secret)?;
+        let pvc_name = pvcs.first().map(|p| p.name()).flatten();
+        let secret_name = secret.name().ok_or_else(|| anyhow!("secret name not found"))?;
+        let pod_yaml = self.renderer.render_sftp_pod(game_server, pvc_name.as_deref(), &secret_name)?;
         tracing::debug!(
             "Yaml for SFTP pod (game server name: {}; game server id: {:?} )",
             game_server.name,
@@ -491,7 +332,7 @@ impl KubernetesExecutor {
     async fn delete_credentials(&self, list_params: &ListParams) -> Result<(), Box<dyn Error>> {
         let secrets: Api<Secret> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         match secrets
-            .delete_collection(&DeleteParams::default(), &list_params)
+            .delete_collection(&DeleteParams::default(), list_params)
             .await?
         {
             either::Left(list) => {
@@ -509,7 +350,7 @@ impl KubernetesExecutor {
         let pvc_api: Api<PersistentVolumeClaim> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
         match pvc_api
-            .delete_collection(&DeleteParams::default(), &list_params)
+            .delete_collection(&DeleteParams::default(), list_params)
             .await?
         {
             either::Left(list) => {
@@ -527,7 +368,7 @@ impl KubernetesExecutor {
         let service_api: Api<Service> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
         match service_api
-            .delete_collection(&DeleteParams::default(), &list_params)
+            .delete_collection(&DeleteParams::default(), list_params)
             .await?
         {
             either::Left(list) => {
@@ -560,6 +401,7 @@ impl KubernetesExecutor {
         }
         Ok(())
     }
+
     pub async fn stream_logs(
         &self,
         game_server_instance: GameServerInstance,
@@ -579,11 +421,12 @@ impl KubernetesExecutor {
 
     pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        return watcher::watcher(
+        watcher::watcher(
             pods,
             watcher::Config::default().labels("app.kubernetes.io/managed-by=nautikal"),
-        );
+        )
     }
+
     pub async fn fetch_pod_metrics(
         &self,
         game_server_id: Option<&str>,
@@ -627,7 +470,6 @@ impl KubernetesExecutor {
                 .entry(pod_name)
                 .or_insert((0.0, 0));
             if let Some(Value::String(str_val)) = value {
-                // convert to millicores
                 entry.0 = f64::from_str(str_val)? * 1000.0;
             } else if let Some(Value::Number(n)) = value {
                 entry.0 = n.as_f64().unwrap_or(0.0) * 1000.0;
@@ -653,105 +495,5 @@ impl KubernetesExecutor {
             PodMetric::from((p, metrics))
         }).collect();
         Ok(metrics)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::{PodConfig, PvcConfig, ResourceQuantities, Resources, ServiceConfig};
-    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-    use std::str::FromStr;
-    use surrealdb::RecordId;
-
-    fn test_game_server() -> GameServer {
-        GameServer {
-            id: RecordId::from_str("game_server:abscda").ok(),
-            icon_url: None,
-            description: None,
-            name: "".to_string(),
-            game_type: "Minecraft".to_string(),
-            game_version: "".to_string(),
-            max_players: 0,
-            pod_template: None,
-            init_template: None,
-            pod_config: PodConfig {
-                image: "testimage".to_string(),
-                resources: Some(Resources {
-                    requests: Some(ResourceQuantities {
-                        cpu: Some("100m".to_string()),
-                        memory: Some("500Mi".to_string()),
-                    }),
-                    limits: Some(ResourceQuantities {
-                        cpu: Some("500m".to_string()),
-                        memory: Some("1000Mi".to_string()),
-                    }),
-                }),
-                command: None,
-                env: Some(HashMap::from([
-                    ("foo".to_string(), "bar".to_string()),
-                    ("old".to_string(), "young".to_string()),
-                ])),
-                mounts: None,
-            },
-            service_config: ServiceConfig {
-                ports: vec![],
-                ip_address: None,
-                service_type: "".to_string(),
-            },
-            pvc_config: PvcConfig {
-                storage_class: None,
-                container_path: "/data".to_string(),
-                size: 2,
-                size_unit: "Gi".to_string(),
-            },
-            user_id: 1000,
-        }
-    }
-    #[tokio::test]
-    async fn test_render_init_yaml() -> Result<(), Box<dyn Error>> {
-        let config = AppConfig::load()?;
-        let executor = KubernetesExecutor::new(
-            Client::try_default().await?,
-            "nautikal".to_string(),
-            config,
-        )
-        .await?;
-        let game_server = test_game_server();
-        let init_script = executor.render_init_yaml(&game_server)?;
-        println!("{}", init_script);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_render_pod_template_yaml() -> Result<(), Box<dyn Error>> {
-        let config = AppConfig::load()?;
-        let executor = KubernetesExecutor::new(
-            Client::try_default().await?,
-            "nautikal".to_string(),
-            config,
-        )
-        .await?;
-        let game_server = test_game_server();
-        let metadata: ObjectMeta = Default::default();
-        let pvc = PersistentVolumeClaim {
-            metadata: ObjectMeta {
-                name: Some("some_pvc".to_string()),
-                ..metadata
-            },
-            spec: None,
-            status: None,
-        };
-        let test_secret: Secret = Secret {
-            metadata: ObjectMeta {
-                name: Some("some-secret".to_string()),
-                ..ObjectMeta::default()
-            },
-            ..Secret::default()
-        };
-        let pod_script = executor.render_pod(&game_server, Some(&pvc), &test_secret)?;
-        println!("{}", pod_script);
-        let _pod: Pod = serde_saphyr::from_str(pod_script.as_str())?;
-        Ok(())
     }
 }

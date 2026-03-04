@@ -5,7 +5,6 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use surrealdb::RecordId;
-use url::Url;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Resources {

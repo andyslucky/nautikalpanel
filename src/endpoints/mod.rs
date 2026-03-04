@@ -10,20 +10,18 @@ use crate::services::template_repository_store::TemplateRepositoryStore;
 use axum::extract::Query;
 use axum::routing::delete;
 use axum::{
-    Json, Router,
     extract::{
-        Path, State,
-        ws::{Message, WebSocket, WebSocketUpgrade},
-    },
-    http::StatusCode,
+        ws::{Message, WebSocket, WebSocketUpgrade}, Path,
+        State,
+    }, http::StatusCode,
     response::IntoResponse,
     routing::{get, post, put},
+    Json,
+    Router,
 };
-use futures_util::FutureExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio_stream::StreamExt as _;
 use tracing::error;
 
 /// Application state shared across all routes
