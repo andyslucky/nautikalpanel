@@ -13,7 +13,11 @@ Alpine.store('logViewer', {
     lines: [] as string[],
     connected: false,
     socket: null as WebSocket | null,
-
+    init() {
+      window.addEventListener('beforeunload', () => {
+         this.disconnect();
+      });
+    },
     connect(gameServerId: string) {
         this.disconnect();
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -45,19 +49,26 @@ Alpine.store('logViewer', {
 
         this.socket.onclose = () => {
             this.connected = false;
+            this.socket = null;
         };
 
         this.socket.onerror = (error: Event) => {
-            console.error('WebSocket error:', error);
+            console.error('Logs WebSocket error:', error);
             this.connected = false;
         };
     },
 
     disconnect() {
-        if (this.socket) {
-            this.socket.close();
-            this.socket = null;
+        if (this.socket != null) {
+            try{
+                this.socket.close();
+            } catch (e) {
+                console.error("Failed closing logs websocket", e);
+            } finally {
+                this.socket = null;
+            }
         }
+        this.lines = [];
         this.connected = false;
     },
 

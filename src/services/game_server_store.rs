@@ -58,7 +58,7 @@ impl GameServerStore {
 
     pub async fn fetch_all_game_servers(
         &self,
-    ) -> Result<Vec<GameServer>, Box<dyn Error>> {
+    ) -> Result<Vec<GameServer>, Box<dyn Error + Send +  Sync>> {
         Ok(self.db.select("game_servers").await?)
     }
 

@@ -106,10 +106,13 @@ Alpine.store('gameServers', {
     servers: [] as Server[],
     gameServerTemplates: [] as GameServerTemplate[],
     watchSocket: null as WebSocket | null,
-    watchReconnectDelay: 1000,
+    watchReconnectDelay: 10_000,
     watchReconnectTimer: -1 as number,
 
     async init() {
+        window.addEventListener("beforeunload", () => {
+           this.disconnectWatchSocket();
+        });
         await this.fetchServers();
         this.connectWatchSocket();
     },
@@ -158,7 +161,6 @@ Alpine.store('gameServers', {
 
         this.watchSocket.onopen = () => {
             console.log('Watch WebSocket connected');
-            this.watchReconnectDelay = 1000;
         };
 
         this.watchSocket.onmessage = (event: MessageEvent) => {
@@ -188,10 +190,14 @@ Alpine.store('gameServers', {
             clearTimeout(this.watchReconnectTimer);
             this.watchReconnectTimer = -1;
         }
-        if (this.watchSocket) {
-            this.watchSocket.onclose = null;
-            this.watchSocket.close();
-            this.watchSocket = null;
+        if (this.watchSocket != null) {
+            try {
+                this.watchSocket.close();
+            } catch (e) {
+                console.error("Failed closing the watch WebSocket", e);
+            } finally {
+                this.watchSocket = null;
+            }
         }
     },
 
@@ -219,12 +225,15 @@ Alpine.store('gameServers', {
         let status = '';
         if (event.event_type.PodLifeCycle == 'Deleted') {
             status = 'Offline';
+            server.cpu_usage_millicores = undefined;
+            server.memory_usage_bytes = undefined;
         } else if (event.game_server_instance != null) {
             status = event.game_server_instance.pod_status!;
         } else {
             status = event.event_type.PodLifeCycle;
         }
         server.status = status;
+        window.dispatchEvent(new CustomEvent("game-server-status-changed", {detail: server}));
         if (event.game_server_instance) {
             server.instance_type = event.game_server_instance.nautikal_pod_type;
         }

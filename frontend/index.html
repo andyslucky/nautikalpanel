@@ -162,7 +162,11 @@
 <div x-data="editServerModal()" x-html="content" @edit.window="openEditModal($event.detail.server)"></div>
 
 <!-- Server Details Drawer -->
-<div x-data="serverDrawer()" x-html="content" @open-drawer.window="openDrawer($event.detail.server)"></div>
+<div x-data="serverDrawer()"
+     x-html="content"
+     @open-drawer.window="openDrawer($event.detail.server)"
+     @game-server-status-changed.window="gameServerStatusChanged($event.detail)">
+</div>
 </body>
 
 </html>

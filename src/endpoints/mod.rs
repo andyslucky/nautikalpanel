@@ -10,19 +10,19 @@ use crate::services::template_repository_store::TemplateRepositoryStore;
 use axum::extract::Query;
 use axum::routing::delete;
 use axum::{
+    Json, Router,
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade}, Path,
-        State,
-    }, http::StatusCode,
+        Path, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
+    http::StatusCode,
     response::IntoResponse,
     routing::{get, post, put},
-    Json,
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::error;
+use tracing::{debug, error, info};
 
 /// Application state shared across all routes
 #[derive(Clone)]
@@ -191,14 +191,9 @@ struct TemplateRepositoryResponse {
 }
 
 impl From<TemplateRepository> for TemplateRepositoryResponse {
-
     fn from(value: TemplateRepository) -> Self {
         Self {
-            id: value
-                .id
-                .expect("Row doesnt have id")
-                .key()
-                .to_string(),
+            id: value.id.expect("Row doesnt have id").key().to_string(),
             name: value.name,
             url: value.url,
         }
@@ -241,35 +236,33 @@ async fn delete_template_repository(
 async fn list_servers(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<GameServerResponse>>, ErrorResponse> {
-    let game_servers = state
-        .store
-        .fetch_all_game_servers()
-        .await
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?;
+    let (game_servers_result, pods_result, services_result) = tokio::join!(
+        state.store.fetch_all_game_servers(),
+        state.executor.list_pods(None::<String>),
+        state.executor.list_services(None::<String>)
+    );
 
-    let game_instances_by_gs_id: HashMap<String, GameServerInstance> = state
-        .executor
-        .list_pods(None::<String>)
-        .await
-        .map(|pods| pods.into_iter().map(GameServerInstance::from))
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?
+    let game_servers = game_servers_result.map_err(|e| ErrorResponse {
+        error: e.to_string(),
+    })?;
+
+    let pods = pods_result.map_err(|e| ErrorResponse {
+        error: e.to_string(),
+    })?;
+
+    let services = services_result.map_err(|e| ErrorResponse {
+        error: e.to_string(),
+    })?;
+
+    let game_instances_by_gs_id: HashMap<String, GameServerInstance> = pods
         .into_iter()
+        .map(GameServerInstance::from)
         .map(|inst| (inst.game_server_id.clone(), inst))
         .collect();
 
-    let network_identities_by_gs_id: HashMap<String, GameServerNetworkIdentity> = state
-        .executor
-        .list_services(None::<String>)
-        .await
-        .map(|svcs| svcs.into_iter().map(GameServerNetworkIdentity::from))
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?
+    let network_identities_by_gs_id: HashMap<String, GameServerNetworkIdentity> = services
         .into_iter()
+        .map(GameServerNetworkIdentity::from)
         .map(|ni| (ni.game_server_id.clone(), ni))
         .collect();
 
@@ -436,9 +429,13 @@ async fn stream_logs_to_ws(
     use futures_util::{SinkExt, StreamExt};
     let (mut ws_tx, mut ws_rx) = socket.split();
     let opt_game_instance: Option<GameServerInstance> = executor
-        .list_pods(Some(game_server_id))
+        .list_pods(Some(game_server_id.as_str()))
         .await
         .map(|pods| pods.into_iter().map(GameServerInstance::from).next())
+        .map_err(|e| {
+            error!("An error occurred fetching pods {}", e);
+            e
+        })
         .ok()
         .flatten();
     let game_instance: GameServerInstance;
@@ -451,30 +448,38 @@ async fn stream_logs_to_ws(
     let mut log_stream = match executor.stream_logs(game_instance).await {
         Ok(stream) => stream,
         Err(e) => {
+            error!(
+                "An error occurred streaming logs for {}: {}",
+                game_server_id, e
+            );
             let _ = ws_tx
                 .send(Message::Text(format!("Error streaming logs: {}", e).into()))
                 .await;
+            let _ = ws_tx.send(Message::Close(None)).await;
             return;
         }
     };
 
-    let mut close_received = false;
-
+    let mut send_close = false;
     loop {
         tokio::select! {
             log_line = futures_util::StreamExt::next(&mut log_stream) => {
                 match log_line {
                     Some(Ok(line)) => {
                         if ws_tx.send(Message::Text(line.into())).await.is_err() {
+                            error!("Failed sending log line");
                             break;
                         }
                     }
                     Some(Err(e)) => {
+                        error!("Error receiving log line {}", e);
                         let _ = ws_tx.send(Message::Text(format!("Log stream error: {}", e).into())).await;
                         break;
                     }
                     None => {
+                        info!("Log stream ended");
                         let _ = ws_tx.send(Message::Text("Log stream ended".into())).await;
+                        send_close = true;
                         break;
                     }
                 }
@@ -482,19 +487,30 @@ async fn stream_logs_to_ws(
             msg = futures_util::StreamExt::next(&mut ws_rx) => {
                 match msg {
                     Some(Ok(Message::Close(_))) => {
-                        close_received = true;
+                        debug!("Close received for logs websocket");
+                        send_close = true;
                         break;
                     }
                     Some(Ok(Message::Ping(data))) => {
                         let _ = ws_tx.send(Message::Pong(data)).await;
                     }
-                    _ => {}
+                    Some(Ok(Message::Pong(_))) => {}
+                    Some(Ok(Message::Text(_))) | Some(Ok(Message::Binary(_))) => {}
+                    Some(Err(e)) => {
+                        error!("Error receiving data from logs websocket: {}", e);
+                        break;
+                    }
+                    None => {
+                        debug!("Logs websocket stream ended (client disconnected)");
+                        break;
+                    }
                 }
             }
         }
     }
 
-    if !close_received {
+    if send_close {
+        debug!("Sending close to logs web socket");
         let _ = ws_tx.send(Message::Close(None)).await;
     }
 }
@@ -522,7 +538,9 @@ async fn get_sftp_credentials(
 /// Stream real-time updates about pod and service changes from Kubernetes.
 /// On connect, sends a full snapshot, then streams incremental updates.
 async fn watch_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_watch_socket(socket, state.executor.clone(), state.config.clone()))
+    ws.on_upgrade(move |socket| {
+        handle_watch_socket(socket, state.executor.clone(), state.config.clone())
+    })
 }
 
 #[derive(Serialize, Clone)]
@@ -537,16 +555,22 @@ pub struct GameServerEvent {
     pub game_server_instance: Option<GameServerInstance>,
 }
 
-async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<KubernetesExecutor>, config : AppConfig) {
+async fn handle_watch_socket(
+    socket: WebSocket,
+    kubernetes_executor: Arc<KubernetesExecutor>,
+    config: AppConfig,
+) {
     use futures_util::{SinkExt, StreamExt};
 
     let (mut ws_tx, mut ws_rx) = socket.split();
 
-    let mut close_received = false;
     let mut pod_stream = kubernetes_executor.stream_pod_changes().boxed();
-    let mut metrics_interval = tokio::time::interval(tokio::time::Duration::from_secs(config.prometheus.poll_rate_seconds));
+    let mut metrics_interval = tokio::time::interval(tokio::time::Duration::from_secs(
+        config.prometheus.poll_rate_seconds,
+    ));
     use kube::runtime::watcher::Event;
 
+    let mut send_close = false;
     loop {
         tokio::select! {
             // Forward broadcast events to WebSocket client
@@ -579,7 +603,11 @@ async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<Kuberne
                     _ => None
                 };
                 if let Ok(game_server_event) = serde_json::to_string(&message) && message.is_some() {
-                    if ws_tx.send(Message::Text(game_server_event.into())).await.is_err() { break; }
+                    if let Err(e) = ws_tx.send(Message::Text(game_server_event.into())).await {
+                        error!("An error occurred sending game server event to client. Closing watch web socket. Cause: {}", e);
+                        send_close = true;
+                        break;
+                    }
                 }
             }
             // Send metrics updates periodically
@@ -591,7 +619,9 @@ async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<Kuberne
                             game_server_instance: None
                         };
                         if let Ok(message) = serde_json::to_string(&metrics_event) {
-                            if ws_tx.send(Message::Text(message.into())).await.is_err() {
+                            if let Err(e) = ws_tx.send(Message::Text(message.into())).await {
+                                error!("Failed sending metic event to watch websocket. Closing watch web socket Cause: {}", e);
+                                send_close = true;
                                 break;
                             }
                         }
@@ -601,26 +631,32 @@ async fn handle_watch_socket(socket: WebSocket, kubernetes_executor: Arc<Kuberne
                     }
                 }
             }
-            // Handle incoming WebSocket messages (ping/pong/close)
             msg = futures_util::StreamExt::next(&mut ws_rx) => {
                 match msg {
                     Some(Ok(Message::Close(_))) => {
-                        close_received = true;
+                        debug!("Close received for watch websocket");
+                        send_close = true;
                         break;
                     }
                     Some(Ok(Message::Ping(data))) => {
                         let _ = ws_tx.send(Message::Pong(data)).await;
                     }
-                    Some(Err(_)) | None => {
+                    Some(Ok(Message::Pong(_))) => {}
+                    Some(Ok(Message::Text(_))) | Some(Ok(Message::Binary(_))) => {}
+                    Some(Err(e)) => {
+                        error!("Error receiving data from watch websocket: {}", e);
                         break;
                     }
-                    _ => {}
+                    None => {
+                        debug!("Watch websocket stream ended (client disconnected)");
+                        break;
+                    }
                 }
             }
         }
     }
 
-    if !close_received {
+    if send_close {
         let _ = ws_tx.send(Message::Close(None)).await;
     }
 }

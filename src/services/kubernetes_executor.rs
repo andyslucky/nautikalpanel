@@ -116,7 +116,7 @@ impl KubernetesExecutor {
     pub async fn list_services(
         &self,
         game_server_id: Option<impl Deref<Target = str>>,
-    ) -> Result<Vec<Service>, Box<dyn Error>> {
+    ) -> Result<Vec<Service>, Box<dyn Error + Send + Sync>> {
         let services: Api<Service> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut svc_list_params =
             ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
@@ -136,7 +136,7 @@ impl KubernetesExecutor {
     pub async fn list_pods(
         &self,
         game_server_id: Option<impl Deref<Target = str>>,
-    ) -> Result<Vec<Pod>, kube::Error> {
+    ) -> Result<Vec<Pod>, Box<dyn Error + Send + Sync>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
         let mut list_params = ListParams::default().labels("app.kubernetes.io/managed-by=nautikal");
         if let Some(game_server_id) = game_server_id {
