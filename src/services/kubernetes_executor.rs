@@ -3,6 +3,7 @@ use crate::models::{GameServer, GameServerInstance, SftpCredentials};
 use crate::services::k8s_resource_renderer::K8sResourceRenderer;
 use futures_util::io::Lines;
 use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream};
+use k8s_openapi::api::batch::v1::Job as BatchJob;
 use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Secret, Service};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::api::{
@@ -419,10 +420,22 @@ impl KubernetesExecutor {
             .lines())
     }
 
-    pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> {
-        let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> + use<> {
+        let client = self.client.clone();
+        let namespace = self.namespace.clone();
+        let pods: Api<Pod> = Api::namespaced(client, &namespace);
         watcher::watcher(
             pods,
+            watcher::Config::default().labels("app.kubernetes.io/managed-by=nautikal"),
+        )
+    }
+
+    pub fn stream_job_changes(&self) -> impl Stream<Item = watcher::Result<Event<BatchJob>>> + use<> {
+        let client = self.client.clone();
+        let namespace = self.namespace.clone();
+        let jobs: Api<BatchJob> = Api::namespaced(client, &namespace);
+        watcher::watcher(
+            jobs,
             watcher::Config::default().labels("app.kubernetes.io/managed-by=nautikal"),
         )
     }
@@ -495,5 +508,68 @@ impl KubernetesExecutor {
             PodMetric::from((p, metrics))
         }).collect();
         Ok(metrics)
+    }
+
+    pub async fn create_setup_job(
+        &self,
+        game_server: &GameServer,
+        pvc_name: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let job_yaml = self.renderer.render_setup_job(game_server, pvc_name)?;
+
+        let job: kube::api::DynamicObject = serde_saphyr::from_str(&job_yaml)?;
+        let job_gvk = job.types.as_ref().and_then(|t| GroupVersionKind::try_from(t).ok()).unwrap();
+        let api: Api<kube::api::DynamicObject> = Api::namespaced_with(
+            self.client.clone(),
+            self.namespace.as_str(),
+            &ApiResource::from_gvk(&job_gvk),
+        );
+
+        api.create(&PostParams::default(), &job).await?;
+        Ok(())
+    }
+
+    pub async fn delete_setup_job(&self, game_server_id: &str) -> Result<(), Box<dyn Error>> {
+        let jobs: Api<BatchJob> = Api::namespaced(self.client.clone(), &self.namespace);
+        let list_params = ListParams::default().labels(&format!(
+            "nautikal.io/game-server-id={}",
+            game_server_id
+        ));
+        jobs.delete_collection(&DeleteParams::default(), &list_params).await?;
+        Ok(())
+    }
+
+    pub async fn get_setup_job_status(&self, game_server_id: &str) -> Result<Option<String>, Box<dyn Error>> {
+        let jobs: Api<BatchJob> = Api::namespaced(self.client.clone(), &self.namespace);
+        let list_params = ListParams::default().labels(&format!(
+            "nautikal.io/game-server-id={}",
+            game_server_id
+        ));
+        let jobs = jobs.list(&list_params).await?.items;
+
+        if jobs.is_empty() {
+            return Ok(None);
+        }
+
+        let job = jobs.into_iter().next();
+        if let Some(job) = job {
+            if let Some(status) = job.status {
+                if let Some(conditions) = status.conditions {
+                    for condition in conditions {
+                        if condition.status == "True" {
+                            return Ok(Some(condition.type_));
+                        }
+                    }
+                }
+                if status.succeeded.unwrap_or(0) > 0 {
+                    return Ok(Some("Complete".to_string()));
+                }
+                if status.failed.unwrap_or(0) > 0 {
+                    return Ok(Some("Failed".to_string()));
+                }
+            }
+        }
+
+        Ok(Some("Running".to_string()))
     }
 }

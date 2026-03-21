@@ -161,8 +161,20 @@ impl K8sResourceRenderer {
         if let Some(pvc) = pvc_name {
             context.insert("pvc_name", pvc)
         }
-        context.insert("sftpSecretName", sftp_secret_name);
+context.insert("sftpSecretName", sftp_secret_name);
         Ok(self.tera.render("default/sftp_only.yaml.jinja", &context)?)
+    }
+
+    pub fn render_setup_job(
+        &self,
+        game_server: &GameServer,
+        pvc_name: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut context = self.create_template_context(game_server)?;
+        context.insert("pvc_name", pvc_name);
+        context.insert("custom_values", &game_server.custom_values.clone().unwrap_or_default().0);
+        context.insert("init_script", &game_server.init_script.clone().unwrap_or_default());
+        Ok(self.tera.render("default/setup_job.yaml.jinja", &context)?)
     }
 }
 
@@ -174,7 +186,7 @@ mod tests {
     use std::str::FromStr;
     use surrealdb::RecordId;
 
-    fn test_game_server() -> GameServer {
+fn test_game_server() -> GameServer {
         GameServer {
             id: RecordId::from_str("game_server:abscda").ok(),
             icon_url: None,
@@ -216,6 +228,9 @@ mod tests {
                 size_unit: "Gi".to_string(),
             },
             user_id: 1000,
+            init_script: None,
+            custom_values: None,
+            uploaded_files: None,
         }
     }
 

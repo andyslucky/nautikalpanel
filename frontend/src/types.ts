@@ -1,3 +1,23 @@
+export type CustomFieldType = 'text' | 'select' | 'file' | 'number' | 'boolean' | 'url';
+
+export type CustomFormField = {
+    name: string;
+    label: string;
+    type: CustomFieldType;
+    required?: boolean;
+    default?: string;
+    description?: string;
+    options?: string[];
+};
+
+export type CustomFieldValues = Record<string, string | number | boolean>;
+
+export type UploadedFile = {
+    field_name: string;
+    original_filename: string;
+    storage_path: string;
+};
+
 type PvcConfig = {
     size: number | string;
     size_unit: string;
@@ -32,4 +52,6 @@ export type GameServerTemplateData = {
     pod_config: PodConfig;
     service_config: SvcConfig;
     pvc_config: PvcConfig;
+    custom_fields?: CustomFormField[];
+    init_script?: string;
 };

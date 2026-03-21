@@ -12,14 +12,12 @@ use crate::services::template_repository_store::TemplateRepositoryStore;
 use kube::Client;
 use std::error::Error;
 use std::sync::Arc;
-use surrealdb::engine::local::{Db, RocksDb};
 use surrealdb::Surreal;
+use surrealdb::engine::local::{Db, RocksDb};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
-async fn create_executor(
-    config: &AppConfig,
-) -> Result<KubernetesExecutor, Box<dyn Error>> {
+async fn create_executor(config: &AppConfig) -> Result<KubernetesExecutor, Box<dyn Error>> {
     let mut k8s_config = kube::Config::infer().await?;
     k8s_config.default_namespace = config.kubernetes.namespace.clone();
     let client = Client::try_from(k8s_config)?;
@@ -27,14 +25,12 @@ async fn create_executor(
         KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
             .await?;
     if config.kubernetes.create_namespace {
-      executor.create_namespace_if_required().await?;
+        executor.create_namespace_if_required().await?;
     }
     Ok(executor)
 }
 
-async fn create_db(
-    config: &AppConfig,
-) -> Result<Surreal<Db>, Box<dyn Error>> {
+async fn create_db(config: &AppConfig) -> Result<Surreal<Db>, Box<dyn Error>> {
     Ok(Surreal::new::<RocksDb>(config.database.path.clone()).await?)
 }
 
@@ -53,7 +49,10 @@ async fn initialize_default_repository(
 ) -> Result<(), Box<dyn Error>> {
     let is_empty = store.is_empty().await?;
     if is_empty {
-        info!("Initializing default template repository at {}", local_templates_path);
+        info!(
+            "Initializing default template repository at {}",
+            local_templates_path
+        );
         let local_repo = TemplateRepository {
             id: None,
             name: "Local Templates".to_string(),
@@ -62,7 +61,7 @@ async fn initialize_default_repository(
         let nautikal_repo = TemplateRepository {
             id: None,
             name: "Nautikal Community Repo".to_string(),
-            url: "github:///andyslucky/nautikal-game-servers/templates".to_string()
+            url: "github:///andyslucky/nautikal-game-servers/templates".to_string(),
         };
         store.create_repository(local_repo).await?;
         store.create_repository(nautikal_repo).await?;
@@ -70,10 +69,9 @@ async fn initialize_default_repository(
     } else {
         info!("Template repositories already exist, skipping initialization");
     }
-    
+
     Ok(())
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -99,13 +97,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let executor = Arc::new(create_executor(&config).await?);
     let db = create_db(&config).await?;
-    let store = Arc::new(GameServerStore::new(executor.clone(), db.clone(), &config.database).await?);
-    
+    let store = Arc::new(GameServerStore::new(executor.clone(), db.clone()));
+
+// Start watching Kubernetes events for game server state
+    store.start_watchers(
+        executor.stream_pod_changes(),
+        executor.stream_job_changes(),
+    );
+    info!("Started Kubernetes event watchers");
+
     let (template_repository_store, template_repository_manager) =
         create_template_repository_store(db, &config).await?;
-    
-    initialize_default_repository(&template_repository_store, &config.paths.game_server_templates)
-        .await?;
+
+    initialize_default_repository(
+        &template_repository_store,
+        &config.paths.game_server_templates,
+    )
+    .await?;
 
     let mut router = endpoints::create_router(
         executor,
@@ -121,7 +129,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let frontend_dir = "frontend/dist";
         let index = ServeFile::new(format!("{}/index.html", frontend_dir));
         let scripts_dir = ServeDir::new(format!("{}/assets", frontend_dir));
-        router = router.nest_service("/assets", scripts_dir).route_service("/", index);
+        router = router
+            .nest_service("/assets", scripts_dir)
+            .route_service("/", index);
     }
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_address()).await?;

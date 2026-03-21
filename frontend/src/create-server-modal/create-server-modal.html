@@ -33,10 +33,14 @@
                         x-bind:tabindex="selectedTab === 'svcconfig' ? '0' : '-1'"
                         x-bind:class="selectedTab === 'svcconfig' ? 'tab-btn-active' : 'tab-btn-inactive'"
                         type="button" role="tab" aria-controls="tabpanelsvcconfig">Service Config</button>
-                <button x-on:click="selectedTab = 'misc'" x-bind:aria-selected="selectedTab === 'misc'"
+<button x-on:click="selectedTab = 'misc'" x-bind:aria-selected="selectedTab === 'misc'"
                         x-bind:tabindex="selectedTab === 'misc' ? '0' : '-1'"
                         x-bind:class="selectedTab === 'misc' ? 'tab-btn-active' : 'tab-btn-inactive'"
                         type="button" role="tab" aria-controls="tabpanelmisc">Misc</button>
+                <button x-show="hasCustomFields()" x-on:click="selectedTab = 'customfields'" x-bind:aria-selected="selectedTab === 'customfields'"
+                        x-bind:tabindex="selectedTab === 'customfields' ? '0' : '-1'"
+                        x-bind:class="selectedTab === 'customfields' ? 'tab-btn-active' : 'tab-btn-inactive'"
+                        type="button" role="tab" aria-controls="tabpanelcustomfields">Custom Fields</button>
             </div>
             <div class="px-4 py-3 overflow-y-scroll min-h-0 flex-1">
                 <div x-cloak x-show="selectedTab === 'general'" id="tabpanelgeneral" role="tabpanel" aria-label="general" class="form-group">
@@ -193,7 +197,7 @@
                         </div>
                     </div>
                 </div>
-                <div x-cloak x-show="selectedTab === 'misc'" id="tabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
+<div x-cloak x-show="selectedTab === 'misc'" id="tabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
                     <div class="warning-box mb-4">
                         <div class="flex items-center gap-2">
                             <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
@@ -215,6 +219,79 @@
                         <label class="form-label-sm">Pod Template</label>
                         <input type="text" x-model="form.pod_template" placeholder="default/pod_template.yaml.jinja" class="form-input">
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to create the Pod manifest.</p>
+                    </div>
+                </div>
+                <div x-cloak x-show="selectedTab === 'customfields'" id="tabpanelcustomfields" role="tabpanel" aria-label="customfields" class="form-group">
+                    <template x-if="form.template.custom_fields && form.template.custom_fields.length > 0">
+                        <template x-for="field in form.template.custom_fields" :key="field.name">
+                            <div class="mb-4">
+                                <div class="flex items-center gap-1">
+                                    <label class="form-label-sm" x-text="field.label"></label>
+                                    <span x-show="field.required" class="text-red-500">*</span>
+                                </div>
+                                <p x-show="field.description" class="text-xs text-gray-500 dark:text-gray-400 mb-1" x-text="field.description"></p>
+                                
+                                <template x-if="field.type === 'text'">
+                                    <input type="text" 
+                                           x-model="custom_field_values[field.name]" 
+                                           :placeholder="field.default || ''"
+                                           :required="field.required"
+                                           class="form-input">
+                                </template>
+                                
+                                <template x-if="field.type === 'number'">
+                                    <input type="number" 
+                                           x-model.number="custom_field_values[field.name]" 
+                                           :placeholder="field.default || '0'"
+                                           :required="field.required"
+                                           class="form-input">
+                                </template>
+                                
+                                <template x-if="field.type === 'url'">
+                                    <input type="url" 
+                                           x-model="custom_field_values[field.name]" 
+                                           :placeholder="field.default || 'https://...'"
+                                           :required="field.required"
+                                           class="form-input">
+                                </template>
+                                
+                                <template x-if="field.type === 'boolean'">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" 
+                                               x-model="custom_field_values[field.name]" 
+                                               class="form-checkbox w-4 h-4">
+                                        <span class="text-sm" x-text="field.label"></span>
+                                    </label>
+                                </template>
+                                
+                                <template x-if="field.type === 'select'">
+                                    <select x-model="custom_field_values[field.name]" 
+                                            :required="field.required"
+                                            class="form-input">
+                                        <option value="">Select...</option>
+                                        <template x-for="option in field.options" :key="option">
+                                            <option :value="option" x-text="option"></option>
+                                        </template>
+                                    </select>
+                                </template>
+                                
+                                <template x-if="field.type === 'file'">
+                                    <div class="flex flex-col gap-1">
+                                        <input type="file" 
+                                               :name="field.name"
+                                               @change="handleFileSelect(field.name, $event)"
+                                               :required="field.required"
+                                               class="form-input text-sm">
+                                        <p x-show="file_inputs[field.name]" class="text-xs text-gray-500">
+                                            Selected: <span x-text="file_inputs[field.name]?.name"></span>
+                                        </p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+                    <div x-show="!form.template.custom_fields || form.template.custom_fields.length === 0" class="text-gray-500 dark:text-gray-400 text-sm">
+                        <p>No custom fields configured for this template.</p>
                     </div>
                 </div>
             </div>

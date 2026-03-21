@@ -91,8 +91,14 @@ pub struct PathsConfig {
     pub k8s_templates: String,
     #[serde(default = "default_game_server_templates_dir")]
     pub game_server_templates: String,
+    #[serde(default = "default_uploads_dir")]
+    pub uploads_dir: String,
     #[serde(default)]
     pub extra_k8s_templates_dir: Option<String>,
+}
+
+fn default_uploads_dir() -> String {
+    "uploads".to_string()
 }
 
 fn default_k8s_templates_dir() -> String {
@@ -114,7 +120,7 @@ pub struct PrometheusConfig {
     #[serde(default = "default_prometheus_url")]
     pub url: String,
     #[serde(default = "default_prometheus_poll_rate")]
-    pub poll_rate_seconds : u64
+    pub poll_rate_seconds: u64,
 }
 
 fn default_prometheus_url() -> String {
@@ -144,7 +150,10 @@ impl AppConfig {
             )?
             .set_default("github.token", Option::<String>::None)?
             .set_default("prometheus.url", default_prometheus_url())?
-            .set_default("prometheus.poll_rate_seconds", default_prometheus_poll_rate())?
+            .set_default(
+                "prometheus.poll_rate_seconds",
+                default_prometheus_poll_rate(),
+            )?
             .add_source(
                 Environment::with_prefix("NAUTIKAL")
                     .separator("__")

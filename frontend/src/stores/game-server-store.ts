@@ -34,10 +34,21 @@ export type GameServerInstance = {
     pod_status?: string;
 };
 
+export type GameServerLifecycleState = 'NotCreated' | 'Creating' | 'SettingUp' | 'Ready' | 'Running' | 'Stopped' | string;
+
+export type GameServerState = {
+    game_server_id: string;
+    lifecycle_state: GameServerLifecycleState;
+    setup_job_status?: string;
+    pod_status?: string;
+    pod_name?: string;
+};
+
 type GameServerEvent = {
-    event_type : { PodLifeCycle: string} | { Metrics: {game_server_id? : string, cpu_usage_millicores: number, memory_usage_bytes: number}[]},
-    game_server_instance? : GameServerInstance
-}
+    event_type: { StateChange: GameServerLifecycleState } | { Metrics: {game_server_id?: string, cpu_usage_millicores: number, memory_usage_bytes: number}[] };
+    game_server_id: string;
+    state?: GameServerState;
+};
 
 type GameServerTemplate = {
     template_name: string;
@@ -217,25 +228,38 @@ Alpine.store('gameServers', {
             return;
         }
         
-        if ("PodLifeCycle" in event.event_type && event.game_server_instance == null) return;
-        const server: Server | undefined = this.servers.find(
-            (s: Server): boolean => s.id === event.game_server_instance!.game_server_id
-        );
-        if (!server) return;
-        let status = '';
-        if (event.event_type.PodLifeCycle == 'Deleted') {
-            status = 'Offline';
-            server.cpu_usage_millicores = undefined;
-            server.memory_usage_bytes = undefined;
-        } else if (event.game_server_instance != null) {
-            status = event.game_server_instance.pod_status!;
-        } else {
-            status = event.event_type.PodLifeCycle;
-        }
-        server.status = status;
-        window.dispatchEvent(new CustomEvent("game-server-status-changed", {detail: server}));
-        if (event.game_server_instance) {
-            server.instance_type = event.game_server_instance.nautikal_pod_type;
+        if ("StateChange" in event.event_type) {
+            const server: Server | undefined = this.servers.find(
+                (s: Server): boolean => s.id === event.game_server_id
+            );
+            if (!server) return;
+            
+            const lifecycleState = event.event_type.StateChange;
+            let status: string;
+            
+            if (lifecycleState === 'Running') {
+                status = 'Running';
+            } else if (lifecycleState === 'Stopped') {
+                status = 'Offline';
+                server.cpu_usage_millicores = undefined;
+                server.memory_usage_bytes = undefined;
+            } else if (lifecycleState === 'SettingUp') {
+                status = 'SettingUp';
+            } else if (lifecycleState === 'Creating') {
+                status = 'Creating';
+            } else if (typeof lifecycleState === 'string' && lifecycleState.startsWith('Error')) {
+                status = 'Error';
+            } else {
+                status = lifecycleState;
+            }
+            
+            server.status = status;
+            
+            if (event.state) {
+                server.instance_id = event.state.pod_name || null;
+            }
+            
+            window.dispatchEvent(new CustomEvent("game-server-status-changed", {detail: server}));
         }
     },
 

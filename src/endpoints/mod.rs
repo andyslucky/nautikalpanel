@@ -3,10 +3,11 @@ use crate::models::{
     GameServer, GameServerInstance, GameServerNetworkIdentity, GameServerTemplate,
     NewGameServerRequest, SftpCredentials, TemplateRepository, UpdateGameServerRequest,
 };
-use crate::services::game_server_store::GameServerStore;
+use crate::services::game_server_store::{GameServerStore, GameServerLifecycleState};
 use crate::services::kubernetes_executor::{KubernetesExecutor, PodMetric};
 use crate::services::template_repository_manager::TemplateRepositoryManager;
 use crate::services::template_repository_store::TemplateRepositoryStore;
+use crate::services::upload_store::UploadStore;
 use axum::extract::Query;
 use axum::routing::delete;
 use axum::{
@@ -14,6 +15,7 @@ use axum::{
     extract::{
         Path, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
+        Multipart,
     },
     http::StatusCode,
     response::IntoResponse,
@@ -141,7 +143,12 @@ pub fn create_router(
             "/api/v1/game-servers/{game_server_id}/sftp-credentials",
             get(get_sftp_credentials),
         )
-        .route("/api/v1/game-servers/watch", get(watch_handler))
+.route("/api/v1/game-servers/watch", get(watch_handler))
+        .route(
+            "/api/v1/game-servers/{game_server_id}/uploads",
+            post(upload_file),
+        )
+        .route("/api/v1/uploads/{file_id}", get(get_uploaded_file))
         .with_state(state)
 }
 
@@ -285,18 +292,20 @@ async fn list_servers(
 async fn create_game_server(
     State(state): State<AppState>,
     Json(req): Json<NewGameServerRequest>,
-) -> Result<StatusCode, ErrorResponse> {
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
     let gs = GameServer::try_from(req).map_err(|e| ErrorResponse {
         error: e.to_string(),
     })?;
-    state
+    let created = state
         .store
         .create_game_server(gs)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
-        })
-        .map(|_gs| StatusCode::CREATED)
+        })?;
+    Ok(Json(serde_json::json!({
+        "game_server_id": created.id_string().expect("Created game server should have ID")
+    })))
 }
 
 #[derive(Deserialize)]
@@ -535,76 +544,56 @@ async fn get_sftp_credentials(
 }
 
 /// GET /api/v1/game-servers/watch (WebSocket)
-/// Stream real-time updates about pod and service changes from Kubernetes.
-/// On connect, sends a full snapshot, then streams incremental updates.
+/// Stream real-time updates about game server state changes.
 async fn watch_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
+    let store = state.store.clone();
+    let executor = state.executor.clone();
+    let config = state.config.clone();
     ws.on_upgrade(move |socket| {
-        handle_watch_socket(socket, state.executor.clone(), state.config.clone())
+        handle_watch_socket(socket, store, executor, config)
     })
 }
 
 #[derive(Serialize, Clone)]
 pub enum GameServerEventType {
-    PodLifeCycle(String),
+    StateChange(GameServerLifecycleState),
     Metrics(Vec<PodMetric>),
 }
 
 #[derive(Serialize)]
 pub struct GameServerEvent {
     pub event_type: GameServerEventType,
-    pub game_server_instance: Option<GameServerInstance>,
+    pub game_server_id: String,
+    pub state: Option<crate::services::game_server_store::GameServerState>,
 }
 
 async fn handle_watch_socket(
     socket: WebSocket,
+    store: Arc<GameServerStore>,
     kubernetes_executor: Arc<KubernetesExecutor>,
     config: AppConfig,
 ) {
     use futures_util::{SinkExt, StreamExt};
 
     let (mut ws_tx, mut ws_rx) = socket.split();
-
-    let mut pod_stream = kubernetes_executor.stream_pod_changes().boxed();
+    let mut state_rx = store.subscribe();
     let mut metrics_interval = tokio::time::interval(tokio::time::Duration::from_secs(
         config.prometheus.poll_rate_seconds,
     ));
-    use kube::runtime::watcher::Event;
 
     let mut send_close = false;
     loop {
         tokio::select! {
-            // Forward broadcast events to WebSocket client
-            event = futures_util::StreamExt::next(&mut pod_stream) => {
-                let message = match event {
-                    Some(Ok(Event::Apply(pod))) => {
-                        Some(GameServerEvent {
-                            event_type: GameServerEventType::PodLifeCycle("Applied".to_string()),
-                            game_server_instance: Some(GameServerInstance::from(pod)),
-                        })
-                    },
-                    Some(Ok(Event::Delete(pod))) => {
-                        Some(GameServerEvent {
-                            event_type: GameServerEventType::PodLifeCycle("Deleted".to_string()),
-                            game_server_instance: Some(GameServerInstance::from(pod)),
-                        })
-                    },
-                    Some(Ok(Event::InitApply(pod))) => {
-                        Some(GameServerEvent {
-                            event_type: GameServerEventType::PodLifeCycle("Running".to_string()),
-                            game_server_instance: Some(GameServerInstance::from(pod)),
-                        })
-                    },
-                    Some(Ok(_)) => {
-                        Some(GameServerEvent {
-                            event_type: GameServerEventType::PodLifeCycle("Unknown".to_string()),
-                            game_server_instance: None,
-                        })
-                    }
-                    _ => None
+            // Forward state change events to WebSocket client
+            Ok(state_event) = state_rx.recv() => {
+                let message = GameServerEvent {
+                    event_type: GameServerEventType::StateChange(state_event.state.lifecycle_state.clone()),
+                    game_server_id: state_event.game_server_id,
+                    state: Some(state_event.state),
                 };
-                if let Ok(game_server_event) = serde_json::to_string(&message) && message.is_some() {
-                    if let Err(e) = ws_tx.send(Message::Text(game_server_event.into())).await {
-                        error!("An error occurred sending game server event to client. Closing watch web socket. Cause: {}", e);
+                if let Ok(json) = serde_json::to_string(&message) {
+                    if let Err(e) = ws_tx.send(Message::Text(json.into())).await {
+                        error!("Error sending state event to watch websocket: {}", e);
                         send_close = true;
                         break;
                     }
@@ -614,13 +603,14 @@ async fn handle_watch_socket(
             _ = metrics_interval.tick() => {
                 match kubernetes_executor.fetch_pod_metrics(None).await {
                     Ok(metrics) => {
-                        let metrics_event = GameServerEvent {
+                        let message = GameServerEvent {
                             event_type: GameServerEventType::Metrics(metrics),
-                            game_server_instance: None
+                            game_server_id: String::new(),
+                            state: None,
                         };
-                        if let Ok(message) = serde_json::to_string(&metrics_event) {
-                            if let Err(e) = ws_tx.send(Message::Text(message.into())).await {
-                                error!("Failed sending metic event to watch websocket. Closing watch web socket Cause: {}", e);
+                        if let Ok(json) = serde_json::to_string(&message) {
+                            if let Err(e) = ws_tx.send(Message::Text(json.into())).await {
+                                error!("Error sending metrics to watch websocket: {}", e);
                                 send_close = true;
                                 break;
                             }
@@ -631,6 +621,7 @@ async fn handle_watch_socket(
                     }
                 }
             }
+            // Handle incoming WebSocket messages
             msg = futures_util::StreamExt::next(&mut ws_rx) => {
                 match msg {
                     Some(Ok(Message::Close(_))) => {
@@ -659,4 +650,50 @@ async fn handle_watch_socket(
     if send_close {
         let _ = ws_tx.send(Message::Close(None)).await;
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UploadedFileResponse {
+    pub field_name: String,
+    pub original_filename: String,
+    pub storage_path: String,
+}
+
+async fn upload_file(
+    State(state): State<AppState>,
+    Path(game_server_id): Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadedFileResponse>, ErrorResponse> {
+    let upload_store = state.config.paths.uploads_dir.clone();
+    let upload_service = UploadStore::new(upload_store.into());
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let field_name = field.name().unwrap_or("file").to_string();
+        let file_name = field.file_name().map(|s| s.to_owned());
+        let data = field.bytes().await.map_err(|e| ErrorResponse { error: e.to_string() })?;
+
+        if let Some(filename) = file_name {
+            let uploaded_file = upload_service
+                .store(&game_server_id, &field_name, &data, &filename)
+                .map_err(|e| ErrorResponse { error: e.to_string() })?;
+
+            return Ok(Json(UploadedFileResponse {
+                field_name,
+                original_filename: filename,
+                storage_path: uploaded_file.storage_path,
+            }));
+        }
+    }
+
+    Err(ErrorResponse {
+        error: "No file uploaded".to_string(),
+    })
+}
+
+async fn get_uploaded_file(
+    Path(_file_id): Path<String>,
+) -> Result<Json<()>, ErrorResponse> {
+    Err(ErrorResponse {
+        error: "File retrieval not yet implemented".to_string(),
+    })
 }

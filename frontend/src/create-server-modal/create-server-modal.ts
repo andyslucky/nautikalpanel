@@ -1,7 +1,7 @@
 import Alpine, {type AlpineComponent} from 'alpinejs';
 import {serverResourceSliderFunctions} from "../resource-utils.ts";
 import createServerModelContent from "./create-server-modal.html?raw";
-import type {GameServerTemplateData} from "../types.ts";
+import type {GameServerTemplateData, CustomFieldValues} from "../types.ts";
 import type {GameServerStore} from "../stores/game-server-store.ts";
 import {showToast} from "../utils/toast.ts";
 
@@ -15,8 +15,10 @@ type GameServerForm = {
 
 type CreateServerModalData = {
     content: string,
-    selectedTab: 'general' | 'podconfig' | 'storageconfig' | 'svcconfig' | 'misc',
+    selectedTab: 'general' | 'podconfig' | 'storageconfig' | 'svcconfig' | 'misc' | 'customfields',
     form: GameServerForm,
+    custom_field_values: CustomFieldValues,
+    file_inputs: Record<string, File | null>,
     gameServerTemplates: GameServerTemplateData[],
     selectedTemplateName: string,
     init(): Promise<void>,
@@ -30,12 +32,17 @@ type CreateServerModalData = {
     resetForm(): void,
     createServer(): void,
     initResources(): void,
+    initCustomFields(): void,
+    handleFileSelect(fieldName: string, event: Event): void,
+    hasCustomFields(): boolean,
     showModal?: boolean,
 } & Record<string, any>;
 
 Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => ({
     content: createServerModelContent,
     selectedTab: 'general',
+    custom_field_values: {} as CustomFieldValues,
+    file_inputs: {} as Record<string, File | null>,
     form: {
         template: {
             template_name: "",
@@ -169,18 +176,62 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
         if (!this.form.template.service_config.ports || this.form.template.service_config.ports.length === 0) {
             this.form.template.service_config.ports = [{port: '', protocol: 'TCP'}];
         }
+        this.initCustomFields();
+    },
+    initCustomFields() {
+        this.custom_field_values = {};
+        this.file_inputs = {};
+        const fields = this.form.template.custom_fields || [];
+        for (const field of fields) {
+            if (field.default !== undefined && field.default !== null) {
+                if (field.type === 'number') {
+                    this.custom_field_values[field.name] = parseFloat(field.default) || 0;
+                } else if (field.type === 'boolean') {
+                    this.custom_field_values[field.name] = field.default === 'true' || field.default === '1';
+                } else {
+                    this.custom_field_values[field.name] = field.default;
+                }
+            } else {
+                if (field.type === 'number') {
+                    this.custom_field_values[field.name] = 0;
+                } else if (field.type === 'boolean') {
+                    this.custom_field_values[field.name] = false;
+                } else {
+                    this.custom_field_values[field.name] = '';
+                }
+            }
+            if (field.type === 'file') {
+                this.file_inputs[field.name] = null;
+            }
+        }
+    },
+    handleFileSelect(fieldName: string, event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files.length > 0) {
+            this.file_inputs[fieldName] = input.files[0];
+            this.custom_field_values[fieldName] = input.files[0].name;
+        }
+    },
+    hasCustomFields(): boolean {
+        return !!(this.form.template.custom_fields && this.form.template.custom_fields.length > 0);
     },
     resetForm() {
         this.selectedTemplateName = '';
+        this.custom_field_values = {};
+        this.file_inputs = {};
         this.form = this.formDefaultValue();
     },
 
     createServer() {
         const template = this.form.template;
+        const customValuesCopy = { ...this.custom_field_values };
+        const filesToUpload = Object.entries(this.file_inputs).filter(([_, f]) => f !== null) as [string, File][];
+        
         const newServerRequest = {
             name: this.form.name,
             game_version: this.form.game_version || null,
             max_players: this.form.max_players ? parseInt(this.form.max_players as any) : null,
+            custom_values: Object.keys(customValuesCopy).length > 0 ? customValuesCopy : null,
             template: {
                 ...template,
                 service_config: {
@@ -207,28 +258,53 @@ Alpine.data('createServerModal', (): AlpineComponent<CreateServerModalData> => (
                 }
             }
         };
-        // @ts-ignore
+        
         fetch("/api/v1/game-servers", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(newServerRequest)
-        }).then((resp) => {
+        }).then(async (resp) => {
             if (!resp.ok) {
-                // @ts-ignore
-                resp.text().then((err) => showToast(err || 'Failed to create server', "error"))
-            } else {
-                this.showModal = false;
-                // @ts-ignore
-                showToast("Successfully created server" + newServerRequest.name, "success")
-
+                const err = await resp.text();
+                showToast(err || 'Failed to create server', "error");
+                return null;
             }
-        }).then(() => {
+            const data = await resp.json();
+            return data.game_server_id as string;
+        }).then(async (gameServerId) => {
+            if (!gameServerId) return;
+            
+            if (filesToUpload.length > 0) {
+                showToast("Uploading files...", "info");
+                for (const [fieldName, file] of filesToUpload) {
+                    const formData = new FormData();
+                    formData.append(fieldName, file!);
+                    try {
+                        const uploadResp = await fetch(`/api/v1/game-servers/${gameServerId}/uploads`, {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!uploadResp.ok) {
+                            const err = await uploadResp.text();
+                            showToast(`Failed to upload file for ${fieldName}: ${err}`, "error");
+                        }
+                    } catch (e) {
+                        showToast(`Failed to upload file for ${fieldName}`, "error");
+                    }
+                }
+            }
+            
+            this.showModal = false;
+            showToast("Successfully created server " + newServerRequest.name, "success");
+            
             (<GameServerStore>this.$store.gameServers).fetchServers().then(() => {
                 console.log("Fetched game servers");
-            })
-        })
+            });
+        }).catch((e) => {
+            showToast('Failed to create server: ' + e.message, "error");
+        });
     },
     initResources() : void {
         if (!this.form.template.pod_config.resources) this.form.template.pod_config.resources = {};

@@ -45,6 +45,12 @@ pub struct GameServer {
     pub init_template: Option<String>,
     #[serde(default = "default_user_id")]
     pub user_id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init_script: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_values: Option<CustomFieldValues>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uploaded_files: Option<Vec<UploadedFile>>,
 }
 
 impl GameServer {
@@ -74,6 +80,9 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             pod_template: value.pod_template,
             init_template: value.init_template,
             user_id: value.template.user_id,
+            init_script: value.template.init_script,
+            custom_values: value.custom_values,
+            uploaded_files: value.uploaded_files,
         })
     }
 }
@@ -86,6 +95,10 @@ pub struct NewGameServerRequest {
     pub pod_template: Option<String>,
     pub init_template: Option<String>,
     pub template: GameServerTemplate,
+    #[serde(default)]
+    pub custom_values: Option<CustomFieldValues>,
+    #[serde(default)]
+    pub uploaded_files: Option<Vec<UploadedFile>>,
 }
 
 #[derive(Deserialize)]
@@ -98,6 +111,8 @@ pub struct UpdateGameServerRequest {
     pub pod_config: PodConfig,
     pub pod_template: Option<String>,
     pub user_id: Option<u32>,
+    #[serde(default)]
+    pub custom_values: Option<CustomFieldValues>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,6 +128,10 @@ pub struct GameServerTemplate {
     pub default_max_users: Option<u32>,
     #[serde(default = "default_user_id")]
     pub user_id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_fields: Option<Vec<CustomFormField>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init_script: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -261,6 +280,39 @@ pub struct GameServerInstance {
     pub pod_status: Option<String>,
     pub curr_players: u32,
     pub max_players: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CustomFormField {
+    pub name: String,
+    pub label: String,
+    #[serde(rename = "type")]
+    pub field_type: CustomFieldType,
+    pub required: Option<bool>,
+    pub default: Option<String>,
+    pub description: Option<String>,
+    pub options: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomFieldType {
+    Text,
+    Select,
+    File,
+    Number,
+    Boolean,
+    Url,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CustomFieldValues(pub HashMap<String, serde_json::Value>);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UploadedFile {
+    pub field_name: String,
+    pub original_filename: String,
+    pub storage_path: String,
 }
 
 impl From<Pod> for GameServerInstance {
