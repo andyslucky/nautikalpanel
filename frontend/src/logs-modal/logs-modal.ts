@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import logsModalContent from "./logs-modal.html?raw";
 import type { Server } from '../stores/game-server-store';
 import type { LogViewerStore } from '../stores/log-viewer-store';
+import { downloadLogs } from '../utils/logs';
 
 Alpine.data('logsModal', () => ({
     content: logsModalContent,
@@ -25,20 +26,8 @@ Alpine.data('logsModal', () => ({
     },
 
     async download() {
-        if (!this.server) return;
-        const response = await fetch(`/api/v1/game-servers/${this.server.id}/logs/download`);
-        if (!response.ok) {
-            console.error('Failed to download logs');
-            return;
+        if (this.server) {
+            await downloadLogs(this.server.id);
         }
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${this.server.id}-logs.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
     }
 }));
