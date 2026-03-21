@@ -3,7 +3,7 @@ use crate::models::{GameServer, GameServerInstance, SftpCredentials};
 use crate::services::k8s_resource_renderer::K8sResourceRenderer;
 use futures_util::io::Lines;
 use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream};
-use k8s_openapi::api::core::v1::{Namespace, PersistentVolumeClaim, Pod, Secret, Service};
+use k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod, Secret, Service};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::api::{
     ApiResource, DeleteParams, DynamicObject, GroupVersionKind, ListParams, LogParams, PostParams,
@@ -408,6 +408,19 @@ impl KubernetesExecutor {
             .log_stream(game_server_instance.id.as_str(), &log_params)
             .await?
             .lines())
+    }
+
+    pub async fn get_logs(
+        &self,
+        game_server_instance: GameServerInstance,
+    ) -> Result<String, kube::Error> {
+        let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
+        let log_params = LogParams {
+            container: Some("gameserver".to_string()),
+            follow: false,
+            ..Default::default()
+        };
+        pods.logs(game_server_instance.id.as_str(), &log_params).await
     }
 
     pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> {

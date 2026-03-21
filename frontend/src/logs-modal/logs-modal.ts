@@ -22,5 +22,23 @@ Alpine.data('logsModal', () => ({
 
     clear() {
         (Alpine.store('logViewer') as LogViewerStore).clear();
+    },
+
+    async download() {
+        if (!this.server) return;
+        const response = await fetch(`/api/v1/game-servers/${this.server.id}/logs/download`);
+        if (!response.ok) {
+            console.error('Failed to download logs');
+            return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.server.id}-logs.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     }
 }));

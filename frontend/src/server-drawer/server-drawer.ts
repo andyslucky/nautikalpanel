@@ -45,5 +45,24 @@ Alpine.data('serverDrawer', () => ({
             this.closeDrawer();
             window.dispatchEvent(new CustomEvent('open-sftp-modal', {detail: {server: serverRef}}));
         }
+    },
+
+    async downloadLogs() {
+        if (this.server) {
+            const response = await fetch(`/api/v1/game-servers/${this.server.id}/logs/download`);
+            if (!response.ok) {
+                console.error('Failed to download logs');
+                return;
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${this.server.id}-logs.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
     }
 }));
