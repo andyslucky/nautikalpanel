@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import serverDrawerContent from "./server-drawer.html?raw";
 import type {Server} from '../stores/game-server-store';
 import type {LogViewerStore} from '../stores/log-viewer-store';
+import { downloadLogs } from '../utils/logs';
 
 Alpine.data('serverDrawer', () => ({
     content: serverDrawerContent,
@@ -44,6 +45,12 @@ Alpine.data('serverDrawer', () => ({
             const serverRef = this.server;
             this.closeDrawer();
             window.dispatchEvent(new CustomEvent('open-sftp-modal', {detail: {server: serverRef}}));
+        }
+    },
+
+    async downloadLogs() {
+        if (this.server) {
+            await downloadLogs(this.server.id);
         }
     }
 }));

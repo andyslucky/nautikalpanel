@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import logsModalContent from "./logs-modal.html?raw";
 import type { Server } from '../stores/game-server-store';
 import type { LogViewerStore } from '../stores/log-viewer-store';
+import { downloadLogs } from '../utils/logs';
 
 Alpine.data('logsModal', () => ({
     content: logsModalContent,
@@ -22,5 +23,11 @@ Alpine.data('logsModal', () => ({
 
     clear() {
         (Alpine.store('logViewer') as LogViewerStore).clear();
+    },
+
+    async download() {
+        if (this.server) {
+            await downloadLogs(this.server.id);
+        }
     }
 }));

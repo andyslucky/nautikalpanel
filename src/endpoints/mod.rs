@@ -138,6 +138,10 @@ pub fn create_router(
             get(logs_handler),
         )
         .route(
+            "/api/v1/game-servers/{game_server_id}/logs/download",
+            get(download_logs_handler),
+        )
+        .route(
             "/api/v1/game-servers/{game_server_id}/sftp-credentials",
             get(get_sftp_credentials),
         )
@@ -513,6 +517,40 @@ async fn stream_logs_to_ws(
         debug!("Sending close to logs web socket");
         let _ = ws_tx.send(Message::Close(None)).await;
     }
+}
+
+async fn download_logs_handler(
+    State(state): State<AppState>,
+    Path(game_server_id): Path<String>,
+) -> Result<impl IntoResponse, ErrorResponse> {
+    let game_instance: GameServerInstance = state
+        .executor
+        .list_pods(Some(game_server_id.as_str()))
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?
+        .into_iter()
+        .map(GameServerInstance::from)
+        .next()
+        .ok_or_else(|| ErrorResponse {
+            error: "No running game server instance found".to_string(),
+        })?;
+    let logs = state
+        .executor
+        .get_logs(game_instance)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?;
+    let filename = format!("{}-logs.txt", game_server_id);
+    Ok((
+        [(
+            axum::http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        )],
+        logs,
+    ))
 }
 
 /// GET /api/v1/game-servers/{game_server_id}/sftp-credentials
