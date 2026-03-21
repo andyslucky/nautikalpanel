@@ -26,9 +26,6 @@ async fn create_executor(
     let executor =
         KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
             .await?;
-    if config.kubernetes.create_namespace {
-      executor.create_namespace_if_required().await?;
-    }
     Ok(executor)
 }
 

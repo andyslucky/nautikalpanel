@@ -38,8 +38,6 @@ impl ServerConfig {
 pub struct KubernetesConfig {
     #[serde(default = "default_namespace")]
     pub namespace: String,
-    #[serde(default = "default_create_namespace")]
-    pub create_namespace: bool,
     pub default_storage_class: Option<String>,
     #[serde(default = "default_init_template")]
     pub init_template: String,
@@ -49,10 +47,6 @@ pub struct KubernetesConfig {
 
 fn default_namespace() -> String {
     "nautikal".to_string()
-}
-
-fn default_create_namespace() -> bool {
-    true
 }
 
 fn default_pod_template() -> String {
@@ -131,7 +125,6 @@ impl AppConfig {
             .set_default("server.host", default_host())?
             .set_default("server.port", default_port())?
             .set_default("kubernetes.namespace", default_namespace())?
-            .set_default("kubernetes.create_namespace", default_create_namespace())?
             .set_default("kubernetes.init_template", default_init_template())?
             .set_default("kubernetes.pod_template", default_pod_template())?
             .set_default("database.path", "./db")?

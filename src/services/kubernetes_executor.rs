@@ -73,6 +73,21 @@ pub struct KubernetesExecutor {
     config: AppConfig,
 }
 
+async fn check_namespace_exists(client: Client, namespace: impl Deref<Target = str>) -> Result<(), Box<dyn Error>> {
+    let ns: &str = namespace.as_ref();
+    let pods: Api<Pod> = Api::namespaced(client, ns);
+    match pods.list(&ListParams::default().limit(1)).await {
+        Ok(_) => Ok(()),
+        Err(kube::Error::Api(err)) if err.code == 403 => {
+            Err(anyhow!("Permission denied for namespace '{}'. Check RBAC configuration.", ns).into_boxed_dyn_error())
+        }
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            Err(anyhow!("Namespace '{}' does not exist", ns).into_boxed_dyn_error())
+        }
+        Err(e) => Err(anyhow!("Error checking namespace access '{}': {:?}", ns, e).into_boxed_dyn_error()),
+    }
+}
+
 impl KubernetesExecutor {
     pub async fn new(
         client: Client,
@@ -80,37 +95,13 @@ impl KubernetesExecutor {
         config: AppConfig,
     ) -> Result<KubernetesExecutor, Box<dyn Error>> {
         let renderer = K8sResourceRenderer::new(config.clone())?;
+        let _ = check_namespace_exists(client.clone(), namespace.clone()).await?;
         Ok(KubernetesExecutor {
             client,
             namespace,
             renderer,
             config,
         })
-    }
-
-    pub async fn create_namespace_if_required(&self) -> Result<(), Box<dyn Error>> {
-        let namespaces: Api<Namespace> = Api::all(self.client.clone());
-        let new_namespace = Namespace {
-            metadata: ObjectMeta {
-                name: Some(self.namespace.clone()),
-                ..Default::default()
-            },
-            spec: None,
-            status: None,
-        };
-        let pp = PostParams::default();
-        match namespaces.create(&pp, &new_namespace).await {
-            Err(kube::error::Error::Api(e)) if e.code == 409 => {
-                info!("Namespace already exists");
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-            Ok(_) => {
-                info!("Created namespace {}", self.namespace);
-            }
-        };
-        Ok(())
     }
 
     pub async fn list_services(
