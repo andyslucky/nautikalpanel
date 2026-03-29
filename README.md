@@ -21,7 +21,7 @@ to get started and get gaming :). I tried to design most of the experience to re
 
 ### Quick Start with Helm
 
-The recommended way to install Nautikalpanel is using the Helm chart located in [charts/nautikalpanel](./charts/nautikalpanel).
+The recommended way to install Nautikalpanel is using the Helm chart located in [nautikalpanel-helm/charts/nautikalpanel](https://github.com/andyslucky/nautikalpanel-helm/tree/main/charts/nautikalpanel/README.md).
 
 ### Development Setup
 
