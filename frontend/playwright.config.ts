@@ -3,10 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  reporter: [
-    ['html'],
-    ['list'],
-  ],
+  reporter: process.env.CI
+    ? [['github'], ['html'], ['list']]
+    : [['html'], ['list']],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
