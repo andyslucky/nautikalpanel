@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: "http://localhost:9090",
-        ws: true
+        ws: process.env.VITE_PROXY_WS !== 'false'
       }
     }
   }
