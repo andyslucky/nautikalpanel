@@ -4,7 +4,6 @@ use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use surrealdb::RecordId;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Resources {
@@ -28,10 +27,37 @@ pub struct VolumeMount {
     pub container_path: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Annotation key used to store the full GameServer JSON on the StatefulSet.
+pub const GAME_SERVER_SPEC_ANNOTATION: &str = "nautikal.io/game-server-spec";
+
+/// Label for identifying nautikal-managed resources.
+pub const MANAGED_BY_LABEL: &str = "app.kubernetes.io/managed-by";
+pub const MANAGED_BY_VALUE: &str = "nautikal";
+
+/// Label for the game server ID.
+pub const GAME_SERVER_ID_LABEL: &str = "nautikal.io/game-server-id";
+
+/// Label for distinguishing resource types (game-server vs sftp).
+pub const RESOURCE_TYPE_LABEL: &str = "nautikal.io/resource-type";
+pub const RESOURCE_TYPE_GAME_SERVER: &str = "game-server";
+pub const RESOURCE_TYPE_SFTP: &str = "sftp";
+
+/// Label for pod type (gameserver vs sftp-only). Applied to pod templates.
+pub const POD_TYPE_LABEL: &str = "nautikal.io/pod-type";
+pub const POD_TYPE_GAMESERVER: &str = "gameserver";
+pub const POD_TYPE_SFTP_ONLY: &str = "sftp-only";
+
+/// Label for SFTP credential secrets.
+pub const SECRET_TYPE_LABEL: &str = "nautikal.io/secret-type";
+pub const SECRET_TYPE_SFTP: &str = "sftp-credentials";
+
+/// ConfigMap name for storing application settings.
+pub const SETTINGS_CONFIG_MAP_NAME: &str = "nautikal-settings";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameServer {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<RecordId>,
+    pub id: Option<String>,
     pub icon_url: Option<String>,
     pub description: Option<String>,
     pub name: String,
@@ -41,15 +67,22 @@ pub struct GameServer {
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
-    pub pod_template: Option<String>,
-    pub init_template: Option<String>,
     #[serde(default = "default_user_id")]
     pub user_id: u32,
 }
 
 impl GameServer {
     pub fn id_string(&self) -> Option<String> {
-        self.id.as_ref().map(|id| id.key().to_string())
+        self.id.clone()
+    }
+
+    /// Generate a game server ID suitable for use as a Kubernetes resource name.
+    pub fn generate_id() -> String {
+        let mut rng = rng();
+        let suffix: String = (0..6)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        format!("gs-{}", suffix.to_lowercase())
     }
 }
 
@@ -71,8 +104,6 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             pod_config: value.template.pod_config,
             service_config: value.template.service_config,
             pvc_config: value.template.pvc_config,
-            pod_template: value.pod_template,
-            init_template: value.init_template,
             user_id: value.template.user_id,
         })
     }
@@ -83,7 +114,9 @@ pub struct NewGameServerRequest {
     pub name: String,
     pub game_version: Option<String>,
     pub max_players: Option<u32>,
+    /// Kept for backward compatibility but no longer used (Tera templates removed).
     pub pod_template: Option<String>,
+    /// Kept for backward compatibility but no longer used (Tera templates removed).
     pub init_template: Option<String>,
     pub template: GameServerTemplate,
 }
@@ -96,7 +129,6 @@ pub struct UpdateGameServerRequest {
     pub icon_url: Option<String>,
     pub description: Option<String>,
     pub pod_config: PodConfig,
-    pub pod_template: Option<String>,
     pub user_id: Option<u32>,
 }
 
@@ -106,6 +138,8 @@ pub struct GameServerTemplate {
     pub description: Option<String>,
     pub game_type: Option<String>,
     pub icon_url: Option<String>,
+    /// Kept for backward compatibility but no longer used.
+    #[serde(default)]
     pub init_template: Option<String>,
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
@@ -117,10 +151,20 @@ pub struct GameServerTemplate {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateRepository {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<RecordId>,
+    pub id: String,
     pub name: String,
     pub url: String,
+}
+
+impl TemplateRepository {
+    /// Generate a random ID for a new repository.
+    pub fn generate_id() -> String {
+        let mut rng = rng();
+        let suffix: String = (0..8)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        suffix.to_lowercase()
+    }
 }
 
 fn default_service_type() -> String {
@@ -132,6 +176,7 @@ pub struct ServicePort {
     pub port: u16,
     pub protocol: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceConfig {
     pub ports: Vec<ServicePort>,
@@ -146,7 +191,6 @@ pub struct PodConfig {
     pub resources: Option<Resources>,
     pub command: Option<Vec<String>>,
     pub env: Option<HashMap<String, String>>,
-    // TODO may not keep this.
     pub mounts: Option<Vec<VolumeMount>>,
 }
 
@@ -218,7 +262,7 @@ impl From<Service> for GameServerNetworkIdentity {
         let game_server_id = value
             .metadata
             .labels
-            .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned())
+            .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
             .unwrap();
         let ip_address = value
             .status
@@ -269,15 +313,15 @@ impl From<Pod> for GameServerInstance {
             .metadata
             .labels
             .as_ref()
-            .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned())
+            .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
             .unwrap();
 
         let nautikal_pod_type = value
             .metadata
             .labels
             .as_ref()
-            .and_then(|labels| labels.get("nautikal.io/pod-type").cloned())
-            .unwrap();
+            .and_then(|labels| labels.get(POD_TYPE_LABEL).cloned())
+            .unwrap_or_else(|| "unknown".to_string());
         GameServerInstance {
             id: value
                 .metadata
@@ -288,7 +332,6 @@ impl From<Pod> for GameServerInstance {
             nautikal_pod_type,
             game_server_id,
             pod_status: value.status.and_then(|s| s.phase),
-            // TODO fix this
             curr_players: 0,
             max_players: 0,
         }
