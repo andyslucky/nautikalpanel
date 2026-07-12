@@ -7,13 +7,11 @@ use crate::app_config::AppConfig;
 use crate::models::TemplateRepository;
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::KubernetesExecutor;
+use crate::services::settings_store::SettingsStore;
 use crate::services::template_repository_manager::TemplateRepositoryManager;
-use crate::services::template_repository_store::TemplateRepositoryStore;
 use kube::Client;
 use std::error::Error;
 use std::sync::Arc;
-use surrealdb::engine::local::{Db, RocksDb};
-use surrealdb::Surreal;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
@@ -24,53 +22,30 @@ async fn create_executor(
     k8s_config.default_namespace = config.kubernetes.namespace.clone();
     let client = Client::try_from(k8s_config)?;
     let executor =
-        KubernetesExecutor::new(client, config.kubernetes.namespace.clone(), config.clone())
+        KubernetesExecutor::new(client.clone(), config.kubernetes.namespace.clone(), config.clone())
             .await?;
     Ok(executor)
 }
 
-async fn create_db(
+async fn create_settings_store(
     config: &AppConfig,
-) -> Result<Surreal<Db>, Box<dyn Error>> {
-    Ok(Surreal::new::<RocksDb>(config.database.path.clone()).await?)
-}
-
-async fn create_template_repository_store(
-    db: Surreal<Db>,
-    config: &AppConfig,
-) -> Result<(TemplateRepositoryStore, TemplateRepositoryManager), Box<dyn Error>> {
-    let store = TemplateRepositoryStore::new(db, &config.database).await?;
-    let manager = TemplateRepositoryManager::new(store.clone(), config.clone());
-    Ok((store, manager))
-}
-
-async fn initialize_default_repository(
-    store: &TemplateRepositoryStore,
-    local_templates_path: &str,
-) -> Result<(), Box<dyn Error>> {
-    let is_empty = store.is_empty().await?;
-    if is_empty {
-        info!("Initializing default template repository at {}", local_templates_path);
-        let local_repo = TemplateRepository {
-            id: None,
+    client: Client,
+) -> Result<SettingsStore, Box<dyn Error>> {
+    let default_repos = vec![
+        TemplateRepository {
+            id: TemplateRepository::generate_id(),
             name: "Local Templates".to_string(),
-            url: format!("file://./{}", local_templates_path.to_string()),
-        };
-        let nautikal_repo = TemplateRepository {
-            id: None,
+            url: format!("file://./{}", config.paths.game_server_templates),
+        },
+        TemplateRepository {
+            id: TemplateRepository::generate_id(),
             name: "Nautikal Community Repo".to_string(),
-            url: "github:///andyslucky/nautikal-game-servers/templates".to_string()
-        };
-        store.create_repository(local_repo).await?;
-        store.create_repository(nautikal_repo).await?;
-        info!("Default template repositories initialized successfully");
-    } else {
-        info!("Template repositories already exist, skipping initialization");
-    }
-    
-    Ok(())
+            url: "github:///andyslucky/nautikal-game-servers/templates".to_string(),
+        },
+    ];
+    let store = SettingsStore::new(client, config.kubernetes.namespace.clone(), default_repos).await?;
+    Ok(store)
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -87,7 +62,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "  Default storage class: {:?}",
         config.kubernetes.default_storage_class
     );
-    info!("  Database path: {:?}", config.database.path);
     info!("  K8s templates: {}", config.paths.k8s_templates);
     info!(
         "  Game server templates: {}",
@@ -95,21 +69,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let executor = Arc::new(create_executor(&config).await?);
-    let db = create_db(&config).await?;
-    let store = Arc::new(GameServerStore::new(executor.clone(), db.clone(), &config.database).await?);
-    
-    let (template_repository_store, template_repository_manager) =
-        create_template_repository_store(db, &config).await?;
-    
-    initialize_default_repository(&template_repository_store, &config.paths.game_server_templates)
-        .await?;
+    let store = Arc::new(GameServerStore::new(executor.clone()));
+
+    let client = {
+        let mut k8s_config = kube::Config::infer().await?;
+        k8s_config.default_namespace = config.kubernetes.namespace.clone();
+        Client::try_from(k8s_config)?
+    };
+    let settings_store = Arc::new(create_settings_store(&config, client).await?);
+    let template_repository_manager = Arc::new(TemplateRepositoryManager::new(
+        (*settings_store).clone(),
+        config.clone(),
+    ));
 
     let mut router = endpoints::create_router(
         executor,
         store,
         config.clone(),
-        Arc::new(template_repository_store),
-        Arc::new(template_repository_manager),
+        settings_store,
+        template_repository_manager,
     );
 
     if cfg!(debug_assertions) {

@@ -21,7 +21,7 @@ pub struct ResourceQuantities {
     pub memory: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VolumeMount {
     pub volume_name: String,
     pub container_path: String,
@@ -132,7 +132,7 @@ pub struct UpdateGameServerRequest {
     pub user_id: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameServerTemplate {
     pub template_name: String,
     pub description: Option<String>,
@@ -177,7 +177,7 @@ pub struct ServicePort {
     pub protocol: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceConfig {
     pub ports: Vec<ServicePort>,
     pub ip_address: Option<String>,
@@ -185,7 +185,7 @@ pub struct ServiceConfig {
     pub service_type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PodConfig {
     pub image: String,
     pub resources: Option<Resources>,
@@ -198,7 +198,7 @@ fn default_user_id() -> u32 {
     1000
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PvcConfig {
     pub storage_class: Option<String>,
     pub container_path: String,

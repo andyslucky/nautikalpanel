@@ -5,8 +5,8 @@ use crate::models::{
 };
 use crate::services::game_server_store::GameServerStore;
 use crate::services::kubernetes_executor::{KubernetesExecutor, PodMetric};
+use crate::services::settings_store::SettingsStore;
 use crate::services::template_repository_manager::TemplateRepositoryManager;
-use crate::services::template_repository_store::TemplateRepositoryStore;
 use axum::extract::Query;
 use axum::routing::delete;
 use axum::{
@@ -31,7 +31,7 @@ pub struct AppState {
     pub executor: Arc<KubernetesExecutor>,
     pub store: Arc<GameServerStore>,
     pub config: AppConfig,
-    pub template_repository_store: Arc<TemplateRepositoryStore>,
+    pub settings_store: Arc<SettingsStore>,
     pub template_repository_manager: Arc<TemplateRepositoryManager>,
 }
 
@@ -97,14 +97,14 @@ pub fn create_router(
     executor: Arc<KubernetesExecutor>,
     store: Arc<GameServerStore>,
     config: AppConfig,
-    template_repository_store: Arc<TemplateRepositoryStore>,
+    settings_store: Arc<SettingsStore>,
     template_repository_manager: Arc<TemplateRepositoryManager>,
 ) -> Router {
     let state = AppState {
         executor,
         store,
         config,
-        template_repository_store,
+        settings_store,
         template_repository_manager,
     };
     Router::new()
@@ -173,12 +173,12 @@ async fn create_template_repository(
     Json(req): Json<CreateTemplateRepositoryRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
     let repository = TemplateRepository {
-        id: None,
+        id: TemplateRepository::generate_id(),
         name: req.name,
         url: req.url,
     };
     state
-        .template_repository_store
+        .settings_store
         .create_repository(repository)
         .await
         .map_err(|e| ErrorResponse {
@@ -197,7 +197,7 @@ struct TemplateRepositoryResponse {
 impl From<TemplateRepository> for TemplateRepositoryResponse {
     fn from(value: TemplateRepository) -> Self {
         Self {
-            id: value.id.expect("Row doesnt have id").key().to_string(),
+            id: value.id,
             name: value.name,
             url: value.url,
         }
@@ -208,12 +208,8 @@ async fn list_template_repositories(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<TemplateRepositoryResponse>>, ErrorResponse> {
     let repositories = state
-        .template_repository_store
-        .list_repositories()
-        .await
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?;
+        .settings_store
+        .list_repositories();
     let response = repositories
         .into_iter()
         .map(|r| TemplateRepositoryResponse::from(r))
@@ -226,7 +222,7 @@ async fn delete_template_repository(
     Path(repository_id): Path<String>,
 ) -> Result<StatusCode, ErrorResponse> {
     state
-        .template_repository_store
+        .settings_store
         .delete_repository(repository_id)
         .await
         .map_err(|e| ErrorResponse {
@@ -343,31 +339,15 @@ async fn update_game_server(
 async fn start_server(
     State(state): State<AppState>,
     Json(req): Json<StartStopGameServerRequest>,
-) -> Result<Json<StartGameServerResponse>, ErrorResponse> {
-    let game_server = state
-        .store
-        .get_game_server_by_id(req.game_server_id.as_str())
+) -> Result<StatusCode, ErrorResponse> {
+    state
+        .executor
+        .start_server(&req.game_server_id)
         .await
+        .map(|_| StatusCode::OK)
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
-        })?
-        .ok_or_else(|| ErrorResponse {
-            error: "Could not find game server with id".to_string(),
-        })?;
-
-    let (pod, credentials) =
-        state
-            .executor
-            .create_pod(&game_server)
-            .await
-            .map_err(|e| ErrorResponse {
-                error: e.to_string(),
-            })?;
-    let instance = GameServerInstance::from(pod);
-    Ok(Json(StartGameServerResponse {
-        instance,
-        credentials,
-    }))
+        })
 }
 
 /// POST /api/v1/game-servers/start-sftp
@@ -387,14 +367,46 @@ async fn start_sftp_server(
             error: "Could not find game server with id".to_string(),
         })?;
 
-    let (pod, credentials) = state
+    state
         .executor
-        .create_sftp_pod(&game_server)
+        .start_sftp_server(&game_server)
         .await
         .map_err(|e| ErrorResponse {
             error: e.to_string(),
         })?;
-    let instance = GameServerInstance::from(pod);
+
+    let credentials = state
+        .executor
+        .get_sftp_credentials(&req.game_server_id)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?
+        .ok_or_else(|| ErrorResponse {
+            error: "SFTP credentials not found".to_string(),
+        })?;
+
+    // Find a running pod for this game server to report as instance
+    let pods = state
+        .executor
+        .list_pods(Some(req.game_server_id.as_str()))
+        .await
+        .map_err(|e| ErrorResponse {
+            error: e.to_string(),
+        })?;
+    let instance = pods
+        .into_iter()
+        .map(GameServerInstance::from)
+        .next()
+        .unwrap_or(GameServerInstance {
+            game_server_id: req.game_server_id.clone(),
+            id: req.game_server_id.clone(),
+            nautikal_pod_type: "sftp-only".to_string(),
+            pod_status: Some("Running".to_string()),
+            curr_players: 0,
+            max_players: 0,
+        });
+
     Ok(Json(StartSftpResponse {
         instance,
         credentials,
@@ -409,7 +421,7 @@ async fn stop_server(
 ) -> Result<StatusCode, ErrorResponse> {
     state
         .executor
-        .stop_server(req.game_server_id)
+        .stop_server(&req.game_server_id)
         .await
         .map(|_| StatusCode::OK)
         .map_err(|e| ErrorResponse {

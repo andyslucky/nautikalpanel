@@ -9,6 +9,10 @@ pub struct GameServerStore {
     executor: Arc<KubernetesExecutor>,
 }
 
+fn map_err(e: Box<dyn Error>) -> Box<dyn Error + Send + Sync> {
+    anyhow!("{}", e).into()
+}
+
 impl GameServerStore {
     pub fn new(executor: Arc<KubernetesExecutor>) -> Self {
         GameServerStore { executor }
@@ -18,13 +22,9 @@ impl GameServerStore {
         &self,
         mut game_server: GameServer,
     ) -> Result<GameServer, Box<dyn Error + Send + Sync>> {
-        // Generate an ID for the game server
         let id = GameServer::generate_id();
         game_server.id = Some(id.clone());
-
-        // Initialize Kubernetes resources (StatefulSet, Services, Secret)
-        self.executor.init_game_server(&game_server).await?;
-
+        self.executor.init_game_server(&game_server).await.map_err(map_err)?;
         Ok(game_server)
     }
 
@@ -34,7 +34,8 @@ impl GameServerStore {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.executor
             .delete_game_server_resources(game_server_id)
-            .await?;
+            .await
+            .map_err(map_err)?;
         Ok(())
     }
 
@@ -83,7 +84,8 @@ impl GameServerStore {
 
         self.executor
             .update_stateful_set(game_server_id, &updated)
-            .await?;
+            .await
+            .map_err(map_err)?;
 
         Ok(updated)
     }

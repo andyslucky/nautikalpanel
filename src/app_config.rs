@@ -1,6 +1,5 @@
 use config::{Config, Environment};
 use serde::Deserialize;
-use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {

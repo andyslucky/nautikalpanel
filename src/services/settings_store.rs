@@ -1,8 +1,8 @@
-use crate::models::{TemplateRepository, SETTINGS_CONFIG_MAP_NAME, MANAGED_BY_LABEL, MANAGED_BY_VALUE};
+use crate::models::{TemplateRepository, MANAGED_BY_LABEL, MANAGED_BY_VALUE, SETTINGS_CONFIG_MAP_NAME};
 use k8s_openapi::api::core::v1::ConfigMap;
-use kube::api::{Patch, PatchParams, PostParams, ListParams};
-use kube::{Api, Client};
-use kube::runtime::watcher;
+use kube::api::{Api, ListParams, Patch, PatchParams, PostParams};
+use kube::{Client, ResourceExt};
+use kube::runtime::{watcher, WatchStreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -85,7 +85,7 @@ impl SettingsStore {
                 let mut cm_data = BTreeMap::new();
                 cm_data.insert(REPOSITORIES_KEY.to_string(), data_str);
                 let cm = ConfigMap {
-                    metadata: kube::api::ObjectMeta {
+                    metadata: kube::core::ObjectMeta {
                         name: Some(SETTINGS_CONFIG_MAP_NAME.to_string()),
                         namespace: Some(self.namespace.clone()),
                         labels: Some(labels),
@@ -138,18 +138,18 @@ impl SettingsStore {
 
     fn start_watcher(&self) {
         let cms: Api<ConfigMap> = Api::namespaced(self.client.clone(), &self.namespace);
-        let list_params = ListParams::default()
+        let _list_params = ListParams::default()
             .fields(&format!("metadata.name={}", SETTINGS_CONFIG_MAP_NAME));
-        let mut watcher_stream = watcher::watcher(
+        let _watcher_stream = watcher::watcher(
             cms,
-            watcher::Config::default().params(list_params),
+            watcher::Config::default().fields(&format!("metadata.name={}", SETTINGS_CONFIG_MAP_NAME)),
         );
 
         let settings_clone = self.settings.clone();
         tokio::spawn(async move {
-            use futures_util::StreamExt;
             use kube::runtime::watcher::Event;
-            while let Some(event) = watcher_stream.next().await {
+            let mut pinned = Box::pin(_watcher_stream);
+            while let Some(event) = pinned.next().await {
                 match event {
                     Ok(Event::Apply(cm)) => {
                         if let Some(data) = &cm.data {
@@ -172,6 +172,7 @@ impl SettingsStore {
                     }
                     Ok(Event::Init) => {}
                     Ok(Event::InitApply(_)) => {}
+                    Ok(Event::InitDone) => {}
                     Ok(Event::Delete(_)) => {
                         warn!("Settings ConfigMap was deleted");
                     }
@@ -183,3 +184,5 @@ impl SettingsStore {
         });
     }
 }
+
+use futures_util::StreamExt;

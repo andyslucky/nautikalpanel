@@ -7,10 +7,10 @@ use crate::models::{
 };
 use anyhow::anyhow;
 use futures_util::io::Lines;
-use futures_util::{AsyncBufRead, Stream};
+use futures_util::{AsyncBufRead, AsyncBufReadExt, Stream};
 use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::api::core::v1::{
-    EnvVar, EnvVarSource, PersistentVolumeClaim, Pod, Secret, SecretKeySelector, Service,
+    EnvVar, PersistentVolumeClaim, Pod, Secret, Service,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta};
@@ -184,10 +184,10 @@ impl KubernetesExecutor {
         game_server_id: &str,
         game_server: &GameServer,
     ) -> Result<String, Box<dyn Error>> {
-        let game_type = sanitize_game_type(&game_server.game_type);
+        let _game_type = sanitize_game_type(&game_server.game_type);
         let name = format!("{}-headless", game_server_id);
         let labels = Self::standard_labels(game_server_id);
-        let selector_labels = Self::standard_labels(game_server_id);
+        let _selector_labels = Self::standard_labels(game_server_id);
 
         let mut selector = BTreeMap::new();
         selector.insert(GAME_SERVER_ID_LABEL.to_string(), game_server_id.to_string());
@@ -252,7 +252,7 @@ impl KubernetesExecutor {
             } else {
                 ports.push(k8s_openapi::api::core::v1::ServicePort {
                     port: sp.port as i32,
-                    target_port: Some((sp.port as i32).into()),
+                    target_port: Some(IntOrString::Int(sp.port as i32)),
                     protocol: Some(sp.protocol.clone()),
                     name: Some(format!("{}-{}", sp.port, sp.protocol.to_lowercase())),
                     ..Default::default()
@@ -338,7 +338,7 @@ impl KubernetesExecutor {
                     || *k == RESOURCE_TYPE_LABEL
                     || *k == POD_TYPE_LABEL
             })
-            .cloned()
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
         let pod_labels = labels.clone();
@@ -424,7 +424,7 @@ impl KubernetesExecutor {
         let mut pvc_spec = k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
             access_modes: Some(vec!["ReadWriteOnce".to_string()]),
             resources: Some(k8s_openapi::api::core::v1::VolumeResourceRequirements {
-                requests: {
+                requests: Some({
                     let mut m = BTreeMap::new();
                     m.insert(
                         "storage".to_string(),
@@ -434,7 +434,8 @@ impl KubernetesExecutor {
                         )),
                     );
                     m
-                },
+                }),
+                limits: None,
             }),
             ..Default::default()
         };
@@ -477,7 +478,7 @@ impl KubernetesExecutor {
                 ..Default::default()
             },
             spec: Some(k8s_openapi::api::apps::v1::StatefulSetSpec {
-                service_name: headless_svc_name.to_string(),
+                service_name: Some(headless_svc_name.to_string()),
                 replicas: Some(0), // Start with 0 replicas; user calls "start" to scale up
                 selector: LabelSelector {
                     match_labels: Some(selector_labels),
@@ -573,7 +574,7 @@ impl KubernetesExecutor {
                             || *k == RESOURCE_TYPE_LABEL
                             || *k == POD_TYPE_LABEL
                     })
-                    .cloned()
+                    .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
 
                 let pod_labels = labels.clone();
@@ -610,7 +611,7 @@ impl KubernetesExecutor {
                         ..Default::default()
                     },
                     spec: Some(k8s_openapi::api::apps::v1::StatefulSetSpec {
-                        service_name: format!("{}-headless", game_server_id),
+                        service_name: Some(format!("{}-headless", game_server_id)),
                         replicas: Some(1),
                         selector: LabelSelector {
                             match_labels: Some(selector_labels),

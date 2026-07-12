@@ -1,6 +1,6 @@
 use crate::app_config::AppConfig;
 use crate::models::GameServerTemplate;
-use crate::services::template_repository_store::TemplateRepositoryStore;
+use crate::services::settings_store::SettingsStore;
 use anyhow::anyhow;
 use reqwest::header::{ACCEPT, AUTHORIZATION, USER_AGENT};
 use serde::Deserialize;
@@ -17,12 +17,12 @@ struct GitHubContentItem {
 }
 
 pub struct TemplateRepositoryManager {
-    repository_store: TemplateRepositoryStore,
+    repository_store: SettingsStore,
     config: AppConfig,
 }
 
 impl TemplateRepositoryManager {
-    pub fn new(repository_store: TemplateRepositoryStore, config: AppConfig) -> Self {
+    pub fn new(repository_store: SettingsStore, config: AppConfig) -> Self {
         Self {
             repository_store,
             config,
@@ -30,7 +30,7 @@ impl TemplateRepositoryManager {
     }
 
     pub async fn fetch_all_templates(&self) -> Result<Vec<GameServerTemplate>, Box<dyn Error>> {
-        let repositories = self.repository_store.list_repositories().await?;
+        let repositories = self.repository_store.list_repositories();
         let mut all_templates: Vec<GameServerTemplate> = vec![];
 
         for repo in repositories {
