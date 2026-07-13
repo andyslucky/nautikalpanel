@@ -53,9 +53,13 @@ jobs:
       - name: Load image into kind
         run: kind load docker-image nautikalpanel:ci --name nautikal-ci
 
+      - name: Create nautikal namespace
+        run: kubectl create namespace nautikal
+
       - name: Install nautikalpanel via Helm
         run: |
           helm install nautikal /tmp/nautikalpanel-helm/charts/nautikalpanel \
+            --namespace nautikal \
             --set image.repository=nautikalpanel \
             --set image.tag=ci \
             --set image.pullPolicy=Never \
@@ -67,13 +71,13 @@ jobs:
         run: |
           kubectl wait --for=condition=ready pod \
             -l app.kubernetes.io/instance=nautikal \
-            --timeout=120s
-          kubectl get pods -A
-          kubectl logs -l app.kubernetes.io/instance=nautikal --tail=50
+            --timeout=120s -n nautikal
+          kubectl get pods -n nautikal
+          kubectl logs -l app.kubernetes.io/instance=nautikal --tail=50 -n nautikal
 
       - name: Port-forward backend
         run: |
-          kubectl port-forward svc/nautikal-nautikalpanel 9090:80 &
+          kubectl port-forward -n nautikal svc/nautikal-nautikalpanel 9090:80 &
           sleep 5
 
       - name: API smoke test (curl)
