@@ -10,7 +10,6 @@ on:
       - "README.md"
       - "TODO.md"
       - "game-server-template.schema.json"
-      - ".github/**"
   pull_request:
     branches:
       - master
@@ -20,7 +19,6 @@ on:
       - "README.md"
       - "TODO.md"
       - "game-server-template.schema.json"
-      - ".github/**"
   workflow_dispatch:
 
 jobs:
@@ -75,20 +73,25 @@ jobs:
           kubectl get pods -n nautikal
           kubectl logs -l app.kubernetes.io/instance=nautikal --tail=50 -n nautikal
 
-      - name: Port-forward backend
+      - name: Resolve NodePort URL
         run: |
-          kubectl port-forward -n nautikal svc/nautikal-nautikalpanel 9090:80 &
-          sleep 5
-          for i in 1 2 3 4 5; do
-            curl -sf http://localhost:9090/api/v1/game-servers && break
-            sleep 2
+          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          NODE_PORT=$(kubectl get svc -n nautikal nautikal-nautikalpanel -o jsonpath='{.spec.ports[0].nodePort}')
+          BASE_URL="http://${NODE_IP}:${NODE_PORT}"
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_ENV
+          echo "Using BASE_URL=$BASE_URL"
+          # Retry health check until backend responds
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -sf "$BASE_URL/api/v1/game-servers" && break
+            echo "Health check attempt $i failed, retrying..."
+            sleep 3
           done
 
       - name: API smoke test (curl)
         run: |
-          curl -sf http://localhost:9090/api/v1/game-servers || true
-          curl -sf http://localhost:9090/api/v1/game-server-templates || true
-          curl -sf http://localhost:9090/api/v1/template-repositories || true
+          curl -sf "$BASE_URL/api/v1/game-servers" || true
+          curl -sf "$BASE_URL/api/v1/game-server-templates" || true
+          curl -sf "$BASE_URL/api/v1/template-repositories" || true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -109,7 +112,7 @@ jobs:
         working-directory: frontend
         run: npx playwright test --config=playwright.integration.config.ts --workers=1
         env:
-          BASE_URL: http://localhost:9090
+          BASE_URL: ${{ env.BASE_URL }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
