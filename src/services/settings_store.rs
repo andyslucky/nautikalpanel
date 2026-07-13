@@ -1,8 +1,8 @@
 use crate::models::{TemplateRepository, MANAGED_BY_LABEL, MANAGED_BY_VALUE, SETTINGS_CONFIG_MAP_NAME};
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::api::{Api, ListParams, Patch, PatchParams, PostParams};
-use kube::{Client, ResourceExt};
-use kube::runtime::{watcher, WatchStreamExt};
+use kube::Client;
+use kube::runtime::watcher;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;

@@ -337,3 +337,183 @@ impl From<Pod> for GameServerInstance {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn test_pod_config() -> PodConfig {
+        PodConfig {
+            image: "test-image:latest".to_string(),
+            resources: Some(Resources {
+                requests: Some(ResourceQuantities {
+                    cpu: Some("100m".to_string()),
+                    memory: Some("512Mi".to_string()),
+                }),
+                limits: Some(ResourceQuantities {
+                    cpu: Some("500m".to_string()),
+                    memory: Some("1Gi".to_string()),
+                }),
+            }),
+            command: Some(vec!["echo".to_string(), "hello".to_string()]),
+            env: Some(HashMap::from([("KEY".to_string(), "VALUE".to_string())])),
+            mounts: None,
+        }
+    }
+
+    fn test_service_config() -> ServiceConfig {
+        ServiceConfig {
+            ports: vec![ServicePort { port: 25565, protocol: "TCP".to_string() }],
+            ip_address: None,
+            service_type: "LoadBalancer".to_string(),
+        }
+    }
+
+    fn test_pvc_config() -> PvcConfig {
+        PvcConfig {
+            storage_class: Some("standard".to_string()),
+            container_path: "/data".to_string(),
+            size: 10,
+            size_unit: "Gi".to_string(),
+        }
+    }
+
+    fn test_game_server() -> GameServer {
+        GameServer {
+            id: Some("gs-abc123".to_string()),
+            icon_url: Some("https://example.com/icon.png".to_string()),
+            description: Some("Test game server".to_string()),
+            name: "My Minecraft Server".to_string(),
+            game_type: "minecraft".to_string(),
+            game_version: "1.20.1".to_string(),
+            max_players: 20,
+            pod_config: test_pod_config(),
+            service_config: test_service_config(),
+            pvc_config: test_pvc_config(),
+            user_id: 1000,
+        }
+    }
+
+    #[test]
+    fn game_server_id_format() {
+        let id = GameServer::generate_id();
+        assert!(id.starts_with("gs-"));
+        assert_eq!(id.len(), 9); // "gs-" + 6 chars
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'));
+    }
+
+    #[test]
+    fn game_server_id_string() {
+        let gs = test_game_server();
+        assert_eq!(gs.id_string(), Some("gs-abc123".to_string()));
+    }
+
+    #[test]
+    fn game_server_try_from_request() {
+        let req = NewGameServerRequest {
+            name: "Test Server".to_string(),
+            game_version: Some("1.0".to_string()),
+            max_players: Some(10),
+            pod_template: None,
+            init_template: None,
+            template: GameServerTemplate {
+                template_name: "minecraft".to_string(),
+                description: Some("desc".to_string()),
+                game_type: Some("minecraft".to_string()),
+                icon_url: Some("icon".to_string()),
+                init_template: None,
+                pod_config: test_pod_config(),
+                service_config: test_service_config(),
+                pvc_config: test_pvc_config(),
+                default_max_users: Some(10),
+                user_id: 1000,
+            },
+        };
+        let gs = GameServer::try_from(req).unwrap();
+        assert_eq!(gs.name, "Test Server");
+        assert_eq!(gs.game_version, "1.0");
+        assert_eq!(gs.max_players, 10);
+        assert_eq!(gs.game_type, "minecraft");
+        assert!(gs.id.is_none());
+    }
+
+    #[test]
+    fn game_server_try_from_request_missing_game_type_fails() {
+        let req = NewGameServerRequest {
+            name: "Test".to_string(),
+            game_version: None,
+            max_players: None,
+            pod_template: None,
+            init_template: None,
+            template: GameServerTemplate {
+                template_name: "x".to_string(),
+                description: None,
+                game_type: None,
+                icon_url: None,
+                init_template: None,
+                pod_config: test_pod_config(),
+                service_config: test_service_config(),
+                pvc_config: test_pvc_config(),
+                default_max_users: None,
+                user_id: 1000,
+            },
+        };
+        assert!(GameServer::try_from(req).is_err());
+    }
+
+    #[test]
+    fn template_repository_generate_id_format() {
+        let id = TemplateRepository::generate_id();
+        assert_eq!(id.len(), 8);
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn sftp_credentials_generate() {
+        let creds = SftpCredentials::generate();
+        assert_eq!(creds.username, "user");
+        assert_eq!(creds.password.len(), 24);
+        assert!(creds.password.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn sftp_credentials_from_secret() {
+        let mut data = BTreeMap::new();
+        data.insert(
+            "SFTP_USERS".to_string(),
+            k8s_openapi::ByteString("user:secret123:1000:1000".as_bytes().to_vec()),
+        );
+        let secret = Secret {
+            metadata: Default::default(),
+            data: Some(data),
+            ..Default::default()
+        };
+        let creds = SftpCredentials::try_from(secret).unwrap();
+        assert_eq!(creds.username, "user");
+        assert_eq!(creds.password, "secret123");
+    }
+
+    #[test]
+    fn sftp_credentials_from_secret_invalid_format() {
+        let mut data = BTreeMap::new();
+        data.insert(
+            "SFTP_USERS".to_string(),
+            k8s_openapi::ByteString("invalid".as_bytes().to_vec()),
+        );
+        let secret = Secret {
+            metadata: Default::default(),
+            data: Some(data),
+            ..Default::default()
+        };
+        assert!(SftpCredentials::try_from(secret).is_err());
+    }
+
+    #[test]
+    fn label_constants() {
+        assert_eq!(MANAGED_BY_LABEL, "app.kubernetes.io/managed-by");
+        assert_eq!(MANAGED_BY_VALUE, "nautikal");
+        assert_eq!(GAME_SERVER_ID_LABEL, "nautikal.io/game-server-id");
+        assert_eq!(GAME_SERVER_SPEC_ANNOTATION, "nautikal.io/game-server-spec");
+    }
+}

@@ -1074,3 +1074,125 @@ fn sanitize_game_type(game_type: &str) -> String {
         sanitized
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{GameServer, PodConfig, ServiceConfig, PvcConfig};
+    use super::*;
+    use k8s_openapi::api::apps::v1::StatefulSet;
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn sanitize_game_type_basic() {
+        assert_eq!(sanitize_game_type("Minecraft"), "minecraft");
+        assert_eq!(sanitize_game_type("  Valheim  "), "valheim");
+        assert_eq!(sanitize_game_type("ARK: Survival Evolved"), "ark--survival-evolved");
+        assert_eq!(sanitize_game_type("Star Citizen!!!"), "star-citizen---");
+    }
+
+    #[test]
+    fn sanitize_game_type_truncated() {
+        let long = "a".repeat(100);
+        let result = sanitize_game_type(&long);
+        assert_eq!(result.len(), 40);
+        assert!(result.chars().all(|c| c == 'a' || c == '-'));
+    }
+
+    #[test]
+    fn standard_labels_structure() {
+        let labels = KubernetesExecutor::standard_labels("gs-123abc");
+        assert_eq!(labels.get(MANAGED_BY_LABEL), Some(&"nautikal".to_string()));
+        assert_eq!(labels.get(GAME_SERVER_ID_LABEL), Some(&"gs-123abc".to_string()));
+    }
+
+    #[test]
+    fn standard_labels_with_type_structure() {
+        let labels = KubernetesExecutor::standard_labels_with_type(
+            "gs-123abc",
+            RESOURCE_TYPE_GAME_SERVER,
+            POD_TYPE_GAMESERVER,
+        );
+        assert_eq!(labels.get(MANAGED_BY_LABEL), Some(&"nautikal".to_string()));
+        assert_eq!(labels.get(GAME_SERVER_ID_LABEL), Some(&"gs-123abc".to_string()));
+        assert_eq!(labels.get(RESOURCE_TYPE_LABEL), Some(&"game-server".to_string()));
+        assert_eq!(labels.get(POD_TYPE_LABEL), Some(&"gameserver".to_string()));
+    }
+
+    #[test]
+    fn game_server_from_stateful_set_happy_path() {
+        let gs = GameServer {
+            id: Some("gs-abc123".to_string()),
+            icon_url: None,
+            description: None,
+            name: "Test".to_string(),
+            game_type: "minecraft".to_string(),
+            game_version: "1.0".to_string(),
+            max_players: 10,
+            pod_config: PodConfig {
+                image: "img".to_string(),
+                resources: None,
+                command: None,
+                env: None,
+                mounts: None,
+            },
+            service_config: ServiceConfig {
+                ports: vec![],
+                ip_address: None,
+                service_type: "LoadBalancer".to_string(),
+            },
+            pvc_config: PvcConfig {
+                storage_class: None,
+                container_path: "/data".to_string(),
+                size: 1,
+                size_unit: "Gi".to_string(),
+            },
+            user_id: 1000,
+        };
+        let json = serde_json::to_string(&gs).unwrap();
+        let mut annotations = BTreeMap::new();
+        annotations.insert(GAME_SERVER_SPEC_ANNOTATION.to_string(), json);
+        let sts = StatefulSet {
+            metadata: ObjectMeta {
+                name: Some("gs-abc123".to_string()),
+                annotations: Some(annotations),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let result = KubernetesExecutor::game_server_from_stateful_set(&sts);
+        assert!(result.is_some());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.id, Some("gs-abc123".to_string()));
+        assert_eq!(parsed.name, "Test");
+        assert_eq!(parsed.game_type, "minecraft");
+    }
+
+    #[test]
+    fn game_server_from_stateful_set_missing_annotation() {
+        let sts = StatefulSet {
+            metadata: ObjectMeta {
+                name: Some("gs-nope".to_string()),
+                annotations: None,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(KubernetesExecutor::game_server_from_stateful_set(&sts).is_none());
+    }
+
+    #[test]
+    fn game_server_from_stateful_set_bad_json() {
+        let mut annotations = BTreeMap::new();
+        annotations.insert(GAME_SERVER_SPEC_ANNOTATION.to_string(), "not-json".to_string());
+        let sts = StatefulSet {
+            metadata: ObjectMeta {
+                name: Some("gs-bad".to_string()),
+                annotations: Some(annotations),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(KubernetesExecutor::game_server_from_stateful_set(&sts).is_none());
+    }
+}
