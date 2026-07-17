@@ -89,9 +89,13 @@ jobs:
 
       - name: API smoke test (curl)
         run: |
-          curl -sf "$BASE_URL/api/v1/game-servers" || true
-          curl -sf "$BASE_URL/api/v1/game-server-templates" || true
-          curl -sf "$BASE_URL/api/v1/template-repositories" || true
+          echo "=== Testing game-servers ==="
+          curl -sf "$BASE_URL/api/v1/game-servers" -o /dev/null || exit 1
+          echo "=== Testing game-server-templates ==="
+          curl -sf "$BASE_URL/api/v1/game-server-templates" -o /dev/null || exit 1
+          echo "=== Testing template-repositories ==="
+          curl -sf "$BASE_URL/api/v1/template-repositories" -o /dev/null || exit 1
+          echo "=== All smoke tests passed ==="
 
       - name: Setup Node
         uses: actions/setup-node@v4

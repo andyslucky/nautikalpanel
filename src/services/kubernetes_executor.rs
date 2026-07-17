@@ -136,9 +136,10 @@ impl KubernetesExecutor {
     }
 
     fn gs_list_params(&self, game_server_id: &str) -> ListParams {
-        ListParams::default()
-            .labels(MANAGED_BY_LABEL)
-            .labels(&format!("{}={}", GAME_SERVER_ID_LABEL, game_server_id))
+        ListParams::default().labels(&format!(
+            "{}={},{}={}",
+            MANAGED_BY_LABEL, MANAGED_BY_VALUE, GAME_SERVER_ID_LABEL, game_server_id
+        ))
     }
 
     // ─── Initialization: create StatefulSet + Service + SFTP Secret ─────
@@ -658,16 +659,14 @@ impl KubernetesExecutor {
         game_server_id: Option<impl Deref<Target = str>>,
     ) -> Result<Vec<StatefulSet>, Box<dyn Error + Send + Sync>> {
         let sts_api: Api<StatefulSet> = Api::namespaced(self.client.clone(), &self.namespace);
-        let mut list_params = ListParams::default().labels(MANAGED_BY_LABEL);
+        let mut selector = format!(
+            "{}={},{}={}",
+            MANAGED_BY_LABEL, MANAGED_BY_VALUE, RESOURCE_TYPE_LABEL, RESOURCE_TYPE_GAME_SERVER
+        );
         if let Some(gs_id) = game_server_id {
-            list_params =
-                list_params.labels(&format!("{}={}", GAME_SERVER_ID_LABEL, gs_id.deref()));
+            selector.push_str(&format!(",{}={}", GAME_SERVER_ID_LABEL, gs_id.deref()));
         }
-        // Filter to only game-server type StatefulSets (not sftp-only ones)
-        list_params = list_params.labels(&format!(
-            "{}={}",
-            RESOURCE_TYPE_LABEL, RESOURCE_TYPE_GAME_SERVER
-        ));
+        let list_params = ListParams::default().labels(&selector);
         Ok(sts_api.list(&list_params).await?.items)
     }
 
@@ -688,14 +687,11 @@ impl KubernetesExecutor {
         game_server_id: Option<impl Deref<Target = str>>,
     ) -> Result<Vec<Service>, Box<dyn Error + Send + Sync>> {
         let services: Api<Service> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let mut svc_list_params = ListParams::default().labels(MANAGED_BY_LABEL);
+        let mut selector = format!("{}={}", MANAGED_BY_LABEL, MANAGED_BY_VALUE);
         if let Some(game_server_id) = game_server_id {
-            svc_list_params = svc_list_params.labels(&format!(
-                "{}={}",
-                GAME_SERVER_ID_LABEL,
-                game_server_id.deref()
-            ));
+            selector.push_str(&format!(",{}={}", GAME_SERVER_ID_LABEL, game_server_id.deref()));
         }
+        let svc_list_params = ListParams::default().labels(&selector);
         Ok(services.list(&svc_list_params).await?.items)
     }
 
@@ -704,14 +700,11 @@ impl KubernetesExecutor {
         game_server_id: Option<impl Deref<Target = str>>,
     ) -> Result<Vec<Pod>, Box<dyn Error + Send + Sync>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let mut list_params = ListParams::default().labels(MANAGED_BY_LABEL);
+        let mut selector = format!("{}={}", MANAGED_BY_LABEL, MANAGED_BY_VALUE);
         if let Some(game_server_id) = game_server_id {
-            list_params = list_params.labels(&format!(
-                "{}={}",
-                GAME_SERVER_ID_LABEL,
-                game_server_id.deref()
-            ));
+            selector.push_str(&format!(",{}={}", GAME_SERVER_ID_LABEL, game_server_id.deref()));
         }
+        let list_params = ListParams::default().labels(&selector);
         Ok(pods.list(&list_params).await?.items)
     }
 
@@ -721,14 +714,11 @@ impl KubernetesExecutor {
     ) -> Result<Vec<PersistentVolumeClaim>, Box<dyn Error>> {
         let pvc_api: Api<PersistentVolumeClaim> =
             Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let mut list_params = ListParams::default().labels(MANAGED_BY_LABEL);
+        let mut selector = format!("{}={}", MANAGED_BY_LABEL, MANAGED_BY_VALUE);
         if let Some(game_server_id) = game_server_id {
-            list_params = list_params.labels(&format!(
-                "{}={}",
-                GAME_SERVER_ID_LABEL,
-                game_server_id.deref()
-            ));
+            selector.push_str(&format!(",{}={}", GAME_SERVER_ID_LABEL, game_server_id.deref()));
         }
+        let list_params = ListParams::default().labels(&selector);
         Ok(pvc_api.list(&list_params).await?.items)
     }
 
@@ -963,7 +953,8 @@ impl KubernetesExecutor {
 
     pub fn stream_pod_changes(&self) -> impl Stream<Item = watcher::Result<Event<Pod>>> {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        watcher::watcher(pods, watcher::Config::default().labels(MANAGED_BY_LABEL))
+        let selector = format!("{}={}", MANAGED_BY_LABEL, MANAGED_BY_VALUE);
+        watcher::watcher(pods, watcher::Config::default().labels(&selector))
     }
 
     // ─── SFTP credentials ──────────────────────────────────────────────
@@ -973,10 +964,10 @@ impl KubernetesExecutor {
         game_server_id: &str,
     ) -> Result<Option<SftpCredentials>, Box<dyn Error>> {
         let secrets: Api<Secret> = Api::namespaced(self.client.clone(), self.namespace.as_str());
-        let list_params = ListParams::default()
-            .labels(MANAGED_BY_LABEL)
-            .labels(&format!("{}={}", GAME_SERVER_ID_LABEL, game_server_id))
-            .labels(&format!("{}={}", SECRET_TYPE_LABEL, SECRET_TYPE_SFTP));
+        let list_params = ListParams::default().labels(&format!(
+            "{}={},{}={}",
+            MANAGED_BY_LABEL, MANAGED_BY_VALUE, GAME_SERVER_ID_LABEL, game_server_id
+        ));
         let secret = secrets.list(&list_params).await?.items.into_iter().next();
         if let Some(s) = secret {
             Ok(Some(SftpCredentials::try_from(s)?))

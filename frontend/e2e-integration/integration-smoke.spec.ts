@@ -2,19 +2,19 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Integration Smoke Tests', () => {
   test('API - game servers endpoint returns JSON array', async ({ request }) => {
-    // Retry loop: NodePort can be flaky on the first request
     let resp;
     let lastError;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       try {
         resp = await request.get('/api/v1/game-servers', { timeout: 5000 });
-        if (resp.ok()) break;
+        if (resp && resp.ok()) break;
       } catch (e) {
         lastError = e;
       }
       await new Promise(r => setTimeout(r, 1000));
     }
-    expect(resp.ok(), `Failed after retries. Last error: ${lastError}`).toBeTruthy();
+    expect(resp, `Failed after retries. Last error: ${lastError}`).toBeDefined();
+    expect(resp.ok(), `API returned non-2xx status: ${resp?.status?.()}`).toBeTruthy();
     const body = await resp.json();
     expect(Array.isArray(body)).toBe(true);
   });

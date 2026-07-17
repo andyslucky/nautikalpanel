@@ -263,7 +263,7 @@ impl From<Service> for GameServerNetworkIdentity {
             .metadata
             .labels
             .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
-            .unwrap();
+            .unwrap_or_default();
         let ip_address = value
             .status
             .and_then(|st| st.load_balancer)
@@ -314,7 +314,7 @@ impl From<Pod> for GameServerInstance {
             .labels
             .as_ref()
             .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
-            .unwrap();
+            .unwrap_or_default();
 
         let nautikal_pod_type = value
             .metadata
