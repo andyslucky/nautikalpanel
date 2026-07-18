@@ -45,9 +45,9 @@ test.describe('Settings Page', () => {
   test('template repositories section is visible', async ({ page }) => {
     await expect(page.locator('main h3.heading-tertiary').first()).toContainText('Template Repositories');
 
-    // Add repository form should be visible
-    await expect(page.locator('input#repo-name')).toBeVisible();
-    await expect(page.locator('input#repo-url')).toBeVisible();
+    // Add repository form should be visible (use label-based selectors since inputs have no id)
+    await expect(page.locator('label:has-text("Name") + input, label:has-text("Name") ~ input').first()).toBeVisible();
+    await expect(page.locator('label:has-text("URL / Path") + input, label:has-text("URL / Path") ~ input').first()).toBeVisible();
     await expect(page.locator('main button:has-text("Add Repository")')).toBeVisible();
   });
 
