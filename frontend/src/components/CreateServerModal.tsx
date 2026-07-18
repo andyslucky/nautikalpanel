@@ -1,5 +1,5 @@
-import { useSignal } from '@preact/signals';
-import { useEffect } from 'preact/compat';
+import { useSignal, useSignalEffect } from '@preact/signals';
+import { useEffect, useRef } from 'preact/compat';
 import type { GameServerTemplateData } from '../types';
 import { serverResourceSliderFunctions } from '../resource-utils';
 import { showToast } from '../utils/toast';
@@ -12,10 +12,23 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
     const selectedTemplateName = useSignal('');
     const form = useSignal<GameServerForm>(formDefaultValue());
     const commandInput = useSignal('');
+    const templateDropdownOpen = useSignal(false);
+    const templateDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchGameServerTemplates();
     }, []);
+
+    useSignalEffect(() => {
+        if (!templateDropdownOpen.value) return;
+        const handler = (e: MouseEvent) => {
+            if (templateDropdownRef.current && !templateDropdownRef.current.contains(e.target as Node)) {
+                templateDropdownOpen.value = false;
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    });
 
     function formDefaultValue(): GameServerForm {
         return {
@@ -99,15 +112,10 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
         commandInput.value = '';
     }
 
-    function changedTemplate(e: Event) {
-        const tempName = (e.target as HTMLSelectElement).value;
-        selectedTemplateName.value = tempName;
-        const template = gameServerTemplates.value.find((t) => t.template_name === tempName);
-        if (!template) {
-            console.error('Could not find template with name ' + tempName);
-        } else {
-            useTemplate(template);
-        }
+    function selectTemplate(template: GameServerTemplateData) {
+        selectedTemplateName.value = template.template_name;
+        useTemplate(template);
+        templateDropdownOpen.value = false;
     }
 
     function updateCommandArray(value?: string) {
@@ -277,14 +285,43 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                                 </div>
                                 <div>
                                     <label class="form-label-sm">Template</label>
-                                    <div class="flex gap-1">
-                                        {form.value.template.icon_url && <img src={form.value.template.icon_url} width="32" height="32" />}
-                                        <select class="form-input" value={selectedTemplateName.value} onChange={changedTemplate}>
-                                            <option value="">Select a template...</option>
-                                            {gameServerTemplates.value.map((temp) => (
-                                                <option key={temp.template_name} value={temp.template_name}>{temp.template_name}</option>
-                                            ))}
-                                        </select>
+                                    <div class="relative" ref={templateDropdownRef}>
+                                        <button
+                                            type="button"
+                                            class="form-input w-full text-left flex items-center gap-2"
+                                            onClick={() => (templateDropdownOpen.value = !templateDropdownOpen.value)}
+                                            aria-haspopup="listbox"
+                                            aria-expanded={templateDropdownOpen.value}
+                                        >
+                                            {form.value.template.icon_url ? (
+                                                <img src={form.value.template.icon_url} width="24" height="24" class="rounded shrink-0" />
+                                            ) : (
+                                                <div class="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                            )}
+                                            <span class="flex-1 truncate">{selectedTemplateName.value || 'Select a template...'}</span>
+                                            <svg class="w-4 h-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                        {templateDropdownOpen.value && (
+                                            <div class="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded shadow-lg">
+                                                {gameServerTemplates.value.map((temp) => (
+                                                    <button
+                                                        key={temp.template_name}
+                                                        type="button"
+                                                        onClick={() => selectTemplate(temp)}
+                                                        class={`flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${selectedTemplateName.value === temp.template_name ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                                    >
+                                                        {temp.icon_url ? (
+                                                            <img src={temp.icon_url} width="24" height="24" class="rounded shrink-0" />
+                                                        ) : (
+                                                            <div class="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                                        )}
+                                                        <span class="flex-1 truncate">{temp.template_name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">

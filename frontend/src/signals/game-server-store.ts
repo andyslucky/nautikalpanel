@@ -193,23 +193,33 @@ export function handleWatchEvent(event: GameServerEvent) {
     }
 
     if ('PodLifeCycle' in event.event_type && event.game_server_instance == null) return;
-    const server = servers.value.find((s) => s.id === event.game_server_instance!.game_server_id);
-    if (!server) return;
+    const instance = event.game_server_instance;
+    const index = servers.value.findIndex((s) => s.id === instance!.game_server_id);
+    if (index === -1) return;
     let status = '';
     if (event.event_type.PodLifeCycle == 'Deleted') {
         status = 'Offline';
-        server.cpu_usage_millicores = undefined;
-        server.memory_usage_bytes = undefined;
-    } else if (event.game_server_instance != null) {
-        status = event.game_server_instance.pod_status!;
+    } else if (instance != null) {
+        status = instance.pod_status!;
     } else {
         status = event.event_type.PodLifeCycle;
     }
-    server.status = status;
-    notifyBus.emit('game-server-status-changed', server);
-    if (event.game_server_instance) {
-        server.instance_type = event.game_server_instance.nautikal_pod_type;
+    const updatedServer: Server = {
+        ...servers.value[index],
+        status,
+        instance_type: instance ? instance.nautikal_pod_type : servers.value[index].instance_type,
+        instance_id: instance ? instance.id : servers.value[index].instance_id,
+    };
+    if (event.event_type.PodLifeCycle == 'Deleted') {
+        updatedServer.cpu_usage_millicores = undefined;
+        updatedServer.memory_usage_bytes = undefined;
     }
+    batch(() => {
+        const updated = [...servers.value];
+        updated[index] = updatedServer;
+        servers.value = updated;
+    });
+    notifyBus.emit('game-server-status-changed', updatedServer);
 }
 
 export function serverAddressLine(server: Server): string {

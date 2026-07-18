@@ -7,18 +7,18 @@ import type { Server } from '../signals/game-server-store';
 
 export default function ServerDrawer() {
     const open = useSignal(false);
-    const server = useSignal<Server | null>(null);
+    const serverId = useSignal<string | null>(null);
 
     useSignalEffect(() => {
         const unsubOpen = notifyBus.on('open-drawer', (payload: { server: Server }) => {
-            server.value = payload.server;
+            serverId.value = payload.server.id;
             open.value = true;
             if (payload.server.status === 'Running' && payload.server.instance_type === 'gameserver') {
                 logStore.connect(payload.server.id);
             }
         });
         const unsubStatus = notifyBus.on('game-server-status-changed', (s: Server) => {
-            if (server.value && server.value.id === s.id && s.status === 'Running' && open.value) {
+            if (serverId.value && serverId.value === s.id && s.status === 'Running' && open.value) {
                 logStore.connect(s.id);
             }
         });
@@ -31,19 +31,20 @@ export default function ServerDrawer() {
     function closeDrawer() {
         open.value = false;
         logStore.disconnect();
+        serverId.value = null;
     }
 
     function popOutLogs() {
-        if (server.value) {
-            const s = server.value;
+        const s = gameStore.servers.value.find((sv) => sv.id === serverId.value);
+        if (s) {
             closeDrawer();
             notifyBus.emit('open-logs-modal', { server: s });
         }
     }
 
     function fetchSftpCredentials() {
-        if (server.value) {
-            const s = server.value;
+        const s = gameStore.servers.value.find((sv) => sv.id === serverId.value);
+        if (s) {
             closeDrawer();
             notifyBus.emit('open-sftp-modal', { server: s });
         }
@@ -51,7 +52,11 @@ export default function ServerDrawer() {
 
     if (!open.value) return null;
 
-    const s = server.value;
+    // Derive the live server snapshot from the store so the drawer re-renders
+    // whenever Metrics / PodLifeCycle events update `gameStore.servers`.
+    const s = serverId.value != null
+        ? gameStore.servers.value.find((sv) => sv.id === serverId.value)
+        : undefined;
     if (!s) return null;
 
     return (
