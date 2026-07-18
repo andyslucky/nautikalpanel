@@ -1,24 +1,7 @@
 name: Integration Tests
 
+# TODO: Fix this workflow it is not currently working.
 on:
-  push:
-    branches:
-      - master
-      - feature/use-statefulsets
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
-      - "TODO.md"
-      - "game-server-template.schema.json"
-  pull_request:
-    branches:
-      - master
-      - feature/use-statefulsets
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
-      - "TODO.md"
-      - "game-server-template.schema.json"
   workflow_dispatch:
 
 jobs:

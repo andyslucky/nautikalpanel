@@ -9,7 +9,6 @@
 - [x] Complete the pod_template so that it uses resources etc.
 - [x] Decompose the individual resources from init.yaml into separate templates.
 - [x] Decompose individual resources from pod_template.yaml into separate templates.
-- [ ] ~~Support tera reloading?~~
 - [x] Support starting a container for SFTP only
 - [x] Add support for sftp_user_id property
 - [x] Implement editing a server.
