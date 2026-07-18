@@ -2,16 +2,19 @@ import { signal } from "@preact/signals";
 
 export const lines = signal<string[]>([]);
 export const connected = signal(false);
+export const connecting = signal(false);
 export const socket = signal<WebSocket | null>(null);
 
 export function connect(gameServerId: string) {
     disconnect();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/v1/game-servers/${gameServerId}/logs`;
+    connecting.value = true;
     socket.value = new WebSocket(wsUrl);
     connected.value = false;
 
     socket.value.onopen = () => {
+        connecting.value = false;
         connected.value = true;
     };
 
@@ -33,12 +36,14 @@ export function connect(gameServerId: string) {
     };
 
     socket.value.onclose = () => {
+        connecting.value = false;
         connected.value = false;
         socket.value = null;
     };
 
     socket.value.onerror = (error: Event) => {
         console.error('Logs WebSocket error:', error);
+        connecting.value = false;
         connected.value = false;
     };
 }
@@ -54,6 +59,7 @@ export function disconnect() {
         }
     }
     lines.value = [];
+    connecting.value = false;
     connected.value = false;
 }
 
