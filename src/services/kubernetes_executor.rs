@@ -1,8 +1,8 @@
 use crate::app_config::AppConfig;
 use crate::models::{
     GAME_SERVER_ID_LABEL, GAME_SERVER_SPEC_ANNOTATION, GameServer, GameServerInstance,
-    MANAGED_BY_LABEL, MANAGED_BY_VALUE, RESOURCE_TYPE_GAME_SERVER, RESOURCE_TYPE_LABEL,
-    SftpCredentials,
+    MANAGED_BY_LABEL, MANAGED_BY_VALUE, POD_TYPE_GAMESERVER, RESOURCE_TYPE_GAME_SERVER,
+    RESOURCE_TYPE_LABEL, SftpCredentials,
 };
 use anyhow::anyhow;
 use futures_util::io::Lines;
@@ -22,7 +22,8 @@ use tracing::{info, warn};
 
 use crate::utils::k8s_resource_generator::{
     build_game_server_stateful_set, build_gameserver_container, build_headless_service,
-    build_load_balancer_service, build_sftp_credentials_secret, build_sftp_only_stateful_set,
+    build_load_balancer_service, build_pvc, build_sftp_credentials_secret,
+    build_sftp_only_stateful_set, pvc_name_for_game_server,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -147,12 +148,19 @@ impl KubernetesExecutor {
             .create_load_balancer_service(&game_server_id, game_server)
             .await?;
 
-        // 4. Create the StatefulSet
+        // 4. Create the standalone PersistentVolumeClaim. The same PVC is then
+        //    referenced by both the game-server StatefulSet below and the
+        //    SFTP-only StatefulSet started on demand, so the SFTP server and the
+        //    game server always operate on the same data.
+        let pvc_name = self.create_pvc(&game_server_id, game_server).await?;
+
+        // 5. Create the StatefulSet
         self.create_stateful_set(
             &game_server_id,
             game_server,
             &headless_svc_name,
             &secret_name,
+            &pvc_name,
         )
         .await?;
 
@@ -214,12 +222,45 @@ impl KubernetesExecutor {
         Ok(name)
     }
 
+    async fn create_pvc(
+        &self,
+        game_server_id: &str,
+        game_server: &GameServer,
+    ) -> Result<String, Box<dyn Error>> {
+        // The PVC must exist before either StatefulSet can mount it; reuse the
+        // standard set of labels so delete_pvcs (label selector) picks it up.
+        let labels = crate::utils::k8s_resource_generator::standard_labels_with_type(
+            game_server_id,
+            RESOURCE_TYPE_GAME_SERVER,
+            POD_TYPE_GAMESERVER,
+        );
+        let pvc = build_pvc(
+            &self.namespace,
+            game_server_id,
+            game_server,
+            &labels,
+            self.config.kubernetes.default_storage_class.as_deref(),
+        );
+        let name = pvc
+            .metadata
+            .name
+            .clone()
+            .ok_or_else(|| anyhow!("built PersistentVolumeClaim missing metadata.name"))?;
+
+        let pvc_api: Api<PersistentVolumeClaim> =
+            Api::namespaced(self.client.clone(), &self.namespace);
+        pvc_api.create(&PostParams::default(), &pvc).await?;
+        info!("Created PersistentVolumeClaim: {}", name);
+        Ok(name)
+    }
+
     async fn create_stateful_set(
         &self,
         game_server_id: &str,
         game_server: &GameServer,
         headless_svc_name: &str,
         sftp_secret_name: &str,
+        pvc_name: &str,
     ) -> Result<StatefulSet, Box<dyn Error>> {
         let sts = build_game_server_stateful_set(
             &self.namespace,
@@ -227,7 +268,7 @@ impl KubernetesExecutor {
             game_server,
             headless_svc_name,
             sftp_secret_name,
-            self.config.kubernetes.default_storage_class.as_deref(),
+            pvc_name,
         )?;
 
         let sts_api: Api<StatefulSet> = Api::namespaced(self.client.clone(), &self.namespace);
@@ -284,10 +325,11 @@ impl KubernetesExecutor {
                 self.scale_stateful_set(&sftp_sts_name, 1).await?;
             }
             Err(kube::Error::Api(e)) if e.code == 404 => {
-                // Need to create it. We need the PVC name from the game server's StatefulSet.
-                // The PVC created by the game server's volumeClaimTemplate will be named:
-                // data-<game_server_id>-0
-                let pvc_name = format!("data-{}-0", game_server_id);
+                // The PVC was created explicitly during init_game_server and
+                // is the same one the game-server StatefulSet mounts, so the
+                // SFTP server sees the same data the game server will see on
+                // its next start.
+                let pvc_name = pvc_name_for_game_server(&game_server_id);
 
                 let sts = build_sftp_only_stateful_set(
                     &self.namespace,
@@ -405,7 +447,8 @@ impl KubernetesExecutor {
             Err(e) => return Err(e.into()),
         }
 
-        // Delete the game server StatefulSet (this also deletes its pods; PVCs are handled separately)
+        // Delete the game server StatefulSet (this also deletes its pods; the PVC was created
+        // standalone and is removed separately below)
         match sts_api.get(&game_server_id).await {
             Ok(_) => {
                 sts_api
@@ -429,7 +472,7 @@ impl KubernetesExecutor {
         // Delete SFTP credentials secret
         self.delete_credentials(&list_params).await?;
 
-        // Delete PVCs (StatefulSet PVCs are not automatically deleted)
+        // Delete the standalone PersistentVolumeClaim created for this game server
         self.delete_pvcs(&list_params).await?;
 
         Ok(())

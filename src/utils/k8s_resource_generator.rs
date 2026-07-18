@@ -65,6 +65,11 @@ fn stateful_set_selector_labels(labels: &BTreeMap<String, String>) -> BTreeMap<S
 
 // ─── Containers & PVC ────────────────────────────────────────────────────
 
+// The PersistentVolumeClaim is created as a standalone resource (not a
+// StatefulSet volumeClaimTemplate) so it can be shared between the game-server
+// and SFTP-only StatefulSets — the user's SFTP uploads are exactly the data the
+// game server boots from.
+
 /// Translate a `Resources` spec (requests + limits) into k8s
 /// `ResourceRequirements`. Empty when neither side is set.
 fn build_resource_requirements(resources: &Resources) -> ResourceRequirements {
@@ -159,10 +164,26 @@ pub fn build_sftp_container(sftp_secret_name: &str) -> Container {
     }
 }
 
-/// Build the `PersistentVolumeClaim`Template used by the game-server
-/// StatefulSet. Storage class falls back to the cluster-wide default when
-/// neither the game server nor the config specify one.
-pub fn build_pvc_template(
+/// Canonical name of the `PersistentVolumeClaim` that backs a game server's
+/// persistent storage. Both the game-server StatefulSet and the SFTP-only
+/// StatefulSet reference the PVC with this name, so the SFTP server always
+/// sees the same data the game server will see when it starts up.
+pub fn pvc_name_for_game_server(game_server_id: &str) -> String {
+    format!("{}-data", game_server_id)
+}
+
+/// Build the standalone `PersistentVolumeClaim` that backs a game server's
+/// persistent storage. Created once during `init_game_server` and then
+/// referenced by name from both the game-server StatefulSet (via `volumes`)
+/// and the SFTP-only StatefulSet, avoiding Kubernetes' volumeClaimTemplate
+/// naming (`data-<sts>-<ordinal>`) so the same PVC survives whatever runs
+/// against it.
+///
+/// Storage class falls back to the cluster-wide default when neither the
+/// game server nor the config specify one.
+pub fn build_pvc(
+    namespace: &str,
+    game_server_id: &str,
     game_server: &GameServer,
     labels: &BTreeMap<String, String>,
     default_storage_class: Option<&str>,
@@ -195,7 +216,8 @@ pub fn build_pvc_template(
 
     PersistentVolumeClaim {
         metadata: ObjectMeta {
-            name: Some("data".to_string()),
+            name: Some(pvc_name_for_game_server(game_server_id)),
+            namespace: Some(namespace.to_string()),
             labels: Some(labels.clone()),
             ..Default::default()
         },
@@ -343,13 +365,18 @@ pub fn build_sftp_credentials_secret(
 /// `start_server`. The full [`GameServer`] config is serialized to a JSON
 /// annotation so it can be recovered later (see
 /// [`crate::services::kubernetes_executor::KubernetesExecutor::game_server_from_stateful_set`]).
+///
+/// The PVC must already exist in the cluster (see [`build_pvc`]); it is
+/// referenced by name via `volumes` rather than created dynamically via a
+/// `volumeClaimTemplate` so the same PVC can be shared with the SFTP-only
+/// StatefulSet.
 pub fn build_game_server_stateful_set(
     namespace: &str,
     game_server_id: &str,
     game_server: &GameServer,
     headless_svc_name: &str,
     sftp_secret_name: &str,
-    default_storage_class: Option<&str>,
+    pvc_name: &str,
 ) -> Result<StatefulSet, Box<dyn std::error::Error>> {
     let labels = standard_labels_with_type(
         game_server_id,
@@ -361,7 +388,6 @@ pub fn build_game_server_stateful_set(
 
     let gs_container = build_gameserver_container(game_server)?;
     let sftp_container = build_sftp_container(sftp_secret_name);
-    let pvc_template = build_pvc_template(game_server, &pod_labels, default_storage_class);
 
     let security_context = PodSecurityContext {
         fs_group: Some(game_server.user_id as i64),
@@ -395,10 +421,17 @@ pub fn build_game_server_stateful_set(
                 spec: Some(PodSpec {
                     security_context: Some(security_context),
                     containers: vec![gs_container, sftp_container],
+                    volumes: Some(vec![Volume {
+                        name: "data".to_string(),
+                        persistent_volume_claim: Some(PersistentVolumeClaimVolumeSource {
+                            claim_name: pvc_name.to_string(),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }]),
                     ..Default::default()
                 }),
             },
-            volume_claim_templates: Some(vec![pvc_template]),
             ..Default::default()
         }),
         ..Default::default()
