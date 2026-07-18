@@ -1,0 +1,36 @@
+name: opencode-review
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened]
+
+concurrency:
+  group: pr-reviews
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        with:
+          model: opencode-go/deepseek-v4-flash
+          prompt: |
+            Review this pull request:
+            - Check for breaking changes related to the Kubernetes-native game server management panel
+            - Confirm compatibility with the Rust backend (Axum) and SurrealDB usage
+            - Verify frontend changes (Alpine + Tailwind) do not break existing UI flows
+            - Look for potential bugs in Kubernetes resource handling (pods, services, PVCs, secrets)
+            - Suggest improvements to code quality, error handling, and test coverage
+            - Flag any security concerns in resource management or API endpoints
