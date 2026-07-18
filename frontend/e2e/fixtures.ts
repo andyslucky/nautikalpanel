@@ -354,8 +354,8 @@ export async function setupApiMocks(page: Page): Promise<void> {
 
 export async function navigateToHome(page: Page): Promise<void> {
   await page.goto('/');
-  // Wait for Alpine to initialize
-  await page.waitForSelector('[x-data="app()"]', { state: 'attached' });
+  // Wait for Preact to render main content
+  await page.waitForSelector('main.main-content', { state: 'visible' });
   // Wait for servers to load
   await page.waitForTimeout(500);
 }

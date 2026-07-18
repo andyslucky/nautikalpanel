@@ -1,10 +1,10 @@
 import { test, expect } from './fixtures';
 
 test.describe('App Initialization', () => {
-  test('app initializes with Alpine.js', async ({ page }) => {
-    // Check that Alpine.js has initialized by looking for x-cloak removal
-    const body = page.locator('body');
-    await expect(body).not.toHaveAttribute('x-cloak', '');
+  test('app initializes with Preact', async ({ page }) => {
+    // Check that the Preact app has rendered by looking for main content
+    const mainContent = page.locator('main.main-content');
+    await expect(mainContent).toBeVisible();
   });
 
   test('page loads without errors', async ({ page }) => {
@@ -19,9 +19,9 @@ test.describe('App Initialization', () => {
     await page.reload();
     await page.waitForTimeout(1000);
 
-    // We expect some WebSocket errors since we're mocking, and SVG attribute warnings
+    // We expect some WebSocket errors since we're mocking
     const jsErrors = consoleErrors.filter(
-      (e) => !e.includes('WebSocket') && !e.includes('watch') && !e.includes('SVG') && !e.includes('viewBox')
+      (e) => !e.includes('WebSocket') && !e.includes('watch')
     );
     expect(jsErrors).toEqual([]);
   });
