@@ -25,7 +25,7 @@ jobs:
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
-          model: opencode-go/kimi-k2.7-code
+          model: opencode-go/deepseek-v4-flash
           prompt: |
             Review this pull request:
             - Check for breaking changes related to the Kubernetes-native game server management panel
