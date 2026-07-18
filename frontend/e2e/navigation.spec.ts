@@ -17,8 +17,8 @@ test.describe('Navigation', () => {
 
     await expect(settingsLink).toHaveClass(/nav-link-active/);
     await expect(homeLink).toHaveClass(/nav-link-inactive/);
-    // Settings page renders inside a div with x-data="settings()"
-    await expect(page.locator('main div[x-data="settings()"] h2.heading-secondary')).toContainText('Settings');
+    // Settings page renders inside SettingsPage component
+    await expect(page.locator('main h2.heading-secondary')).toContainText('Settings');
 
     // Click back to home
     await homeLink.click();
@@ -27,7 +27,7 @@ test.describe('Navigation', () => {
 
     await expect(homeLink).toHaveClass(/nav-link-active/);
     await expect(settingsLink).toHaveClass(/nav-link-inactive/);
-    await expect(page.locator('main div[x-show="page === \'home\'"] h2.heading-secondary')).toContainText('Game Servers');
+    await expect(page.locator('main h2.heading-secondary')).toContainText('Game Servers');
   });
 
   test('URL hash changes on navigation', async ({ page }) => {

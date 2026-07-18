@@ -69,18 +69,24 @@ test.describe('Create Server Modal', () => {
 
   test('can select a template from dropdown', async ({ page }) => {
     const modal = createModal(page);
-    const templateSelect = modal.locator('select[x-model="selectedTemplateName"]');
-    await templateSelect.selectOption('minecraft');
+    // Click the template dropdown button to open it
+    const templateDropdownBtn = modal.locator('button[aria-haspopup="listbox"]');
+    await templateDropdownBtn.click();
+    await page.waitForTimeout(200);
+
+    // Click the minecraft option in the dropdown
+    const minecraftOption = modal.locator('button:has-text("minecraft")');
+    await minecraftOption.first().click();
     await page.waitForTimeout(300);
 
     // After selecting template, game type should be populated
-    const gameTypeInput = modal.locator('input[x-model="form.template.game_type"]');
+    const gameTypeInput = modal.locator('label:has-text("Game Type") + input, label:has-text("Game Type") ~ input');
     await expect(gameTypeInput).toHaveValue('minecraft');
   });
 
   test('can fill server name', async ({ page }) => {
     const modal = createModal(page);
-    const nameInput = modal.locator('input[x-model="form.name"]');
+    const nameInput = modal.locator('label:has-text("Server Name") + input, label:has-text("Server Name") ~ input');
     await nameInput.fill('Test Server');
     await expect(nameInput).toHaveValue('Test Server');
   });

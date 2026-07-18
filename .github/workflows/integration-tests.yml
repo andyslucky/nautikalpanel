@@ -1,0 +1,116 @@
+name: Integration Tests
+
+# TODO: Fix this workflow it is not currently working.
+on:
+  workflow_dispatch:
+
+jobs:
+  kind-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout helm chart
+        run: |
+          git clone --depth 1 https://github.com/andyslucky/nautikalpanel-helm.git /tmp/nautikalpanel-helm || \
+            cp -r ../nautikalpanel-helm /tmp/nautikalpanel-helm
+
+      - name: Start kind cluster
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: nautikal-ci
+          wait: 120s
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.3.0
+
+      - name: Build Docker image
+        run: docker build -t nautikalpanel:ci .
+
+      - name: Load image into kind
+        run: kind load docker-image nautikalpanel:ci --name nautikal-ci
+
+      - name: Create nautikal namespace
+        run: kubectl create namespace nautikal
+
+      - name: Install nautikalpanel via Helm
+        run: |
+          helm install nautikal /tmp/nautikalpanel-helm/charts/nautikalpanel \
+            --namespace nautikal \
+            --set image.repository=nautikalpanel \
+            --set image.tag=ci \
+            --set image.pullPolicy=Never \
+            --set service.type=NodePort \
+            --set config.kubernetes.namespace=nautikal \
+            --wait --timeout 120s
+
+      - name: Verify pod is running
+        run: |
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/instance=nautikal \
+            --timeout=120s -n nautikal
+          kubectl get pods -n nautikal
+          kubectl logs -l app.kubernetes.io/instance=nautikal --tail=50 -n nautikal
+
+      - name: Resolve NodePort URL
+        run: |
+          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          NODE_PORT=$(kubectl get svc -n nautikal nautikal-nautikalpanel -o jsonpath='{.spec.ports[0].nodePort}')
+          BASE_URL="http://${NODE_IP}:${NODE_PORT}"
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_ENV
+          echo "Using BASE_URL=$BASE_URL"
+          # Retry health check until backend responds
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -sf "$BASE_URL/api/v1/game-servers" && break
+            echo "Health check attempt $i failed, retrying..."
+            sleep 3
+          done
+
+      - name: API smoke test (curl)
+        run: |
+          echo "=== Testing game-servers ==="
+          curl -sf "$BASE_URL/api/v1/game-servers" -o /dev/null || exit 1
+          echo "=== Testing game-server-templates ==="
+          curl -sf "$BASE_URL/api/v1/game-server-templates" -o /dev/null || exit 1
+          echo "=== Testing template-repositories ==="
+          curl -sf "$BASE_URL/api/v1/template-repositories" -o /dev/null || exit 1
+          echo "=== All smoke tests passed ==="
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run integration e2e tests against real backend
+        working-directory: frontend
+        run: npx playwright test --config=playwright.integration.config.ts --workers=1
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          helm uninstall nautikal || true
+          kind delete cluster --name nautikal-ci || true

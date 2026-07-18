@@ -36,6 +36,9 @@ RUN cargo build --release && rm -rf src
 # Copy actual source code
 COPY src/ ./src/
 
+# Run backend tests
+RUN cargo test --release
+
 # Build the actual binary
 RUN touch src/main.rs && cargo build --release
 

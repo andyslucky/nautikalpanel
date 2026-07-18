@@ -4,7 +4,6 @@ use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use surrealdb::RecordId;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Resources {
@@ -22,16 +21,43 @@ pub struct ResourceQuantities {
     pub memory: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VolumeMount {
     pub volume_name: String,
     pub container_path: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Annotation key used to store the full GameServer JSON on the StatefulSet.
+pub const GAME_SERVER_SPEC_ANNOTATION: &str = "nautikal.io/game-server-spec";
+
+/// Label for identifying nautikal-managed resources.
+pub const MANAGED_BY_LABEL: &str = "app.kubernetes.io/managed-by";
+pub const MANAGED_BY_VALUE: &str = "nautikal";
+
+/// Label for the game server ID.
+pub const GAME_SERVER_ID_LABEL: &str = "nautikal.io/game-server-id";
+
+/// Label for distinguishing resource types (game-server vs sftp).
+pub const RESOURCE_TYPE_LABEL: &str = "nautikal.io/resource-type";
+pub const RESOURCE_TYPE_GAME_SERVER: &str = "game-server";
+pub const RESOURCE_TYPE_SFTP: &str = "sftp";
+
+/// Label for pod type (gameserver vs sftp-only). Applied to pod templates.
+pub const POD_TYPE_LABEL: &str = "nautikal.io/pod-type";
+pub const POD_TYPE_GAMESERVER: &str = "gameserver";
+pub const POD_TYPE_SFTP_ONLY: &str = "sftp-only";
+
+/// Label for SFTP credential secrets.
+pub const SECRET_TYPE_LABEL: &str = "nautikal.io/secret-type";
+pub const SECRET_TYPE_SFTP: &str = "sftp-credentials";
+
+/// ConfigMap name for storing application settings.
+pub const SETTINGS_CONFIG_MAP_NAME: &str = "nautikal-settings";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameServer {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<RecordId>,
+    pub id: Option<String>,
     pub icon_url: Option<String>,
     pub description: Option<String>,
     pub name: String,
@@ -41,15 +67,22 @@ pub struct GameServer {
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
-    pub pod_template: Option<String>,
-    pub init_template: Option<String>,
     #[serde(default = "default_user_id")]
     pub user_id: u32,
 }
 
 impl GameServer {
     pub fn id_string(&self) -> Option<String> {
-        self.id.as_ref().map(|id| id.key().to_string())
+        self.id.clone()
+    }
+
+    /// Generate a game server ID suitable for use as a Kubernetes resource name.
+    pub fn generate_id() -> String {
+        let mut rng = rng();
+        let suffix: String = (0..6)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        format!("gs-{}", suffix.to_lowercase())
     }
 }
 
@@ -71,8 +104,6 @@ impl TryFrom<NewGameServerRequest> for GameServer {
             pod_config: value.template.pod_config,
             service_config: value.template.service_config,
             pvc_config: value.template.pvc_config,
-            pod_template: value.pod_template,
-            init_template: value.init_template,
             user_id: value.template.user_id,
         })
     }
@@ -83,7 +114,9 @@ pub struct NewGameServerRequest {
     pub name: String,
     pub game_version: Option<String>,
     pub max_players: Option<u32>,
+    /// Kept for backward compatibility but no longer used (Tera templates removed).
     pub pod_template: Option<String>,
+    /// Kept for backward compatibility but no longer used (Tera templates removed).
     pub init_template: Option<String>,
     pub template: GameServerTemplate,
 }
@@ -96,16 +129,17 @@ pub struct UpdateGameServerRequest {
     pub icon_url: Option<String>,
     pub description: Option<String>,
     pub pod_config: PodConfig,
-    pub pod_template: Option<String>,
     pub user_id: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameServerTemplate {
     pub template_name: String,
     pub description: Option<String>,
     pub game_type: Option<String>,
     pub icon_url: Option<String>,
+    /// Kept for backward compatibility but no longer used.
+    #[serde(default)]
     pub init_template: Option<String>,
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
@@ -117,10 +151,20 @@ pub struct GameServerTemplate {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateRepository {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<RecordId>,
+    pub id: String,
     pub name: String,
     pub url: String,
+}
+
+impl TemplateRepository {
+    /// Generate a random ID for a new repository.
+    pub fn generate_id() -> String {
+        let mut rng = rng();
+        let suffix: String = (0..8)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        suffix.to_lowercase()
+    }
 }
 
 fn default_service_type() -> String {
@@ -132,7 +176,8 @@ pub struct ServicePort {
     pub port: u16,
     pub protocol: String,
 }
-#[derive(Serialize, Deserialize, Debug)]
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceConfig {
     pub ports: Vec<ServicePort>,
     pub ip_address: Option<String>,
@@ -140,13 +185,12 @@ pub struct ServiceConfig {
     pub service_type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PodConfig {
     pub image: String,
     pub resources: Option<Resources>,
     pub command: Option<Vec<String>>,
     pub env: Option<HashMap<String, String>>,
-    // TODO may not keep this.
     pub mounts: Option<Vec<VolumeMount>>,
 }
 
@@ -154,7 +198,7 @@ fn default_user_id() -> u32 {
     1000
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PvcConfig {
     pub storage_class: Option<String>,
     pub container_path: String,
@@ -218,8 +262,8 @@ impl From<Service> for GameServerNetworkIdentity {
         let game_server_id = value
             .metadata
             .labels
-            .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned())
-            .unwrap();
+            .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
+            .unwrap_or_default();
         let ip_address = value
             .status
             .and_then(|st| st.load_balancer)
@@ -269,15 +313,15 @@ impl From<Pod> for GameServerInstance {
             .metadata
             .labels
             .as_ref()
-            .and_then(|labels| labels.get("nautikal.io/game-server-id").cloned())
-            .unwrap();
+            .and_then(|labels| labels.get(GAME_SERVER_ID_LABEL).cloned())
+            .unwrap_or_default();
 
         let nautikal_pod_type = value
             .metadata
             .labels
             .as_ref()
-            .and_then(|labels| labels.get("nautikal.io/pod-type").cloned())
-            .unwrap();
+            .and_then(|labels| labels.get(POD_TYPE_LABEL).cloned())
+            .unwrap_or_else(|| "unknown".to_string());
         GameServerInstance {
             id: value
                 .metadata
@@ -288,9 +332,188 @@ impl From<Pod> for GameServerInstance {
             nautikal_pod_type,
             game_server_id,
             pod_status: value.status.and_then(|s| s.phase),
-            // TODO fix this
             curr_players: 0,
             max_players: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn test_pod_config() -> PodConfig {
+        PodConfig {
+            image: "test-image:latest".to_string(),
+            resources: Some(Resources {
+                requests: Some(ResourceQuantities {
+                    cpu: Some("100m".to_string()),
+                    memory: Some("512Mi".to_string()),
+                }),
+                limits: Some(ResourceQuantities {
+                    cpu: Some("500m".to_string()),
+                    memory: Some("1Gi".to_string()),
+                }),
+            }),
+            command: Some(vec!["echo".to_string(), "hello".to_string()]),
+            env: Some(HashMap::from([("KEY".to_string(), "VALUE".to_string())])),
+            mounts: None,
+        }
+    }
+
+    fn test_service_config() -> ServiceConfig {
+        ServiceConfig {
+            ports: vec![ServicePort { port: 25565, protocol: "TCP".to_string() }],
+            ip_address: None,
+            service_type: "LoadBalancer".to_string(),
+        }
+    }
+
+    fn test_pvc_config() -> PvcConfig {
+        PvcConfig {
+            storage_class: Some("standard".to_string()),
+            container_path: "/data".to_string(),
+            size: 10,
+            size_unit: "Gi".to_string(),
+        }
+    }
+
+    fn test_game_server() -> GameServer {
+        GameServer {
+            id: Some("gs-abc123".to_string()),
+            icon_url: Some("https://example.com/icon.png".to_string()),
+            description: Some("Test game server".to_string()),
+            name: "My Minecraft Server".to_string(),
+            game_type: "minecraft".to_string(),
+            game_version: "1.20.1".to_string(),
+            max_players: 20,
+            pod_config: test_pod_config(),
+            service_config: test_service_config(),
+            pvc_config: test_pvc_config(),
+            user_id: 1000,
+        }
+    }
+
+    #[test]
+    fn game_server_id_format() {
+        let id = GameServer::generate_id();
+        assert!(id.starts_with("gs-"));
+        assert_eq!(id.len(), 9); // "gs-" + 6 chars
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'));
+    }
+
+    #[test]
+    fn game_server_id_string() {
+        let gs = test_game_server();
+        assert_eq!(gs.id_string(), Some("gs-abc123".to_string()));
+    }
+
+    #[test]
+    fn game_server_try_from_request() {
+        let req = NewGameServerRequest {
+            name: "Test Server".to_string(),
+            game_version: Some("1.0".to_string()),
+            max_players: Some(10),
+            pod_template: None,
+            init_template: None,
+            template: GameServerTemplate {
+                template_name: "minecraft".to_string(),
+                description: Some("desc".to_string()),
+                game_type: Some("minecraft".to_string()),
+                icon_url: Some("icon".to_string()),
+                init_template: None,
+                pod_config: test_pod_config(),
+                service_config: test_service_config(),
+                pvc_config: test_pvc_config(),
+                default_max_users: Some(10),
+                user_id: 1000,
+            },
+        };
+        let gs = GameServer::try_from(req).unwrap();
+        assert_eq!(gs.name, "Test Server");
+        assert_eq!(gs.game_version, "1.0");
+        assert_eq!(gs.max_players, 10);
+        assert_eq!(gs.game_type, "minecraft");
+        assert!(gs.id.is_none());
+    }
+
+    #[test]
+    fn game_server_try_from_request_missing_game_type_fails() {
+        let req = NewGameServerRequest {
+            name: "Test".to_string(),
+            game_version: None,
+            max_players: None,
+            pod_template: None,
+            init_template: None,
+            template: GameServerTemplate {
+                template_name: "x".to_string(),
+                description: None,
+                game_type: None,
+                icon_url: None,
+                init_template: None,
+                pod_config: test_pod_config(),
+                service_config: test_service_config(),
+                pvc_config: test_pvc_config(),
+                default_max_users: None,
+                user_id: 1000,
+            },
+        };
+        assert!(GameServer::try_from(req).is_err());
+    }
+
+    #[test]
+    fn template_repository_generate_id_format() {
+        let id = TemplateRepository::generate_id();
+        assert_eq!(id.len(), 8);
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn sftp_credentials_generate() {
+        let creds = SftpCredentials::generate();
+        assert_eq!(creds.username, "user");
+        assert_eq!(creds.password.len(), 24);
+        assert!(creds.password.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn sftp_credentials_from_secret() {
+        let mut data = BTreeMap::new();
+        data.insert(
+            "SFTP_USERS".to_string(),
+            k8s_openapi::ByteString("user:secret123:1000:1000".as_bytes().to_vec()),
+        );
+        let secret = Secret {
+            metadata: Default::default(),
+            data: Some(data),
+            ..Default::default()
+        };
+        let creds = SftpCredentials::try_from(secret).unwrap();
+        assert_eq!(creds.username, "user");
+        assert_eq!(creds.password, "secret123");
+    }
+
+    #[test]
+    fn sftp_credentials_from_secret_invalid_format() {
+        let mut data = BTreeMap::new();
+        data.insert(
+            "SFTP_USERS".to_string(),
+            k8s_openapi::ByteString("invalid".as_bytes().to_vec()),
+        );
+        let secret = Secret {
+            metadata: Default::default(),
+            data: Some(data),
+            ..Default::default()
+        };
+        assert!(SftpCredentials::try_from(secret).is_err());
+    }
+
+    #[test]
+    fn label_constants() {
+        assert_eq!(MANAGED_BY_LABEL, "app.kubernetes.io/managed-by");
+        assert_eq!(MANAGED_BY_VALUE, "nautikal");
+        assert_eq!(GAME_SERVER_ID_LABEL, "nautikal.io/game-server-id");
+        assert_eq!(GAME_SERVER_SPEC_ANNOTATION, "nautikal.io/game-server-spec");
     }
 }

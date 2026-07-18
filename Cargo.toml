@@ -12,9 +12,6 @@ tokio-stream = { version = "0.1.18", features = ["fs"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-saphyr = "0.0.18"
-tera = "1.20.1"
-surrealdb = { version = "2.6.1", features = ["kv-rocksdb"] }
-regex = "1.12.3"
 tower-http = {  version = "0.6.8", features = ["fs"] }
 either = "1.15.0"
 anyhow = "1.0.101"
@@ -27,6 +24,8 @@ rand = "0.9"
 url = "2.5.8"
 urlencoding = "2.1"
 reqwest = { version = "0.12.28", features = ["json"] }
+regex = "1"
+tera = "1.20.1"
 
 [features]
 dev-tools = ["dep:dotenvy"]

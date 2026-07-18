@@ -38,8 +38,8 @@ test.describe('Edit Server Modal', () => {
     await page.waitForTimeout(500);
 
     const modal = editModal(page);
-    // Server name should be pre-filled
-    const nameInput = modal.locator('input[x-model="editForm.name"]');
+    // Server name should be pre-filled - find by label text in Preact component
+    const nameInput = modal.locator('label:has-text("Server Name") + input, label:has-text("Server Name") ~ input');
     await expect(nameInput).toHaveValue('Terraria World');
   });
 
