@@ -123,11 +123,15 @@
     }
 
     .log-viewer {
-        @apply flex-1 overflow-auto p-4 bg-gray-900;
+        @apply flex-1 overflow-auto p-4 bg-gray-900 relative;
     }
 
     .log-content {
         @apply text-sm font-mono text-gray-100;
+    }
+
+    .log-loading-placeholder {
+        @apply absolute inset-0 flex items-center justify-center gap-2 text-gray-300 text-sm pointer-events-none;
     }
 
     .settings-panel {
