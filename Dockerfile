@@ -59,7 +59,6 @@ COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 # Copy templates
 COPY game-server-templates/ ./game-server-templates/
-COPY k8s-templates/ ./k8s-templates/
 
 # Expose port (check your app's port, defaulting to 3000)
 EXPOSE 9090
