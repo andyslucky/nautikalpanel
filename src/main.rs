@@ -2,6 +2,7 @@ mod app_config;
 mod endpoints;
 mod models;
 mod services;
+mod utils;
 
 use crate::app_config::AppConfig;
 use crate::models::TemplateRepository;
@@ -15,15 +16,16 @@ use std::sync::Arc;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
-async fn create_executor(
-    config: &AppConfig,
-) -> Result<KubernetesExecutor, Box<dyn Error>> {
+async fn create_executor(config: &AppConfig) -> Result<KubernetesExecutor, Box<dyn Error>> {
     let mut k8s_config = kube::Config::infer().await?;
     k8s_config.default_namespace = config.kubernetes.namespace.clone();
     let client = Client::try_from(k8s_config)?;
-    let executor =
-        KubernetesExecutor::new(client.clone(), config.kubernetes.namespace.clone(), config.clone())
-            .await?;
+    let executor = KubernetesExecutor::new(
+        client.clone(),
+        config.kubernetes.namespace.clone(),
+        config.clone(),
+    )
+    .await?;
     Ok(executor)
 }
 
@@ -43,7 +45,8 @@ async fn create_settings_store(
             url: "github:///andyslucky/nautikal-game-servers/templates".to_string(),
         },
     ];
-    let store = SettingsStore::new(client, config.kubernetes.namespace.clone(), default_repos).await?;
+    let store =
+        SettingsStore::new(client, config.kubernetes.namespace.clone(), default_repos).await?;
     Ok(store)
 }
 
@@ -96,7 +99,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let frontend_dir = "frontend/dist";
         let index = ServeFile::new(format!("{}/index.html", frontend_dir));
         let scripts_dir = ServeDir::new(format!("{}/assets", frontend_dir));
-        router = router.nest_service("/assets", scripts_dir).route_service("/", index);
+        router = router
+            .nest_service("/assets", scripts_dir)
+            .route_service("/", index);
     }
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_address()).await?;
