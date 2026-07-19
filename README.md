@@ -40,7 +40,6 @@ export NAUTIKAL_SERVER__HOST=0.0.0.0
 export NAUTIKAL_SERVER__PORT=9090
 export NAUTIKAL_KUBERNETES__NAMESPACE=nautikal
 export NAUTIKAL_DATABASE__PATH=./db
-export NAUTIKAL_PATHS__K8S_TEMPLATES=k8s-templates
 export NAUTIKAL_PATHS__GAME_SERVER_TEMPLATES=game-server-templates
 
 # Run
@@ -67,7 +66,6 @@ Nautikalpanel is configured via environment variables with the `NAUTIKAL_` prefi
 | `NAUTIKAL_KUBERNETES__CREATE_NAMESPACE` | Create namespace if it doesn't exist | `true` |
 | `NAUTIKAL_KUBERNETES__DEFAULT_STORAGE_CLASS` | Default storage class | (empty) |
 | `NAUTIKAL_DATABASE__PATH` | Database path | `./db` |
-| `NAUTIKAL_PATHS__K8S_TEMPLATES` | Kubernetes templates directory | `k8s-templates` |
 | `NAUTIKAL_PATHS__GAME_SERVER_TEMPLATES` | Game server templates directory | `game-server-templates` |
 | `NAUTIKAL_GITHUB__TOKEN` | GitHub token for private repos | (empty) |
 

@@ -16,7 +16,7 @@ The status updates in real-time via WebSocket, so you'll see the transition happ
 
 ### What Happens During Start
 
-1. Kubernetes pod is created from the pod template
+1. Kubernetes pod is created via the backend resource generator
 2. Container image is pulled (if not cached)
 3. Game server process starts
 4. Service becomes available with external IP
@@ -68,7 +68,7 @@ Servers can only be edited when offline.
 
 ### What Can Be Changed
 
-Server name, game version, max players, icon URL, description, container image, resources (CPU/memory), environment variables, command, and pod template can all be edited. Game type, storage size, service type, and ports cannot be changed.
+Server name, game version, max players, icon URL, description, container image, resources (CPU/memory), environment variables, and command can all be edited. Game type, storage size, service type, and ports cannot be changed.
 
 ### Why Some Fields Are Not Editable
 

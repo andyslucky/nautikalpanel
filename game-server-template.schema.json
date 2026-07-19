@@ -28,10 +28,6 @@
       "format": "uri",
       "description": "URL for the server icon displayed in the UI"
     },
-    "init_template": {
-      "type": "string",
-      "description": "Path to Jinja template for initial resources (PVC, Service)"
-    },
     "pod_config": {
       "type": "object",
       "description": "Container and resource configuration",

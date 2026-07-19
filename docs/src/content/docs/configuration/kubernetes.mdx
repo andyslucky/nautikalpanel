@@ -11,8 +11,6 @@ Configure how Nautikal Panel interacts with Kubernetes via environment variables
 export NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
 export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
 export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=standard
-export NAUTIKAL__KUBERNETES__INIT_TEMPLATE=default/init.yaml.jinja
-export NAUTIKAL__KUBERNETES__POD_TEMPLATE=default/pod_template.yaml.jinja
 ```
 
 ## Settings Reference
@@ -22,8 +20,6 @@ export NAUTIKAL__KUBERNETES__POD_TEMPLATE=default/pod_template.yaml.jinja
 | `NAUTIKAL__KUBERNETES__NAMESPACE` | `nautikal` | K8s namespace for resources |
 | `NAUTIKAL__KUBERNETES__CREATE_NAMESPACE` | `true` | Auto-create namespace if missing |
 | `NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS` | cluster default | Storage class for PVCs |
-| `NAUTIKAL__KUBERNETES__INIT_TEMPLATE` | `default/init.yaml.jinja` | Template for init resources |
-| `NAUTIKAL__KUBERNETES__POD_TEMPLATE` | `default/pod_template.yaml.jinja` | Default pod template |
 
 ## Namespace
 
@@ -59,17 +55,6 @@ kubectl get storageclass
 
 export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=local-path
 ```
-
-## Templates
-
-Override default templates for custom behavior:
-
-```bash
-export NAUTIKAL__KUBERNETES__INIT_TEMPLATE=custom/init.yaml.jinja
-export NAUTIKAL__KUBERNETES__POD_TEMPLATE=custom/pod.yaml.jinja
-```
-
-See [Custom Templates](/advanced/custom-templates) for details.
 
 ## Kubernetes Deployment Example
 
