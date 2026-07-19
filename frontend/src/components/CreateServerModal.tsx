@@ -7,7 +7,7 @@ import * as gameStore from '../signals/game-server-store';
 import DualRangeSlider from './DualRangeSlider';
 
 export default function CreateServerModal({ showModal }: { showModal: ReturnType<typeof useSignal<boolean>> }) {
-    const selectedTab = useSignal<'general' | 'podconfig' | 'storageconfig' | 'svcconfig' | 'misc'>('general');
+    const selectedTab = useSignal<'general' | 'podconfig' | 'storageconfig' | 'svcconfig'>('general');
     const gameServerTemplates = useSignal<GameServerTemplateData[]>([]);
     const selectedTemplateName = useSignal('');
     const form = useSignal<GameServerForm>(formDefaultValue());
@@ -18,6 +18,14 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
     useEffect(() => {
         fetchGameServerTemplates();
     }, []);
+
+    // Whenever the modal is closed, reset the selected tab so the next open
+    // starts on the general tab regardless of where the user left off.
+    useSignalEffect(() => {
+        if (!showModal.value) {
+            selectedTab.value = 'general';
+        }
+    });
 
     useSignalEffect(() => {
         if (!templateDropdownOpen.value) return;
@@ -259,7 +267,7 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                 </div>
                 <div class="modal-dialog-body">
                     <div class="tab-list" role="tablist" aria-label="tab options">
-                        {(['general', 'podconfig', 'storageconfig', 'svcconfig', 'misc'] as const).map((tab) => (
+                        {(['general', 'podconfig', 'storageconfig', 'svcconfig'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => (selectedTab.value = tab)}
@@ -270,7 +278,7 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                                 role="tab"
                                 aria-controls={`tabpanel${tab}`}
                             >
-                                {tab === 'general' ? 'General' : tab === 'podconfig' ? 'Pod Config' : tab === 'storageconfig' ? 'Storage Config' : tab === 'svcconfig' ? 'Service Config' : 'Misc'}
+                                {tab === 'general' ? 'General' : tab === 'podconfig' ? 'Pod Config' : tab === 'storageconfig' ? 'Storage Config' : 'Service Config'}
                             </button>
                         ))}
                     </div>
@@ -365,17 +373,19 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                                         onMinChange={minCpuValueChanged}
                                         onMaxChange={maxCpuValueChanged}
                                         formatValue={serverResourceSliderFunctions.formatCpuString}
+                                        parseValue={serverResourceSliderFunctions.parseCpu}
                                     />
                                     <DualRangeSlider
                                         label="Memory"
                                         min={0}
-                                        max={16384}
+                                        max={65536}
                                         step={32}
                                         minValue={serverResourceSliderFunctions.parseMemory(form.value.template.pod_config?.resources?.requests?.memory)}
                                         maxValue={serverResourceSliderFunctions.parseMemory(form.value.template.pod_config?.resources?.limits?.memory)}
                                         onMinChange={minMemoryValueChanged}
                                         onMaxChange={maxMemoryValueChanged}
                                         formatValue={serverResourceSliderFunctions.formatMemoryString}
+                                        parseValue={serverResourceSliderFunctions.parseMemory}
                                     />
                                 </div>
                                 <div>
@@ -483,15 +493,6 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                                             form.value = { ...form.value, template: { ...form.value.template, service_config: { ...form.value.template.service_config, ports } } };
                                         }} class="btn-add">Add Port +</button>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-                        {selectedTab.value === 'misc' && (
-                            <div id="tabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
-                                <div>
-                                    <label class="form-label-sm">User/Group ID</label>
-                                    <input type="number" value={form.value.template.user_id || ''} onInput={(e) => (form.value = { ...form.value, template: { ...form.value.template, user_id: parseInt((e.target as HTMLInputElement).value) || 1000 } })} placeholder="1000" min="1" class="form-input" />
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">UID/GID for file permissions. Used for PVC fsGroup and SFTP user.</p>
                                 </div>
                             </div>
                         )}

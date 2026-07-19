@@ -20,12 +20,11 @@ test.describe('Create Server Modal', () => {
   test('modal has tab navigation', async ({ page }) => {
     const tabs = createModal(page).locator('[role="tab"]');
 
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(4);
     await expect(tabs.nth(0)).toContainText('General');
     await expect(tabs.nth(1)).toContainText('Pod Config');
     await expect(tabs.nth(2)).toContainText('Storage Config');
     await expect(tabs.nth(3)).toContainText('Service Config');
-    await expect(tabs.nth(4)).toContainText('Misc');
 
     // General tab should be active by default
     await expect(tabs.nth(0)).toHaveClass(/tab-btn-active/);
@@ -49,11 +48,6 @@ test.describe('Create Server Modal', () => {
     await tabs.nth(3).click();
     await page.waitForTimeout(200);
     await expect(tabs.nth(3)).toHaveClass(/tab-btn-active/);
-
-    // Click Misc tab
-    await tabs.nth(4).click();
-    await page.waitForTimeout(200);
-    await expect(tabs.nth(4)).toHaveClass(/tab-btn-active/);
   });
 
   test('general tab has form fields', async ({ page }) => {
@@ -126,15 +120,6 @@ test.describe('Create Server Modal', () => {
     await expect(modal.locator('label:has-text("Service Type")')).toBeVisible();
     await expect(modal.locator('label:has-text("IP Address (Optional)")')).toBeVisible();
     await expect(modal.locator('label:has-text("Ports")')).toBeVisible();
-  });
-
-  test('misc tab has user/group id field', async ({ page }) => {
-    const modal = createModal(page);
-    const tabs = modal.locator('[role="tab"]');
-    await tabs.nth(4).click();
-    await page.waitForTimeout(200);
-
-    await expect(modal.locator('label:has-text("User/Group ID")')).toBeVisible();
   });
 
   test('modal closes on cancel button', async ({ page }) => {
