@@ -77,7 +77,14 @@ export const watchSocket = signal<WebSocket | null>(null);
 export const watchReconnectDelay = signal(10_000);
 export const watchReconnectTimer = signal(-1);
 
+// Guards so the SPA only initializes once even if `init()` is called again
+// (e.g. by a re-rendering component). Navigating between pages must not
+// re-fetch servers or tear down and reopen the watch WebSocket.
+let initialized = false;
+
 export async function init() {
+    if (initialized) return;
+    initialized = true;
     window.addEventListener("beforeunload", () => {
         disconnectWatchSocket();
     });

@@ -360,6 +360,17 @@ export async function navigateToHome(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
+/**
+ * The former "Home" page (server cards + "Game Servers" heading) is now the
+ * "Servers" page at `#servers`. The new default landing page is the dashboard.
+ * Tests that exercise server cards must navigate here explicitly.
+ */
+export async function navigateToServers(page: Page): Promise<void> {
+  await page.goto('/#servers');
+  await page.waitForSelector('main.main-content', { state: 'visible' });
+  await page.waitForSelector('.server-card', { timeout: 10000 });
+}
+
 export const test = base.extend<{
   mockApi: void;
   navigateHome: void;

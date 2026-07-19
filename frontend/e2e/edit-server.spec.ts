@@ -1,11 +1,13 @@
-import { test, expect } from './fixtures';
+import { test, expect, navigateToServers } from './fixtures';
 
 // Helper to scope locators to the edit modal only
 const editModal = (page: any) => page.locator('[aria-labelledby="editModalTitle"]');
 
 test.describe('Edit Server Modal', () => {
   test.beforeEach(async ({ page }) => {
-    await page.waitForSelector('.server-card', { timeout: 10000 });
+    // The default landing page is the dashboard; server cards live on the
+    // "Servers" page, so navigate there before each test.
+    await navigateToServers(page);
   });
 
   test('clicking Edit on offline server opens edit modal', async ({ page }) => {

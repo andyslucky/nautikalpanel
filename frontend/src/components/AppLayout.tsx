@@ -22,7 +22,8 @@ export default function AppLayout({ page, sidebarOpen, children }: { page: strin
                 </div>
                 {sidebarOpen.value && (
                     <nav class="mt-4 space-y-2">
-                        <a href="#home" onClick={() => (sidebarOpen.value = false)} class={page === 'home' ? 'nav-link-active' : 'nav-link-inactive'}>🏠 Home</a>
+                        <a href="#dashboard" onClick={() => (sidebarOpen.value = false)} class={page === 'dashboard' ? 'nav-link-active' : 'nav-link-inactive'}>📊 Dashboard</a>
+                        <a href="#servers" onClick={() => (sidebarOpen.value = false)} class={page === 'servers' ? 'nav-link-active' : 'nav-link-inactive'}>🖥️ Servers</a>
                         <a href="#settings" onClick={() => (sidebarOpen.value = false)} class={page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'}>⚙️ Settings</a>
                         <p class="version-text pt-2">v1.0.0</p>
                     </nav>
@@ -33,7 +34,8 @@ export default function AppLayout({ page, sidebarOpen, children }: { page: strin
             <aside class="sidebar">
                 <h1 class="heading-primary mb-8 dark:text-gray-100">🎮 Nautikal Panel</h1>
                 <nav class="flex-1 space-y-2">
-                    <a href="#home" class={page === 'home' ? 'nav-link-active' : 'nav-link-inactive'}>🏠 Home</a>
+                    <a href="#dashboard" class={page === 'dashboard' ? 'nav-link-active' : 'nav-link-inactive'}>📊 Dashboard</a>
+                    <a href="#servers" class={page === 'servers' ? 'nav-link-active' : 'nav-link-inactive'}>🖥️ Servers</a>
                     <a href="#settings" class={page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'}>⚙️ Settings</a>
                 </nav>
                 <p class="version-text">v1.0.0</p>

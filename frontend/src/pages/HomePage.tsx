@@ -2,11 +2,11 @@ import { useSignal } from '@preact/signals';
 import * as gameStore from '../signals/game-server-store';
 import ServerCard from '../components/ServerCard';
 
-export default function HomePage({ showModal }: { showModal: ReturnType<typeof useSignal<boolean>> }) {
+export default function ServersPage({ showModal }: { showModal: ReturnType<typeof useSignal<boolean>> }) {
     return (
         <div>
             <div class="flex justify-between items-center mb-6">
-                <h2 class="heading-secondary">Game Servers</h2>
+                <h2 class="heading-secondary">Servers</h2>
                 <button onClick={() => (showModal.value = true)} class="btn-primary">+ Add Server</button>
             </div>
 

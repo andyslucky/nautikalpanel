@@ -1,11 +1,19 @@
-import { test, expect } from './fixtures';
+import { test, expect, navigateToServers } from './fixtures';
 
-test.describe('Home Page', () => {
+// The former "Home" page (server cards + "Game Servers" heading) is now the
+// "Servers" page (`#servers`). The application's default landing page is the
+// dashboard, so every test in this file must navigate to the Servers page
+// explicitly before asserting on server cards.
+test.describe('Servers Page', () => {
+  test.beforeEach(async ({ page }) => {
+    await navigateToServers(page);
+  });
+
   test('displays page title and heading', async ({ page }) => {
     // Use sidebar h1 to avoid conflict with mobile header h1
     await expect(page.locator('aside.sidebar h1')).toContainText('Nautikal Panel');
     // Use main content h2 to avoid conflict with settings page h2
-    await expect(page.locator('main h2.heading-secondary').first()).toContainText('Game Servers');
+    await expect(page.locator('main h2.heading-secondary').first()).toContainText('Servers');
   });
 
   test('displays "Add Server" button', async ({ page }) => {
@@ -81,7 +89,7 @@ test.describe('Home Page', () => {
   });
 });
 
-test.describe('Home Page - Empty State', () => {
+test.describe('Servers Page - Empty State', () => {
   test('shows empty state when no servers exist', async ({ page }) => {
     // Override the mock to return empty array
     await page.route('/api/v1/game-servers', async (route, request) => {
@@ -96,7 +104,12 @@ test.describe('Home Page - Empty State', () => {
       }
     });
 
+    // Land on the Servers page, then force a full reload so `init()` fetches
+    // the just-overridden (empty) server list instead of the cached one.
+    // Hash-only navigation alone wouldn't trigger a fresh fetch.
+    await page.goto('/#servers');
     await page.reload();
+    await page.waitForSelector('main.main-content', { state: 'visible' });
     await page.waitForTimeout(500);
 
     // Check empty state message

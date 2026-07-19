@@ -10,7 +10,14 @@ export type TemplateRepository = {
 export const repositories = signal<TemplateRepository[]>([]);
 export const loading = signal(false);
 
+// Guard so the SPA only initializes once. Subsequent calls (e.g. from a
+// re-rendering component) are no-ops; navigation must not re-fetch
+// repositories. Use `fetchRepositories()` directly to refresh on demand.
+let initialized = false;
+
 export async function init() {
+    if (initialized) return;
+    initialized = true;
     loading.value = true;
     await fetchRepositories();
     loading.value = false;
