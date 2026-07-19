@@ -29,8 +29,8 @@ jobs:
           prompt: |
             Review this pull request:
             - Check for breaking changes related to the Kubernetes-native game server management panel
-            - Confirm compatibility with the Rust backend (Axum) and SurrealDB usage
-            - Verify frontend changes (Alpine + Tailwind) do not break existing UI flows
+            - Confirm compatibility with the Rust backend (Axum) and Kubernetes-native architecture
+            - Verify frontend changes (Preact + Tailwind) do not break existing UI flows
             - Look for potential bugs in Kubernetes resource handling (pods, services, PVCs, secrets)
             - Suggest improvements to code quality, error handling, and test coverage
             - Flag any security concerns in resource management or API endpoints

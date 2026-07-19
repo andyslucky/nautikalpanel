@@ -83,7 +83,7 @@ Storage and network settings are tied to Kubernetes resources created during ser
 
 :::danger
 Deletion is permanent and removes:
-- Server configuration from database
+- StatefulSet (with game server configuration annotation)
 - Persistent Volume Claim (all data)
 - Service (releases IP address)
 - Any running pods
@@ -114,4 +114,4 @@ Currently, operations must be performed on individual servers. Future versions m
 
 ## Resource Cleanup
 
-When a server is deleted, Nautikal Panel deletes the pod if running, deletes the PVC and all data, deletes the Service, deletes any SFTP credentials secrets, and removes the record from the database. No orphaned resources should remain.
+When a server is deleted, Nautikal Panel deletes the pod if running, deletes the PVC and all data, deletes the Service, deletes any SFTP credentials secrets, and removes the StatefulSet. No orphaned resources should remain.
