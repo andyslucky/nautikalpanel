@@ -68,11 +68,11 @@ Nautikal Panel consists of three core components:
 
 ### Backend (Rust)
 
-The backend provides the REST API and handles all Kubernetes orchestration, managing pods, services, PVCs, and secrets through the Kubernetes client, rendering Kubernetes manifests from templates via the template engine, storing game server configurations in SurrealDB, and providing real-time log streaming and status updates through WebSocket servers.
+The backend provides the REST API and handles all Kubernetes orchestration, managing pods, services, PVCs, and secrets through the Kubernetes client, generating Kubernetes resources programmatically, storing settings in Kubernetes ConfigMaps, and providing real-time log streaming and status updates through WebSocket servers.
 
 ### Frontend
 
-A lightweight web interface built with Alpine.js provides a dashboard with server overview and status indicators, server management for creating, editing, starting, stopping, and deleting servers, a real-time log streaming modal, and user preferences and configuration settings.
+A lightweight web interface built with Preact provides a dashboard with server overview and status indicators, server management for creating, editing, starting, stopping, and deleting servers, a real-time log streaming modal, and user preferences and configuration settings.
 
 ### Kubernetes
 

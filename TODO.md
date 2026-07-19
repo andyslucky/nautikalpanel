@@ -1,14 +1,14 @@
 ### Backend
 #### Functionality / Flexibility
 - [ ] Add support for init containers.
-- [x] Add rocksdb backend for Surreal to persist data across restarts
-- [ ] Make creations transactional so if the init template fails the database doesn't contain any uninitialized servers.
+- [x] ~~Add rocksdb backend for Surreal to persist data across restarts~~ (superseded by K8s-native storage)
+- [ ] Make creations transactional so if any step fails no orphaned Kubernetes resources remain.
 - [x] Troubleshoot status updates for "Terminating" pods.
 - [x] Utilize the resource watching capabilities of kube for more realtime updates.
-- [x] Update application to accept configuration for default storage class, pod template name, port, etc.
-- [x] Complete the pod_template so that it uses resources etc.
-- [x] Decompose the individual resources from init.yaml into separate templates.
-- [x] Decompose individual resources from pod_template.yaml into separate templates.
+- [x] Update application to accept configuration for default storage class, service type, port, etc.
+- [x] Refactor resource generation to support dynamic pod configuration (resources, env, command, mounts).
+- [x] Decompose the individual resources from the old init.yaml into separate templates.
+- [x] Decompose individual resources from the old pod_template.yaml into separate templates.
 - [x] Support starting a container for SFTP only
 - [x] Add support for sftp_user_id property
 - [x] Implement editing a server.
@@ -32,5 +32,4 @@
     first launch
 - [ ] Implement server commands (may not be supported for every server, and implementation may vary)
 ### Shared
-- [x] Add table in database for game template sources. it is essentially a list of URLs which can be used to fetch game server templates.
-    Add option under settings to manage Game Template Repositories
+- [x] Add ConfigMap-based storage for template repository settings (superseded the SurrealDB approach).

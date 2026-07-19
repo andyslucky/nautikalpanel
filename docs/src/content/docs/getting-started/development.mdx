@@ -50,7 +50,6 @@ export NAUTIKAL__SERVER__HOST=0.0.0.0
 export NAUTIKAL__SERVER__PORT=3000
 export NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
 export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
-export NAUTIKAL__DATABASE__PATH=./db
 export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Optional, for GitHub templates
 ```
 
@@ -88,7 +87,6 @@ NAUTIKAL__SERVER__HOST=0.0.0.0
 NAUTIKAL__SERVER__PORT=3000
 NAUTIKAL__KUBERNETES__NAMESPACE=nautikal
 NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=true
-NAUTIKAL__DATABASE__PATH=./db
 NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 EOF
 ```
@@ -198,10 +196,6 @@ cargo test
 
 ## Configuration
 
-### Database Path
-
-For development, the default database path `./db` works well. The database file will be created in the project root.
-
 ### Kubernetes Namespace
 
 The default namespace is `nautikal`. You can change this for development isolation:
@@ -262,9 +256,8 @@ nautikalpanel/
 │   ├── main.rs              # Application entry point
 │   ├── app_config.rs        # Configuration loading
 │   ├── endpoints/           # HTTP API handlers
-│   ├── game_servers/        # Domain models
+│   ├── models/              # Domain models
 │   └── services/           # Business logic
-├── k8s-templates/         # Kubernetes templates (Jinja2)
 ├── game-server-templates/  # Game server templates
 ├── frontend/               # Frontend application
 ├── docs/                   # Documentation
@@ -298,13 +291,6 @@ If `cargo build` fails:
 1. Update Rust: `rustup update`
 2. Clean build artifacts: `cargo clean`
 3. Try building again: `cargo build`
-
-### Database Errors
-
-If you see database-related errors:
-
-1. Remove the database directory: `rm -rf ./db`
-2. Restart the application
 
 ### Kubernetes Connection Issues
 

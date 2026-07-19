@@ -1,119 +1,46 @@
 ---
 title: Database Settings
-description: Configure the database connection.
+description: Data persistence configuration.
 ---
 
-Configure SurrealDB settings for data persistence via environment variables.
+Nautikal Panel stores all data directly in Kubernetes — game server configurations are serialized as StatefulSet annotations and settings are stored in Kubernetes ConfigMaps. There is no external database to configure or manage.
 
-## Environment Variables
+## How Data is Stored
 
-```bash
-export NAUTIKAL__DATABASE__PATH=./db
-export NAUTIKAL__DATABASE__NAMESPACE=nautikal
-export NAUTIKAL__DATABASE__NAME=nautikal
-```
+### Game Server Configurations
 
-## Settings Reference
+All game server data is embedded in Kubernetes StatefulSet annotations using the `nautikal.io/game-server-spec` annotation. This means your server configurations:
+- Survive pod restarts and rescheduling
+- Are backed up with standard Kubernetes cluster backups
+- Can be inspected with `kubectl describe statefulset <server-id> -n nautikal`
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NAUTIKAL__DATABASE__PATH` | `./db` | Directory for database files |
-| `NAUTIKAL__DATABASE__NAMESPACE` | `nautikal` | SurrealDB namespace |
-| `NAUTIKAL__DATABASE__NAME` | `nautikal` | Database name |
+### Template Repositories
 
-## Persistence
-
-### Development
-
-The default `./db` directory works for development but is lost on restart.
-
-### Production (Helm)
-
-When using the Helm chart, persistence is configured automatically. Configure in `values.yaml`:
-
-```yaml
-persistence:
-  enabled: true
-  storageClass: standard
-  accessMode: ReadWriteOnce
-  size: 10Gi
-
-config:
-  database:
-    path: "/data/db"
-```
-
-### Production (Manual)
-
-If deploying manually without Helm, mount a persistent volume:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nautikal-db
-  namespace: nautikalpanel
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-```
-
-## Kubernetes Deployment Example
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nautikal-panel
-spec:
-  template:
-    spec:
-      containers:
-        - name: nautikal-panel
-          env:
-            - name: NAUTIKAL__DATABASE__PATH
-              value: "/app/db"
-            - name: NAUTIKAL__DATABASE__NAMESPACE
-              value: "production"
-            - name: NAUTIKAL__DATABASE__NAME
-              value: "servers"
-          volumeMounts:
-            - name: db-storage
-              mountPath: /app/db
-      volumes:
-        - name: db-storage
-          persistentVolumeClaim:
-            claimName: nautikal-db
-```
-
-## Data Stored
-
-| Data | Description |
-|------|-------------|
-| Game Servers | Server configurations and settings |
-| Template Repositories | Template repository configurations and URLs |
-| Users | (Future) User accounts |
-
-:::note
-Game server templates are read from the filesystem (local or GitHub repositories), not stored in the database. SFTP credentials are stored in Kubernetes secrets, not in the database.
-:::
-
-## Backup
-
-### Manual
+Template repository settings are stored in a Kubernetes ConfigMap (`nautikal-settings`) in the configured namespace:
 
 ```bash
-# Copy database directory
-cp -r ./db ./db-backup-$(date +%Y%m%d)
+kubectl get configmap nautikal-settings -n nautikal -o yaml
 ```
 
-### Kubernetes
+### Benefits of K8s-Native Storage
 
-Use Velero for automated backups:
+- **No database to manage** — No extra container, volume, or backup process
+- **Kubernetes-native backups** — Standard `etcd` snapshots back up all data
+- **Multi-instance consistency** — All instances read from the same ConfigMap
+- **Zero configuration** — No connection strings, credentials, or database setup
+
+## Backup and Restore
+
+Since all data lives in Kubernetes, use standard Kubernetes backup tools:
 
 ```bash
-velero backup create nautikal-backup --include-namespaces nautikal
+# Export all StatefulSets (includes game server specs)
+kubectl get statefulsets -n nautikal -o yaml > nautikal-statefulsets.yaml
+
+# Export settings ConfigMap
+kubectl get configmap nautikal-settings -n nautikal -o yaml > nautikal-settings.yaml
+
+# Restore
+kubectl apply -f nautikal-statefulsets.yaml
+kubectl apply -f nautikal-settings.yaml
 ```

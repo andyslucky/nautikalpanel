@@ -40,8 +40,6 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                 description: '',
                 game_type: '',
                 icon_url: '',
-                pod_template: null,
-                init_template: null,
                 user_id: 1000,
                 pod_config: {
                     image: '',
@@ -490,27 +488,10 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                         )}
                         {selectedTab.value === 'misc' && (
                             <div id="tabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
-                                <div class="warning-box mb-4">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span class="warning-title">Warning</span>
-                                    </div>
-                                    <p class="warning-text">
-                                        Modifying these templates can pose <strong>security risks</strong> and <strong>data loss risks</strong> for your cluster.
-                                        Only change these if you understand the implications, and completely trust the templates you will use.
-                                    </p>
-                                </div>
                                 <div>
-                                    <label class="form-label-sm">Init Template</label>
-                                    <input type="text" value={form.value.template.init_template || ''} onInput={(e) => (form.value = { ...form.value, template: { ...form.value.template, init_template: (e.target as HTMLInputElement).value } })} placeholder="default/init.yaml.jinja" class="form-input" />
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to initialize Kubernetes resources (Service, PVC).</p>
-                                </div>
-                                <div>
-                                    <label class="form-label-sm">Pod Template</label>
-                                    <input type="text" value={form.value.template.pod_template || ''} onInput={(e) => (form.value = { ...form.value, template: { ...form.value.template, pod_template: (e.target as HTMLInputElement).value } })} placeholder="default/pod_template.yaml.jinja" class="form-input" />
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to create the Pod manifest.</p>
+                                    <label class="form-label-sm">User/Group ID</label>
+                                    <input type="number" value={form.value.template.user_id || ''} onInput={(e) => (form.value = { ...form.value, template: { ...form.value.template, user_id: parseInt((e.target as HTMLInputElement).value) || 1000 } })} placeholder="1000" min="1" class="form-input" />
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">UID/GID for file permissions. Used for PVC fsGroup and SFTP user.</p>
                                 </div>
                             </div>
                         )}

@@ -128,16 +128,13 @@ test.describe('Create Server Modal', () => {
     await expect(modal.locator('label:has-text("Ports")')).toBeVisible();
   });
 
-  test('misc tab has warning and template fields', async ({ page }) => {
+  test('misc tab has user/group id field', async ({ page }) => {
     const modal = createModal(page);
     const tabs = modal.locator('[role="tab"]');
     await tabs.nth(4).click();
     await page.waitForTimeout(200);
 
-    await expect(modal.locator('text=Warning')).toBeVisible();
-    await expect(modal.locator('text=security risks')).toBeVisible();
-    await expect(modal.locator('label:has-text("Init Template")')).toBeVisible();
-    await expect(modal.locator('label:has-text("Pod Template")')).toBeVisible();
+    await expect(modal.locator('label:has-text("User/Group ID")')).toBeVisible();
   });
 
   test('modal closes on cancel button', async ({ page }) => {

@@ -106,24 +106,16 @@ Ports to expose, including the external port number and protocol (TCP or UDP). C
 
 ## Misc Tab
 
-Advanced template overrides.
+User and group ID settings.
 
-:::warning
-These options are for advanced users. Incorrect values can cause failures.
-:::
+### User/Group ID
 
-### Init Template
-
-Path to Jinja template for initial resources, which creates the PVC and Service. The default is `default/init.yaml.jinja`, which you can override for custom resource creation.
-
-### Pod Template
-
-Path to Jinja template for the pod, which creates the game server pod. The default is `default/pod_template.yaml.jinja`, which you can override for custom pod configuration.
+The UID/GID for file permissions. This is used for PVC fsGroup and the SFTP user, ensuring consistent file ownership between the game server and SFTP containers. Default is `1000`.
 
 ## Creating the Server
 
 Click **Create** to:
-1. Save the server configuration to the database
+1. Save the server configuration to Kubernetes (as a StatefulSet annotation)
 2. Create initial Kubernetes resources (PVC, Service)
 3. Return to dashboard with server showing "Offline" status
 
@@ -139,8 +131,8 @@ Servers can only be edited when offline:
 
 ### Editable Fields
 
-Server name, game version, max players, icon URL, description, pod configuration (image, resources, env, command), and pod template path can all be modified.
+Server name, game version, max players, icon URL, description, and pod configuration (image, resources, env, command) can all be modified.
 
 ### Non-Editable Fields
 
-Game type, storage configuration, service configuration, and init template are set at creation and cannot be changed.
+Game type, storage configuration, and service configuration are set at creation and cannot be changed.

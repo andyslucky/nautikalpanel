@@ -114,10 +114,6 @@ pub struct NewGameServerRequest {
     pub name: String,
     pub game_version: Option<String>,
     pub max_players: Option<u32>,
-    /// Kept for backward compatibility but no longer used (Tera templates removed).
-    pub pod_template: Option<String>,
-    /// Kept for backward compatibility but no longer used (Tera templates removed).
-    pub init_template: Option<String>,
     pub template: GameServerTemplate,
 }
 
@@ -138,9 +134,6 @@ pub struct GameServerTemplate {
     pub description: Option<String>,
     pub game_type: Option<String>,
     pub icon_url: Option<String>,
-    /// Kept for backward compatibility but no longer used.
-    #[serde(default)]
-    pub init_template: Option<String>,
     pub pod_config: PodConfig,
     pub service_config: ServiceConfig,
     pub pvc_config: PvcConfig,
@@ -415,14 +408,11 @@ mod tests {
             name: "Test Server".to_string(),
             game_version: Some("1.0".to_string()),
             max_players: Some(10),
-            pod_template: None,
-            init_template: None,
             template: GameServerTemplate {
                 template_name: "minecraft".to_string(),
                 description: Some("desc".to_string()),
                 game_type: Some("minecraft".to_string()),
                 icon_url: Some("icon".to_string()),
-                init_template: None,
                 pod_config: test_pod_config(),
                 service_config: test_service_config(),
                 pvc_config: test_pvc_config(),
@@ -444,14 +434,11 @@ mod tests {
             name: "Test".to_string(),
             game_version: None,
             max_players: None,
-            pod_template: None,
-            init_template: None,
             template: GameServerTemplate {
                 template_name: "x".to_string(),
                 description: None,
                 game_type: None,
                 icon_url: None,
-                init_template: None,
                 pod_config: test_pod_config(),
                 service_config: test_service_config(),
                 pvc_config: test_pvc_config(),

@@ -47,8 +47,6 @@ type GameServerTemplate = {
     description?: string;
     game_type?: string;
     game_version?: string;
-    pod_template?: string | null;
-    init_template?: string | null;
     default_max_users?: number;
     pod_config?: {
         image?: string;

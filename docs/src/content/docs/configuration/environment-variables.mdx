@@ -30,20 +30,10 @@ export NAUTIKAL__KUBERNETES__CREATE_NAMESPACE=false
 export NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS=local-path
 ```
 
-### Database Settings
-
-```bash
-export NAUTIKAL__DATABASE__PATH=/var/lib/nautikal/db
-export NAUTIKAL__DATABASE__NAMESPACE=production
-export NAUTIKAL__DATABASE__NAME=servers
-```
-
 ### Path Settings
 
 ```bash
-export NAUTIKAL__PATHS__K8S_TEMPLATES=/etc/nautikal/templates
 export NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES=/etc/nautikal/game-templates
-export NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR=/opt/nautikal/custom-templates
 ```
 
 ### GitHub Settings
@@ -61,14 +51,7 @@ export NAUTIKAL__GITHUB__TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 | `kubernetes.namespace` | `NAUTIKAL__KUBERNETES__NAMESPACE` |
 | `kubernetes.create_namespace` | `NAUTIKAL__KUBERNETES__CREATE_NAMESPACE` |
 | `kubernetes.default_storage_class` | `NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS` |
-| `kubernetes.init_template` | `NAUTIKAL__KUBERNETES__INIT_TEMPLATE` |
-| `kubernetes.pod_template` | `NAUTIKAL__KUBERNETES__POD_TEMPLATE` |
-| `database.path` | `NAUTIKAL__DATABASE__PATH` |
-| `database.namespace` | `NAUTIKAL__DATABASE__NAMESPACE` |
-| `database.name` | `NAUTIKAL__DATABASE__NAME` |
-| `paths.k8s_templates` | `NAUTIKAL__PATHS__K8S_TEMPLATES` |
 | `paths.game_server_templates` | `NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES` |
-| `paths.extra_k8s_templates_dir` | `NAUTIKAL__PATHS__EXTRA_K8S_TEMPLATES_DIR` |
 | `github.token` | `NAUTIKAL__GITHUB__TOKEN` |
 
 ## Kubernetes Deployment
@@ -82,8 +65,6 @@ config:
   kubernetes:
     namespace: "nautikal"
     defaultStorageClass: "standard"
-  database:
-    path: "/data/db"
 githubToken: "your_token_here"
 ```
 
@@ -111,8 +92,6 @@ spec:
           env:
             - name: NAUTIKAL__KUBERNETES__NAMESPACE
               value: "nautikal"
-            - name: NAUTIKAL__DATABASE__PATH
-              value: "/app/db"
             - name: NAUTIKAL__GITHUB__TOKEN
               valueFrom:
                 secretKeyRef:

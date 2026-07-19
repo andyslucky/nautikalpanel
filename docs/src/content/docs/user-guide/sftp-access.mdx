@@ -41,7 +41,7 @@ It also uses fewer resources since the game server isn't running.
 3. Click **Copy** buttons for each value
 
 :::warning
-Credentials are regenerated each time SFTP starts. They are not stored in the database. Always check credentials before connecting.
+Credentials are regenerated each time SFTP starts. They are not stored persistently. Always check credentials before connecting.
 :::
 
 ## Connecting with SFTP Clients
@@ -98,7 +98,7 @@ The exact structure depends on your game and template.
 ## Security Notes
 
 - Credentials are **ephemeral** - they change when SFTP restarts
-- Credentials are **not stored** in the database
+- Credentials are **not stored** persistently
 - Use strong network policies in production
 - Consider VPN or IP restrictions for sensitive servers
 
