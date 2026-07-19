@@ -3,8 +3,8 @@ import { test, expect } from './fixtures';
 test.describe('Settings Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.locator('aside nav a:has-text("Settings")').click();
-    // Wait for Preact hash-based navigation to complete
-    await page.waitForFunction(() => window.location.hash === '#settings', null, { timeout: 5000 });
+    // Wait for preact-iso path-based navigation to complete
+    await page.waitForFunction(() => window.location.pathname === '/settings', null, { timeout: 5000 });
     await page.waitForTimeout(300);
   });
 

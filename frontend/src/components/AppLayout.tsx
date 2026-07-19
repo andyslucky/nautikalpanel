@@ -1,7 +1,36 @@
 import { useSignal } from '@preact/signals';
+import { useLocation } from 'preact-iso';
 import type { ComponentChildren } from 'preact';
 
-export default function AppLayout({ page, sidebarOpen, children }: { page: string; sidebarOpen: ReturnType<typeof useSignal<boolean>>; children: ComponentChildren }) {
+interface AppLayoutProps {
+    sidebarOpen: ReturnType<typeof useSignal<boolean>>;
+    children: ComponentChildren;
+}
+
+const NAV_ITEMS = [
+    { path: '/', label: '📊 Dashboard', page: 'dashboard' },
+    { path: '/servers', label: '🖥️ Servers', page: 'servers' },
+    { path: '/settings', label: '⚙️ Settings', page: 'settings' },
+] as const;
+
+/**
+ * Map the current URL path to the page id used for active-link highlighting.
+ * The dashboard is the landing page and is served at `/`, `/dashboard`, and
+ * the legacy `/home` alias; everything not explicitly the Servers or Settings
+ * page is treated as the dashboard.
+ */
+function pathToPageId(path: string): 'dashboard' | 'servers' | 'settings' {
+    if (path === '/servers') return 'servers';
+    if (path === '/settings') return 'settings';
+    return 'dashboard';
+}
+
+export default function AppLayout({ sidebarOpen, children }: AppLayoutProps) {
+    // `useLocation()` reflects the current path and re-renders this component
+    // when navigation happens (preact-iso handles the History API for us).
+    const { path } = useLocation();
+    const activePage = pathToPageId(path);
+
     return (
         <>
             {/* Mobile Header */}
@@ -22,9 +51,16 @@ export default function AppLayout({ page, sidebarOpen, children }: { page: strin
                 </div>
                 {sidebarOpen.value && (
                     <nav class="mt-4 space-y-2">
-                        <a href="#dashboard" onClick={() => (sidebarOpen.value = false)} class={page === 'dashboard' ? 'nav-link-active' : 'nav-link-inactive'}>📊 Dashboard</a>
-                        <a href="#servers" onClick={() => (sidebarOpen.value = false)} class={page === 'servers' ? 'nav-link-active' : 'nav-link-inactive'}>🖥️ Servers</a>
-                        <a href="#settings" onClick={() => (sidebarOpen.value = false)} class={page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'}>⚙️ Settings</a>
+                        {NAV_ITEMS.map((item) => (
+                            <a
+                                key={item.path}
+                                href={item.path}
+                                onClick={() => (sidebarOpen.value = false)}
+                                class={activePage === item.page ? 'nav-link-active' : 'nav-link-inactive'}
+                            >
+                                {item.label}
+                            </a>
+                        ))}
                         <p class="version-text pt-2">v1.0.0</p>
                     </nav>
                 )}
@@ -34,9 +70,15 @@ export default function AppLayout({ page, sidebarOpen, children }: { page: strin
             <aside class="sidebar">
                 <h1 class="heading-primary mb-8 dark:text-gray-100">🎮 Nautikal Panel</h1>
                 <nav class="flex-1 space-y-2">
-                    <a href="#dashboard" class={page === 'dashboard' ? 'nav-link-active' : 'nav-link-inactive'}>📊 Dashboard</a>
-                    <a href="#servers" class={page === 'servers' ? 'nav-link-active' : 'nav-link-inactive'}>🖥️ Servers</a>
-                    <a href="#settings" class={page === 'settings' ? 'nav-link-active' : 'nav-link-inactive'}>⚙️ Settings</a>
+                    {NAV_ITEMS.map((item) => (
+                        <a
+                            key={item.path}
+                            href={item.path}
+                            class={activePage === item.page ? 'nav-link-active' : 'nav-link-inactive'}
+                        >
+                            {item.label}
+                        </a>
+                    ))}
                 </nav>
                 <p class="version-text">v1.0.0</p>
             </aside>

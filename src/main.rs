@@ -96,12 +96,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if cfg!(debug_assertions) {
         info!("Running in development mode. Not serving front end")
     } else {
+        // The frontend is a SPA that uses path-based routing (preact-iso's
+        // <LocationProvider> + <Router>). Any non-API, non-asset path must
+        // serve index.html so the client-side router can handle it — e.g.
+        // `/servers`, `/settings`, `/dashboard`, or the legacy `/home`.
+        // `fallback_service` only handles paths not matched by the API routes
+        // (registered above) or the nested `/assets` static handler.
         let frontend_dir = "frontend/dist";
         let index = ServeFile::new(format!("{}/index.html", frontend_dir));
         let scripts_dir = ServeDir::new(format!("{}/assets", frontend_dir));
         router = router
             .nest_service("/assets", scripts_dir)
-            .route_service("/", index);
+            .fallback_service(index);
     }
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_address()).await?;

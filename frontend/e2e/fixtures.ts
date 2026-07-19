@@ -354,19 +354,20 @@ export async function setupApiMocks(page: Page): Promise<void> {
 
 export async function navigateToHome(page: Page): Promise<void> {
   await page.goto('/');
-  // Wait for Preact to render main content
+  // Wait for Preact to render main content (preact-iso's LocationProvider
+  // matches `/` to the Dashboard route).
   await page.waitForSelector('main.main-content', { state: 'visible' });
-  // Wait for servers to load
+  // Wait for stores to load
   await page.waitForTimeout(500);
 }
 
 /**
  * The former "Home" page (server cards + "Game Servers" heading) is now the
- * "Servers" page at `#servers`. The new default landing page is the dashboard.
- * Tests that exercise server cards must navigate here explicitly.
+ * "Servers" route at `/servers`. The default landing route is the dashboard
+ * at `/`. Tests that exercise server cards must navigate here explicitly.
  */
 export async function navigateToServers(page: Page): Promise<void> {
-  await page.goto('/#servers');
+  await page.goto('/servers');
   await page.waitForSelector('main.main-content', { state: 'visible' });
   await page.waitForSelector('.server-card', { timeout: 10000 });
 }

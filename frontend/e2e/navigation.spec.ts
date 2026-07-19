@@ -1,18 +1,19 @@
 import { test, expect } from './fixtures';
 
+const BASE = 'http://localhost:3000';
+
 test.describe('Navigation', () => {
   test('sidebar navigation links work', async ({ page }) => {
-    // Dashboard should be active by default (it is the new home/landing page)
+    // Dashboard should be active by default (it is the new landing route at `/`).
     const dashboardLink = page.locator('aside nav a:has-text("Dashboard")');
     await expect(dashboardLink).toHaveClass(/nav-link-active/);
 
     const settingsLink = page.locator('aside nav a:has-text("Settings")');
     await expect(settingsLink).toHaveClass(/nav-link-inactive/);
 
-    // Click settings
+    // Click settings — preact-iso updates the URL via pushState.
     await settingsLink.click();
-    // Wait for hash-based navigation to complete
-    await page.waitForFunction(() => window.location.hash === '#settings', null, { timeout: 5000 });
+    await page.waitForFunction(() => window.location.pathname === '/settings', null, { timeout: 5000 });
     await page.waitForTimeout(300);
 
     await expect(settingsLink).toHaveClass(/nav-link-active/);
@@ -22,7 +23,7 @@ test.describe('Navigation', () => {
 
     // Click back to dashboard
     await dashboardLink.click();
-    await page.waitForFunction(() => window.location.hash === '#dashboard', null, { timeout: 5000 });
+    await page.waitForFunction(() => window.location.pathname === '/', null, { timeout: 5000 });
     await page.waitForTimeout(300);
 
     await expect(dashboardLink).toHaveClass(/nav-link-active/);
@@ -30,18 +31,18 @@ test.describe('Navigation', () => {
     await expect(page.locator('main h2.heading-secondary')).toContainText('Dashboard');
   });
 
-  test('URL hash changes on navigation', async ({ page }) => {
-    await expect(page).toHaveURL(/.*#dashboard/);
+  test('URL changes on navigation', async ({ page }) => {
+    await expect(page).toHaveURL(`${BASE}/`);
 
     await page.locator('aside nav a:has-text("Settings")').click();
     await page.waitForTimeout(300);
 
-    await expect(page).toHaveURL(/.*#settings/);
+    await expect(page).toHaveURL(`${BASE}/settings`);
 
     await page.locator('aside nav a:has-text("Dashboard")').click();
     await page.waitForTimeout(300);
 
-    await expect(page).toHaveURL(/.*#dashboard/);
+    await expect(page).toHaveURL(`${BASE}/`);
   });
 
   test('version text is visible in sidebar', async ({ page }) => {

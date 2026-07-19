@@ -1,8 +1,8 @@
 import { test, expect, navigateToServers } from './fixtures';
 
-// The former "Home" page (server cards + "Game Servers" heading) is now the
-// "Servers" page (`#servers`). The application's default landing page is the
-// dashboard, so every test in this file must navigate to the Servers page
+// The former "Home" page (server cards + "Servers" heading) is now the
+// "Servers" route at `/servers`. The default landing route is the dashboard
+// at `/`, so every test in this file must navigate to the Servers route
 // explicitly before asserting on server cards.
 test.describe('Servers Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -104,11 +104,10 @@ test.describe('Servers Page - Empty State', () => {
       }
     });
 
-    // Land on the Servers page, then force a full reload so `init()` fetches
-    // the just-overridden (empty) server list instead of the cached one.
-    // Hash-only navigation alone wouldn't trigger a fresh fetch.
-    await page.goto('/#servers');
-    await page.reload();
+    // Land directly on the Servers page. `page.goto('/servers')` is a full
+    // navigation — the SPA re-initializes and `init()` fetches the now-
+    // overridden (empty) server list.
+    await page.goto('/servers');
     await page.waitForSelector('main.main-content', { state: 'visible' });
     await page.waitForTimeout(500);
 
