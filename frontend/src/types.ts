@@ -25,8 +25,6 @@ export type GameServerTemplateData = {
     description?: string;
     game_type?: string;
     game_version?: string;
-    pod_template?: string | null;
-    init_template?: string | null;
     default_max_users?: number;
     user_id?: number;
     pod_config: PodConfig;

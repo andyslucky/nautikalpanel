@@ -35,7 +35,6 @@ export default function EditServerModal() {
                 env: {},
                 mounts: []
             })),
-            pod_template: server.game_server?.pod_template || '',
             user_id: server.game_server?.user_id || 1000,
         };
         if (!editForm.value.pod_config.resources) {
@@ -114,7 +113,6 @@ export default function EditServerModal() {
                 command: editForm.value.pod_config.command && editForm.value.pod_config.command.length > 0 ? editForm.value.pod_config.command : null,
                 mounts: editForm.value.pod_config.mounts && editForm.value.pod_config.mounts.length > 0 ? editForm.value.pod_config.mounts : null,
             },
-            pod_template: editForm.value.pod_template || null,
             user_id: editForm.value.user_id || 1000,
         };
 
@@ -267,11 +265,6 @@ export default function EditServerModal() {
                         {editTab.value === 'misc' && (
                             <div id="edittabpanelmisc" role="tabpanel" aria-label="misc" class="form-group">
                                 <div>
-                                    <label class="form-label-sm">Pod Template</label>
-                                    <input type="text" value={editForm.value.pod_template} onInput={(e) => (editForm.value = { ...editForm.value, pod_template: (e.target as HTMLInputElement).value })} placeholder="default/pod_template.yaml.jinja" class="form-input" />
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Path to the Jinja template used to create the Pod manifest.</p>
-                                </div>
-                                <div>
                                     <label class="form-label-sm">User/Group ID</label>
                                     <input type="number" value={editForm.value.user_id} onInput={(e) => (editForm.value = { ...editForm.value, user_id: parseInt((e.target as HTMLInputElement).value) || 1000 })} placeholder="1000" min="1" class="form-input" />
                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">UID/GID for file permissions. Used for PVC fsGroup and SFTP user.</p>
@@ -308,6 +301,5 @@ type EditForm = {
     icon_url: string;
     description: string;
     pod_config: PodConfig;
-    pod_template: string;
     user_id: number;
 };
