@@ -296,6 +296,10 @@
         @apply flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1;
     }
 
+    .range-slider-value-input {
+        @apply inline-block w-20 ml-1 px-1 py-0.5 text-xs font-mono text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-primary;
+    }
+
     .resource-info {
         @apply bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2;
     }

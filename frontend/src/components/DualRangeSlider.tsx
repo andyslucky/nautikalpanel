@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'preact/compat';
+
 type Props = {
     label: string;
     min: number;
@@ -8,9 +10,21 @@ type Props = {
     onMinChange: (value: number) => void;
     onMaxChange: (value: number) => void;
     formatValue: (value: number) => string;
+    parseValue?: (value: string) => number;
 };
 
-export default function DualRangeSlider({ label, min, max, step, minValue, maxValue, onMinChange, onMaxChange, formatValue }: Props) {
+export default function DualRangeSlider({ label, min, max, step, minValue, maxValue, onMinChange, onMaxChange, formatValue, parseValue }: Props) {
+    // Allow free-text editing of the min/max labels. We track local input state
+    // so the user can type intermediate values like '' or '250mm' without the
+    // parent's formatted value fighting them on every keystroke. We commit the
+    // parsed numeric value on blur (and on Enter) and resync from props whenever
+    // the parent's value changes from elsewhere (e.g. the slider).
+    const [minText, setMinText] = useState<string>(formatValue(minValue));
+    const [maxText, setMaxText] = useState<string>(formatValue(maxValue));
+
+    useEffect(() => { setMinText(formatValue(minValue)); }, [minValue, formatValue]);
+    useEffect(() => { setMaxText(formatValue(maxValue)); }, [maxValue, formatValue]);
+
     const minPercent = ((minValue - min) / (max - min)) * 100;
     const maxPercent = ((maxValue - min) / (max - min)) * 100;
 
@@ -21,6 +35,28 @@ export default function DualRangeSlider({ label, min, max, step, minValue, maxVa
     function clampMax(value: number) {
         const v = Math.max(minValue, Math.min(value, max));
         onMaxChange(v);
+    }
+
+    function commitMin(raw: string) {
+        if (!parseValue) return;
+        const parsed = parseValue(raw);
+        if (isNaN(parsed)) {
+            setMinText(formatValue(minValue));
+            return;
+        }
+        clampMin(parsed);
+        // Reformat after commit so the displayed text matches the stored value.
+        setMinText(formatValue(Math.max(min, Math.min(parsed, maxValue))));
+    }
+    function commitMax(raw: string) {
+        if (!parseValue) return;
+        const parsed = parseValue(raw);
+        if (isNaN(parsed)) {
+            setMaxText(formatValue(maxValue));
+            return;
+        }
+        clampMax(parsed);
+        setMaxText(formatValue(Math.max(minValue, Math.min(parsed, max))));
     }
 
     return (
@@ -51,8 +87,38 @@ export default function DualRangeSlider({ label, min, max, step, minValue, maxVa
                 />
             </div>
             <div class="range-slider-labels">
-                <span>Request: <strong>{formatValue(minValue)}</strong></span>
-                <span>Limit: <strong>{formatValue(maxValue)}</strong></span>
+                <span>
+                    Request:
+                    {parseValue ? (
+                        <input
+                            type="text"
+                            value={minText}
+                            onInput={(e) => setMinText((e.target as HTMLInputElement).value)}
+                            onBlur={(e) => commitMin((e.target as HTMLInputElement).value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+                            class="range-slider-value-input"
+                            aria-label={`${label} request`}
+                        />
+                    ) : (
+                        <strong>{formatValue(minValue)}</strong>
+                    )}
+                </span>
+                <span>
+                    Limit:
+                    {parseValue ? (
+                        <input
+                            type="text"
+                            value={maxText}
+                            onInput={(e) => setMaxText((e.target as HTMLInputElement).value)}
+                            onBlur={(e) => commitMax((e.target as HTMLInputElement).value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+                            class="range-slider-value-input"
+                            aria-label={`${label} limit`}
+                        />
+                    ) : (
+                        <strong>{formatValue(maxValue)}</strong>
+                    )}
+                </span>
             </div>
         </div>
     );

@@ -19,6 +19,14 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
         fetchGameServerTemplates();
     }, []);
 
+    // Whenever the modal is closed, reset the selected tab so the next open
+    // starts on the general tab regardless of where the user left off.
+    useSignalEffect(() => {
+        if (!showModal.value) {
+            selectedTab.value = 'general';
+        }
+    });
+
     useSignalEffect(() => {
         if (!templateDropdownOpen.value) return;
         const handler = (e: MouseEvent) => {
@@ -365,17 +373,19 @@ export default function CreateServerModal({ showModal }: { showModal: ReturnType
                                         onMinChange={minCpuValueChanged}
                                         onMaxChange={maxCpuValueChanged}
                                         formatValue={serverResourceSliderFunctions.formatCpuString}
+                                        parseValue={serverResourceSliderFunctions.parseCpu}
                                     />
                                     <DualRangeSlider
                                         label="Memory"
                                         min={0}
-                                        max={16384}
+                                        max={65536}
                                         step={32}
                                         minValue={serverResourceSliderFunctions.parseMemory(form.value.template.pod_config?.resources?.requests?.memory)}
                                         maxValue={serverResourceSliderFunctions.parseMemory(form.value.template.pod_config?.resources?.limits?.memory)}
                                         onMinChange={minMemoryValueChanged}
                                         onMaxChange={maxMemoryValueChanged}
                                         formatValue={serverResourceSliderFunctions.formatMemoryString}
+                                        parseValue={serverResourceSliderFunctions.parseMemory}
                                     />
                                 </div>
                                 <div>
