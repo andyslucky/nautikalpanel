@@ -1,0 +1,65 @@
+name: Release Helm Chart to GHCR
+
+on:
+  workflow_run:
+    workflows:
+      - "Docker Build and Push"
+    types:
+      - completed
+    branches:
+      - master
+  push:
+    branches:
+      - master
+    paths:
+      - "charts/**"
+      - ".github/workflows/release-helm.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  CHART_NAME: nautikalpanel
+
+jobs:
+  release-helm:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
+
+      - name: Add dependency chart repos
+        run: |
+          helm repo add bjw-s https://bjw-s-labs.github.io/helm-charts
+
+      - name: Update chart dependencies
+        run: |
+          helm dependency update "charts/${{ env.CHART_NAME }}"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Helm chart
+        id: package
+        run: |
+          chart_path="charts/${{ env.CHART_NAME }}"
+          helm package "$chart_path" --destination .
+          chart_file=$(ls ${{ env.CHART_NAME }}-*.tgz | head -n 1)
+          echo "chart_file=${chart_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Push Helm chart to GHCR
+        run: |
+          helm push "${{ steps.package.outputs.chart_file }}" "oci://${{ env.REGISTRY }}/andyslucky"

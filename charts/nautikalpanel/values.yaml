@@ -1,0 +1,110 @@
+# -- Configure global settings
+global:
+  # -- (string) Override the chart name
+  nameOverride: ""
+  # -- (string) Override the fullname template
+  fullnameOverride: ""
+
+# -- Nautikalpanel-specific configuration. These values are translated into
+# environment variables for the application.
+config:
+  server:
+    host: 0.0.0.0
+    port: 9090
+  kubernetes:
+    namespace: nautikal
+    defaultStorageClass: ""
+  paths:
+    gameServerTemplates: ""
+  prometheus:
+    url: "http://kube-prometheus-stack-prometheus.prometheus.svc.cluster.local:9090"
+    pollRateSeconds: 10
+
+# -- GitHub token used for fetching game server templates from repositories
+githubToken:
+  token: ""
+  existingSecret: ""
+  existingSecretKey: ""
+
+# -- Configure the main Deployment controller
+controllers:
+  main:
+    enabled: true
+    type: deployment
+    replicas: 1
+    annotations:
+      reloader.stakater.com/auto: "true"
+    containers:
+      main:
+        enabled: true
+        image:
+          repository: ghcr.io/andyslucky/nautikalpanel
+          tag: ""
+          pullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        probes:
+          liveness:
+            enabled: true
+            type: HTTP
+            path: /healthz
+            port: http
+          readiness:
+            enabled: true
+            type: HTTP
+            path: /readyz
+            port: http
+        ports:
+          - name: http
+            containerPort: 9090
+            protocol: TCP
+        # Additional environment variables can be set here.
+        # Nautikalpanel env vars are generated automatically from `config`.
+        env: {}
+
+# -- Configure the main Service
+service:
+  main:
+    enabled: true
+    type: ClusterIP
+    ports:
+      http:
+        enabled: true
+        port: 80
+        targetPort: 9090
+        protocol: TCP
+
+# -- Configure the Ingress
+ingress:
+  main:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: nautikalpanel.local
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: main
+              port: http
+    tls: []
+
+# -- Configure ServiceAccount
+serviceAccount:
+  main:
+    enabled: true
+    annotations: {}
+
+# -- Configure persistence
+persistence:
+  data:
+    enabled: true
+    type: persistentVolumeClaim
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    globalMounts:
+      - path: /data

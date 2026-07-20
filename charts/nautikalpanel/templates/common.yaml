@@ -1,0 +1,43 @@
+---
+{{- include "bjw-s.common.loader.init" . }}
+
+{{- define "nautikalpanel.hardcodedValues" -}}
+{{- $tag := .Values.controllers.main.containers.main.image.tag -}}
+controllers:
+  main:
+    containers:
+      main:
+        {{- if eq $tag "" }}
+        image:
+          tag: "{{ .Chart.AppVersion }}"
+        {{- end }}
+        env:
+          NAUTIKAL__SERVER__HOST:
+            value: "{{ .Values.config.server.host }}"
+          NAUTIKAL__SERVER__PORT:
+            value: "{{ .Values.config.server.port | toString }}"
+          NAUTIKAL__KUBERNETES__NAMESPACE:
+            value: "{{ .Values.config.kubernetes.namespace }}"
+          NAUTIKAL__KUBERNETES__DEFAULT_STORAGE_CLASS:
+            value: "{{ .Values.config.kubernetes.defaultStorageClass }}"
+          NAUTIKAL__PATHS__GAME_SERVER_TEMPLATES:
+            value: "{{ .Values.config.paths.gameServerTemplates }}"
+          NAUTIKAL__PROMETHEUS__URL:
+            value: "{{ .Values.config.prometheus.url }}"
+          NAUTIKAL__PROMETHEUS__POLL_RATE_SECONDS:
+            value: "{{ .Values.config.prometheus.pollRateSeconds | toString }}"
+          {{- if .Values.githubToken.token }}
+          NAUTIKAL__GITHUB__TOKEN:
+            value: "{{ .Values.githubToken.token }}"
+          {{- else if .Values.githubToken.existingSecret }}
+          NAUTIKAL__GITHUB__TOKEN:
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.githubToken.existingSecret }}"
+                key: "{{ .Values.githubToken.existingSecretKey | default "github-token" }}"
+          {{- end }}
+{{- end -}}
+{{- $_ := mergeOverwrite .Values (include "nautikalpanel.hardcodedValues" . | fromYaml) -}}
+
+{{/* Render the templates */}}
+{{ include "bjw-s.common.loader.generate" . }}
