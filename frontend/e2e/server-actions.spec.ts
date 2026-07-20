@@ -1,6 +1,12 @@
-import { test, expect } from './fixtures';
+import { test, expect, navigateToServers } from './fixtures';
 
 test.describe('Server Card Actions', () => {
+  test.beforeEach(async ({ page }) => {
+    // Server cards live on the "Servers" page; the default landing page is
+    // the dashboard, so navigate there before each test.
+    await navigateToServers(page);
+  });
+
   test('clicking Details button opens server drawer', async ({ page }) => {
     await page.waitForSelector('.server-card', { timeout: 10000 });
 
@@ -171,6 +177,10 @@ test.describe('Server Card Actions', () => {
 });
 
 test.describe('Server Drawer - SFTP Actions', () => {
+  test.beforeEach(async ({ page }) => {
+    await navigateToServers(page);
+  });
+
   test('SFTP Only button visible for offline server in drawer', async ({ page }) => {
     await page.waitForSelector('.server-card', { timeout: 10000 });
 

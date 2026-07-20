@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@preact/signals": "^2.0.2",
-    "preact": "^10.26.5"
+    "preact": "^10.26.5",
+    "preact-iso": "^2.12.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
