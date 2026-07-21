@@ -17,11 +17,18 @@ to get started and get gaming :). I tried to design most of the experience to re
 ## Installation
 ### Prerequisites
 - Kubernetes Cluster (Can use KinD for testing it out)
-- Helm 3.0+
+- Helm 3.8+ (OCI support required)
 
 ### Quick Start with Helm
 
-The recommended way to install Nautikalpanel is using the Helm chart located in [nautikalpanel-helm/charts/nautikalpanel](https://github.com/andyslucky/nautikalpanel-helm/tree/main/charts/nautikalpanel/README.md).
+Install from the GitHub Container Registry:
+
+```bash
+helm install nautikalpanel oci://ghcr.io/andyslucky/nautikalpanel \
+  --namespace nautikalpanel --create-namespace
+```
+
+The Helm chart is located at [charts/nautikalpanel](/charts/nautikalpanel/).
 
 ### Development Setup
 
