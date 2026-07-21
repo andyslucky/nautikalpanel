@@ -26,10 +26,7 @@ controllers:
             value: "{{ .Values.config.prometheus.url }}"
           NAUTIKAL__PROMETHEUS__POLL_RATE_SECONDS:
             value: "{{ .Values.config.prometheus.pollRateSeconds | toString }}"
-          {{- if .Values.githubToken.token }}
-          NAUTIKAL__GITHUB__TOKEN:
-            value: "{{ .Values.githubToken.token }}"
-          {{- else if .Values.githubToken.existingSecret }}
+          {{- if .Values.githubToken.existingSecret }}
           NAUTIKAL__GITHUB__TOKEN:
             valueFrom:
               secretKeyRef:

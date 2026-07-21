@@ -1,38 +1,38 @@
 # Nautikalpanel Helm Chart
 
-This Helm chart installs [Nautikalpanel](https://github.com/nautikalpanel/nautikalpanel), a game server orchestration platform for Kubernetes.
+This Helm chart installs [Nautikalpanel](https://github.com/andyslucky/nautikalpanel), a game server orchestration platform for Kubernetes.
 
 ## Prerequisites
 
 - Kubernetes 1.19+
-- Helm 3.0+
+- Helm 3.8+ (OCI support required)
 
 ## Installation
 
-### Add the Helm repository (if published)
+### OCI (recommended)
 
 ```bash
-helm repo add nautikalpanel https://andyslucky.github.io/nautikalpanel-helm
-helm repo update
+helm install nautikalpanel oci://ghcr.io/andyslucky/nautikalpanel --version 0.2.2
 ```
 
-### Install the chart
+### Install from local directory
 
 ```bash
-# Install into the default namespace
-helm install my-nautikalpanel nautikalpanel/nautikalpanel
-
-# Install into a specific namespace
-helm install my-nautikalpanel nautikalpanel/nautikalpanel --namespace nautikalpanel --create-namespace
-
-# Install from local directory
+helm dependency build charts/nautikalpanel
 helm install my-nautikalpanel ./charts/nautikalpanel
+```
+
+### Install into a specific namespace
+
+```bash
+helm install my-nautikalpanel oci://ghcr.io/andyslucky/nautikalpanel \
+  --namespace nautikal --create-namespace
 ```
 
 ### Upgrade the chart
 
 ```bash
-helm upgrade my-nautikalpanel nautikalpanel/nautikalpanel
+helm upgrade my-nautikalpanel oci://ghcr.io/andyslucky/nautikalpanel
 ```
 
 ### Uninstall the chart
@@ -43,74 +43,114 @@ helm uninstall my-nautikalpanel
 
 ## Configuration
 
-The following table lists the configurable parameters of the Nautikalpanel chart and their default values.
+The chart uses the [bjw-s common library](https://github.com/bjw-s-labs/helm-charts/tree/main/charts/library/common) for standard Kubernetes resources. See the [common library documentation](https://bjw-s.github.io/helm-charts/docs/common-library/) for details on `controllers`, `service`, `ingress`, `persistence`, and `serviceAccount` schemas.
+
+The following table lists the Nautikalpanel-specific parameters.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `replicaCount` | Number of replicas | `1` |
-| `image.repository` | Image repository | `nautikalpanel/nautikalpanel` |
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `image.tag` | Image tag (overrides Chart.AppVersion) | `""` |
-| `imagePullSecrets` | Image pull secrets | `[]` |
-| `nameOverride` | Override name | `""` |
-| `fullnameOverride` | Override full name | `""` |
-| `serviceAccount.create` | Create service account | `true` |
-| `serviceAccount.annotations` | Service account annotations | `{}` |
-| `serviceAccount.name` | Service account name | `""` |
-| `podAnnotations` | Pod annotations | `{}` |
-| `podSecurityContext` | Pod security context | `{}` |
-| `securityContext` | Container security context | `{}` |
-| `service.type` | Service type | `ClusterIP` |
-| `service.port` | Service port | `80` |
-| `service.targetPort` | Container target port | `9090` |
-| `ingress.enabled` | Enable ingress | `false` |
-| `ingress.className` | Ingress class name | `""` |
-| `ingress.annotations` | Ingress annotations | `{}` |
-| `ingress.hosts` | Ingress hosts | See values.yaml |
-| `ingress.tls` | Ingress TLS configuration | `[]` |
-| `resources` | Resource limits/requests | `{}` |
-| `autoscaling.enabled` | Enable autoscaling | `false` |
-| `autoscaling.minReplicas` | Minimum replicas | `1` |
-| `autoscaling.maxReplicas` | Maximum replicas | `100` |
-| `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization | `80` |
-| `nodeSelector` | Node selector | `{}` |
-| `tolerations` | Tolerations | `[]` |
-| `affinity` | Affinity rules | `{}` |
-| `persistence.enabled` | Enable persistence | `true` |
-| `persistence.storageClass` | Storage class | `""` |
-| `persistence.accessMode` | Access mode | `ReadWriteOnce` |
-| `persistence.size` | Storage size | `10Gi` |
-| `config.server.host` | Server host | `0.0.0.0` |
+| `config.server.host` | Server bind address | `0.0.0.0` |
 | `config.server.port` | Server port | `9090` |
-| `config.kubernetes.namespace` | Kubernetes namespace for game servers | `nautikal` |
+| `config.kubernetes.namespace` | Target namespace for game server resources | `nautikal` |
 | `config.kubernetes.defaultStorageClass` | Default storage class for game servers | `""` |
 | `config.paths.gameServerTemplates` | Game server templates directory | `""` |
-| `githubToken` | GitHub token for template repositories | `""` |
-| `existingSecret` | Name of existing secret for GitHub token | `""` |
+| `config.prometheus.url` | Prometheus URL for metrics | `http://kube-prometheus-stack-prometheus.prometheus.svc.cluster.local:9090` |
+| `config.prometheus.pollRateSeconds` | Prometheus polling interval | `10` |
+| `githubToken.existingSecret` | Name of existing secret containing GitHub token | `""` |
+| `githubToken.existingSecretKey` | Key in the secret containing the token | `github-token` |
+| `rbac.clusterScoped` | Use `ClusterRole` (true) or namespace-scoped `Role` (false) | `true` |
 
-### Example: Custom values file
+### Standard bjw-s parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `controllers.main.type` | Controller type | `deployment` |
+| `controllers.main.replicas` | Number of replicas | `1` |
+| `controllers.main.containers.main.image.repository` | Image repository | `ghcr.io/andyslucky/nautikalpanel` |
+| `controllers.main.containers.main.image.tag` | Image tag (falls back to `appVersion` if empty) | `""` |
+| `controllers.main.containers.main.image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `service.main.type` | Service type | `ClusterIP` |
+| `service.main.ports.http.port` | Service port | `80` |
+| `ingress.main.enabled` | Enable ingress | `false` |
+| `persistence.data.enabled` | Enable persistence | `true` |
+| `persistence.data.type` | Persistence type | `persistentVolumeClaim` |
+| `persistence.data.size` | PVC size | `10Gi` |
+| `persistence.data.storageClass` | Storage class | `""` |
+| `serviceAccount.main.enabled` | Create service account | `true` |
+
+## RBAC
+
+By default, the chart creates a `ClusterRole` and `ClusterRoleBinding`. This is required if Nautikalpanel manages game servers in a different namespace than the one it is deployed in.
+
+To use a namespace-scoped `Role` instead (more restrictive):
+
+```yaml
+rbac:
+  clusterScoped: false
+```
+
+This will create a `Role` and `RoleBinding` within the release namespace only. The app will still need access to the target namespace defined in `config.kubernetes.namespace`. If that namespace differs from the release namespace, keep `clusterScoped: true`.
+
+### Permissions
+
+The role grants the following permissions:
+
+- `get`, `list`, `watch`, `create`, `update`, `patch`, `delete`, `deletecollection` on `pods`, `services`, `persistentvolumeclaims`, `secrets`, `configmaps`
+- `get`, `list`, `watch`, `create`, `update`, `patch`, `delete`, `deletecollection` on `statefulsets`
+- `get`, `watch`, `list` on `pods/log`
+- `get`, `list`, `watch` on `events`
+
+## Security: GitHub Token
+
+**Never set a GitHub token via a plaintext value.** The chart only supports reading the token from an existing Kubernetes secret:
+
+```yaml
+githubToken:
+  existingSecret: my-github-secret
+  existingSecretKey: github-token  # default
+```
+
+Create the secret beforehand:
+
+```bash
+kubectl create secret generic my-github-token \
+  --from-literal=github-token=YOUR_TOKEN_HERE
+```
+
+## Persistence
+
+By default, the chart creates a 10Gi PVC mounted at `/data`. Customize via `persistence.data.*`.
+
+## Example: Custom values file
 
 Create a `custom-values.yaml` file:
 
 ```yaml
-replicaCount: 2
+controllers:
+  main:
+    replicas: 2
 
 persistence:
-  storageClass: fast-ssd
-  size: 20Gi
+  data:
+    storageClass: fast-ssd
+    size: 20Gi
 
 ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: nautikalpanel.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - hosts:
-        - nautikalpanel.example.com
-      secretName: nautikalpanel-tls
+  main:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: nautikalpanel.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: main
+              port: http
+    tls:
+      - hosts:
+          - nautikalpanel.example.com
+        secretName: nautikalpanel-tls
 
 config:
   kubernetes:
@@ -120,38 +160,8 @@ config:
 Install with custom values:
 
 ```bash
-helm install my-nautikalpanel ./charts/nautikalpanel -f custom-values.yaml
+helm install my-nautikalpanel oci://ghcr.io/andyslucky/nautikalpanel -f custom-values.yaml
 ```
-
-### Example: Using GitHub token
-
-If you need to fetch templates from private GitHub repositories:
-
-```yaml
-githubToken: your_github_token_here
-```
-
-Or use an existing secret:
-
-```yaml
-existingSecret: my-github-secret
-```
-
-The secret should contain a key named `github-token` with the GitHub token value.
-
-## RBAC
-
-The chart creates a `ClusterRole` and `ClusterRoleBinding` with the following permissions:
-
-- `get`, `list`, `watch`, `create`, `update`, `patch`, `delete` on `pods`, `services`, `persistentvolumeclaims`, `secrets`
-- `get` on `pods/log`
-- `get`, `list`, `watch` on `events`
-
-These permissions are required for Nautikalpanel to manage game server resources.
-
-## Persistence
-
-By default, the chart creates a PVC for the application. The PVC can be customized via the `persistence` values.
 
 ## Accessing Nautikalpanel
 
@@ -163,46 +173,15 @@ kubectl port-forward svc/my-nautikalpanel 8080:80
 
 Then access at http://localhost:8080
 
-### Using LoadBalancer service
-
-Update `values.yaml`:
-
-```yaml
-service:
-  type: LoadBalancer
-```
-
-Then get the external IP:
-
-```bash
-kubectl get svc my-nautikalpanel
-```
-
 ### Using Ingress
 
 Enable ingress in `values.yaml` and configure your ingress controller.
 
-## Building from source
-
-If you want to build the Docker image locally:
+### Check deployment status
 
 ```bash
-# Build the Rust application
-cargo build --release
-
-# Build the Docker image
-docker build -t nautikalpanel/nautikalpanel:local .
+kubectl rollout status deployment/my-nautikalpanel
 ```
-
-Then use the local image:
-
-```bash
-helm install my-nautikalpanel ./charts/nautikalpanel --set image.tag=local
-```
-
-## Upgrading
-
-When upgrading to a new version, always review the `values.yaml` file for any new or changed parameters.
 
 ## Troubleshooting
 
@@ -210,12 +189,6 @@ Check the pod logs:
 
 ```bash
 kubectl logs -f deployment/my-nautikalpanel
-```
-
-Check the pod status:
-
-```bash
-kubectl get pods -l app.kubernetes.io/name=nautikalpanel
 ```
 
 Describe the pod for more information:

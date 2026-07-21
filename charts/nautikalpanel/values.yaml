@@ -98,6 +98,14 @@ serviceAccount:
     enabled: true
     annotations: {}
 
+# -- RBAC configuration
+rbac:
+  # -- Use ClusterRole (true) or namespace-scoped Role (false).
+  # ClusterRole is required if Nautikalpanel manages resources in a
+  # different namespace than the one it is deployed in.
+  # RoleBinding is used when clusterScoped is false.
+  clusterScoped: true
+
 # -- Configure persistence
 persistence:
   data:
