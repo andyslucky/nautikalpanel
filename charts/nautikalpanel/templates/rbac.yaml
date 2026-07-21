@@ -1,0 +1,46 @@
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.rbac.clusterScoped }}
+kind: ClusterRole
+{{- else }}
+kind: Role
+{{- end }}
+metadata:
+  name: {{ include "bjw-s.common.lib.chart.names.fullname" . }}
+  labels:
+    {{- include "bjw-s.common.lib.metadata.allLabels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "persistentvolumeclaims", "secrets", "configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.rbac.clusterScoped }}
+kind: ClusterRoleBinding
+{{- else }}
+kind: RoleBinding
+{{- end }}
+metadata:
+  name: {{ include "bjw-s.common.lib.chart.names.fullname" . }}
+  labels:
+    {{- include "bjw-s.common.lib.metadata.allLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+{{- if .Values.rbac.clusterScoped }}
+  kind: ClusterRole
+{{- else }}
+  kind: Role
+{{- end }}
+  name: {{ include "bjw-s.common.lib.chart.names.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "bjw-s.common.lib.chart.names.fullname" . }}
+  namespace: {{ .Release.Namespace }}

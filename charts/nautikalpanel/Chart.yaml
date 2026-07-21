@@ -1,0 +1,15 @@
+apiVersion: v2
+name: nautikalpanel
+description: Helm chart for Nautikalpanel - A game server orchestration platform for Kubernetes
+type: application
+version: 0.2.2
+appVersion: "0.1.0"
+keywords:
+  - game-server
+  - orchestration
+  - kubernetes
+home: https://andyslucky.github.io/nautikalpanel/
+dependencies:
+  - name: common
+    repository: https://bjw-s-labs.github.io/helm-charts
+    version: 5.0.1
