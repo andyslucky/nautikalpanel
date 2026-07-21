@@ -104,7 +104,7 @@ rbac:
   # ClusterRole is required if Nautikalpanel manages resources in a
   # different namespace than the one it is deployed in.
   # RoleBinding is used when clusterScoped is false.
-  clusterScoped: true
+  clusterScoped: false
 
 # -- Configure persistence
 persistence:

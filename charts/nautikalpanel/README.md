@@ -58,7 +58,7 @@ The following table lists the Nautikalpanel-specific parameters.
 | `config.prometheus.pollRateSeconds` | Prometheus polling interval | `10` |
 | `githubToken.existingSecret` | Name of existing secret containing GitHub token | `""` |
 | `githubToken.existingSecretKey` | Key in the secret containing the token | `github-token` |
-| `rbac.clusterScoped` | Use `ClusterRole` (true) or namespace-scoped `Role` (false) | `true` |
+| `rbac.clusterScoped` | Use `ClusterRole` (true) or namespace-scoped `Role` (false) | `false` |
 
 ### Standard bjw-s parameters
 
@@ -89,7 +89,7 @@ rbac:
   clusterScoped: false
 ```
 
-This will create a `Role` and `RoleBinding` within the release namespace only. The app will still need access to the target namespace defined in `config.kubernetes.namespace`. If that namespace differs from the release namespace, keep `clusterScoped: true`.
+This will create a `Role` and `RoleBinding` within the release namespace only. The app will still need access to the target namespace defined in `config.kubernetes.namespace`. If that namespace differs from the release namespace, set `clusterScoped: true`.
 
 ### Permissions
 
